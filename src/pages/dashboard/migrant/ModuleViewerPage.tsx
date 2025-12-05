@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -44,7 +46,7 @@ interface UserProgress {
 
 export default function ModuleViewerPage() {
   const { trailId, moduleId } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [module, setModule] = useState<Module | null>(null);
   const [trail, setTrail] = useState<Trail | null>(null);
@@ -55,6 +57,21 @@ export default function ModuleViewerPage() {
   const [showSidebar, setShowSidebar] = useState(true);
   const isDemo = !!trailId && trailId.startsWith('demo-');
   const getDemoKey = (id: string) => `demoTrailProgress:${id}:${user?.id || 'anon'}`;
+  const getCommentsKey = (id: string) => `moduleComments:${id}`;
+  const getLastKey = (trail: string, uid?: string) => `lastModuleViewed:${trail}:${uid || 'anon'}`;
+
+  type ModuleComment = {
+    id: string;
+    user_id: string | null;
+    user_name: string;
+    avatar_url: string | null;
+    content: string;
+    created_at: string;
+  };
+
+  const [comments, setComments] = useState<ModuleComment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     if (trailId && moduleId) fetchData();
@@ -126,6 +143,54 @@ export default function ModuleViewerPage() {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!moduleId) return;
+    try {
+      const raw = localStorage.getItem(getCommentsKey(moduleId));
+      if (raw) {
+        const parsed = JSON.parse(raw) as ModuleComment[];
+        setComments(parsed);
+      } else {
+        setComments([]);
+      }
+    } catch {
+      setComments([]);
+    }
+  }, [moduleId]);
+
+  useEffect(() => {
+    if (!trailId || !moduleId || !module) return;
+    try {
+      const info = { module_id: moduleId, title: module.title };
+      localStorage.setItem(getLastKey(trailId as string, user?.id), JSON.stringify(info));
+    } catch (e) { void e; }
+  }, [trailId, moduleId, module, user]);
+
+  async function addComment() {
+    if (!newComment.trim()) return;
+    setPosting(true);
+    try {
+      const comment: ModuleComment = {
+        id: `${Date.now()}`,
+        user_id: user?.id || null,
+        user_name: profile?.name || 'Anónimo',
+        avatar_url: profile?.avatar_url || null,
+        content: newComment.trim(),
+        created_at: new Date().toISOString(),
+      };
+      const updated = [comment, ...comments];
+      setComments(updated);
+      if (moduleId) {
+        localStorage.setItem(getCommentsKey(moduleId), JSON.stringify(updated));
+      }
+      setNewComment('');
+    } catch (e) {
+      // no-op
+    } finally {
+      setPosting(false);
     }
   }
 
@@ -330,20 +395,73 @@ export default function ModuleViewerPage() {
               </div>
             )}
 
-            {/* Description Section */}
-            <div className="bg-card rounded-lg border p-6">
-              <h2 className="text-lg font-semibold mb-4">Descrição</h2>
-              {module.content_type === 'text' && module.content_text ? (
-                <div className="prose prose-slate dark:prose-invert max-w-none">
-                  <div dangerouslySetInnerHTML={{ __html: module.content_text.replace(/\n/g, '<br/>') }} />
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  {module.duration_minutes && `Duração estimada: ${module.duration_minutes} minutos`}
-                </p>
-              )}
-            </div>
+          {/* Description Section */}
+          <div className="bg-card rounded-lg border p-6">
+            <h2 className="text-lg font-semibold mb-4">Descrição</h2>
+            {module.content_type === 'text' && module.content_text ? (
+              <div className="prose prose-slate dark:prose-invert max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: module.content_text.replace(/\n/g, '<br/>') }} />
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                {module.duration_minutes && `Duração estimada: ${module.duration_minutes} minutos`}
+              </p>
+            )}
           </div>
+
+          <div className="bg-card rounded-lg border p-6 mt-6">
+            <h2 className="text-lg font-semibold mb-4">Comentários</h2>
+            <div className="flex items-start gap-3 mb-4">
+              <Avatar>
+                {profile?.avatar_url ? (
+                  <AvatarImage src={profile.avatar_url} alt={profile?.name || 'Utilizador'} />
+                ) : (
+                  <AvatarFallback>{(profile?.name || 'A').slice(0, 1)}</AvatarFallback>
+                )}
+              </Avatar>
+              <div className="flex-1">
+                <Textarea
+                  placeholder="Escreva um comentário..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="mb-2"
+                />
+                <div className="flex justify-end">
+                  <Button size="sm" onClick={addComment} disabled={posting || !newComment.trim()}>
+                    {posting ? 'A publicar...' : 'Publicar'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {comments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Ainda não há comentários. Seja o primeiro a comentar!</p>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((c) => (
+                  <div key={c.id} className="flex items-start gap-3">
+                    <Avatar>
+                      {c.avatar_url ? (
+                        <AvatarImage src={c.avatar_url} alt={c.user_name} />
+                      ) : (
+                        <AvatarFallback>{(c.user_name || 'A').slice(0, 1)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{c.user_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(c.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
           {/* Sidebar - Module List */}
           {showSidebar && (

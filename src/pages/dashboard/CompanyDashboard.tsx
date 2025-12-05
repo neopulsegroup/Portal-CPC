@@ -16,6 +16,7 @@ import {
 import CreateJobPage from './company/CreateJobPage';
 import MyJobsPage from './company/MyJobsPage';
 import JobApplicationsPage from './company/JobApplicationsPage';
+import CandidateProfilePage from './company/CandidateProfilePage';
 
 function CompanyHome() {
   const { profile } = useAuth();
@@ -159,9 +160,10 @@ function CompanyHome() {
 
           <div className="space-y-3">
             {recentCandidates.map((candidate) => (
-              <div
+              <Link
                 key={candidate.id}
-                className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                to={`/dashboard/empresa/candidatos/${candidate.id}`}
+                className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-medium">
@@ -177,7 +179,7 @@ function CompanyHome() {
                     {candidate.status}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -214,6 +216,7 @@ export default function CompanyDashboard() {
             <Route path="nova-oferta" element={<CreateJobPage />} />
             <Route path="ofertas" element={<MyJobsPage />} />
             <Route path="ofertas/:jobId/candidaturas" element={<JobApplicationsPage />} />
+            <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
           </Routes>
         </div>
       </div>

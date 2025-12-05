@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, Routes, Route } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -108,9 +108,10 @@ export default function CPCDashboard() {
 
               <div className="space-y-3">
                 {recentMigrants.map((migrant) => (
-                  <div
+                  <Link
                     key={migrant.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    to={`/dashboard/cpc/candidatos/${migrant.id}`}
+                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-medium">
@@ -130,7 +131,7 @@ export default function CPCDashboard() {
                       <span>{migrant.date}</span>
                       <ChevronRight className="h-4 w-4" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -199,7 +200,11 @@ export default function CPCDashboard() {
             </div>
           </div>
         </div>
+        <Routes>
+          <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
+        </Routes>
       </div>
     </Layout>
   );
 }
+import CandidateProfilePage from './company/CandidateProfilePage';

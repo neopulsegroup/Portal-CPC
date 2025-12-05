@@ -86,11 +86,13 @@ export default function Auth() {
         });
         toast.success('Conta criada com sucesso!');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Auth error:', error);
-      const message = error.message === 'Invalid login credentials' 
-        ? 'Email ou palavra-passe incorretos' 
-        : error.message || 'Ocorreu um erro';
+      const message = error instanceof Error
+        ? (error.message === 'Invalid login credentials' 
+            ? 'Email ou palavra-passe incorretos' 
+            : error.message)
+        : 'Ocorreu um erro';
       toast.error(message);
     } finally {
       setIsLoading(false);

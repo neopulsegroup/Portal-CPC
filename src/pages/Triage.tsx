@@ -159,10 +159,10 @@ export default function Triage() {
         const { error } = await supabase
           .from('triage')
           .update({
-            legal_status: answers.legal as any,
-            work_status: answers.work as any,
-            housing_status: answers.housing as any,
-            language_level: answers.language as any,
+            legal_status: answers.legal as string,
+            work_status: answers.work as string,
+            housing_status: answers.housing as string,
+            language_level: answers.language as string,
             interests: answers.interests as string[],
             urgencies: answers.urgencies as string[],
             completed: true,
@@ -176,10 +176,10 @@ export default function Triage() {
           .from('triage')
           .insert({
             user_id: user.id,
-            legal_status: answers.legal as any,
-            work_status: answers.work as any,
-            housing_status: answers.housing as any,
-            language_level: answers.language as any,
+            legal_status: answers.legal as string,
+            work_status: answers.work as string,
+            housing_status: answers.housing as string,
+            language_level: answers.language as string,
             interests: answers.interests as string[],
             urgencies: answers.urgencies as string[],
             completed: true,
@@ -191,7 +191,7 @@ export default function Triage() {
       await refreshProfile();
       toast.success('Triagem completa! O seu perfil foi personalizado.');
       navigate('/dashboard/migrante');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Triage error:', error);
       toast.error('Erro ao guardar triagem. Tente novamente.');
     } finally {
