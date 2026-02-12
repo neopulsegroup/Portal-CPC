@@ -15,9 +15,8 @@ export function Footer() {
           {/* Column 1: Brand */}
           <div className="space-y-4">
             <Link to="/" className="block">
-              <div className="flex items-center gap-2 mb-4">
-                <img src={logo} alt="CPC Logo" className="h-10 w-auto" />
-                <div className="bg-primary text-white text-[10px] px-1 py-0.5 font-bold rounded">CPC</div>
+              <div className="flex items-center mb-4">
+                <img src={logo} alt="CPC Logo" className="h-16 w-auto" />
               </div>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
