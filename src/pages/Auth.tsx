@@ -50,8 +50,8 @@ export default function Auth() {
   }, [isAuthenticated, profile, triage, authLoading, navigate]);
 
   const roles = [
-    { id: 'migrant' as UserRole, label: t.auth.roles.migrant, icon: User, description: 'Pessoa em busca de integração' },
-    { id: 'company' as UserRole, label: t.auth.roles.company, icon: Building2, description: 'Empresa ou empregador' },
+    { id: 'migrant' as UserRole, label: t.auth.roles.migrant, icon: User, description: t.auth.roles.migrantDesc },
+    { id: 'company' as UserRole, label: t.auth.roles.company, icon: Building2, description: t.auth.roles.companyDesc },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,20 +61,20 @@ export default function Auth() {
     try {
       if (mode === 'login') {
         await login(formData.email, formData.password);
-        toast.success('Bem-vindo(a) de volta!');
+        toast.success(t.auth.welcomeBack);
       } else {
         if (!selectedRole) {
-          toast.error('Por favor selecione o seu perfil');
+          toast.error(t.auth.selectProfileError);
           setIsLoading(false);
           return;
         }
         if (formData.password !== formData.confirmPassword) {
-          toast.error('As palavras-passe não coincidem');
+          toast.error(t.auth.passwordMismatch);
           setIsLoading(false);
           return;
         }
         if (formData.password.length < 6) {
-          toast.error('A palavra-passe deve ter pelo menos 6 caracteres');
+          toast.error(t.auth.passwordLengthError);
           setIsLoading(false);
           return;
         }
@@ -84,15 +84,15 @@ export default function Auth() {
           name: formData.name,
           role: selectedRole,
         });
-        toast.success('Conta criada com sucesso!');
+        toast.success(t.auth.accountCreated);
       }
     } catch (error: unknown) {
       console.error('Auth error:', error);
       const message = error instanceof Error
-        ? (error.message === 'Invalid login credentials' 
-            ? 'Email ou palavra-passe incorretos' 
-            : error.message)
-        : 'Ocorreu um erro';
+        ? (error.message === 'Invalid login credentials'
+          ? t.auth.loginError || 'Email ou palavra-passe incorretos'
+          : error.message)
+        : t.common.error;
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -119,7 +119,7 @@ export default function Auth() {
               <img src={logo} alt="CPC" className="h-12 mx-auto mb-6" />
               <h1 className="text-2xl font-bold mb-2">{t.auth.selectRole}</h1>
               <p className="text-muted-foreground">
-                Escolha o tipo de conta que melhor se adequa a si
+                {t.auth.subtitleAccountSelection}
               </p>
             </div>
 
@@ -166,7 +166,7 @@ export default function Auth() {
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
             >
               <ArrowLeft className="h-4 w-4" />
-              Voltar à seleção de perfil
+              {t.auth.backToSelection}
             </button>
           )}
 
@@ -178,7 +178,7 @@ export default function Auth() {
               </h1>
               {mode === 'register' && selectedRole && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  Registar como: <span className="font-medium text-primary">
+                  {t.auth.registerAs} <span className="font-medium text-primary">
                     {roles.find(r => r.id === selectedRole)?.label}
                   </span>
                 </p>
@@ -189,14 +189,14 @@ export default function Auth() {
               {mode === 'register' && (
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    {selectedRole === 'company' ? 'Nome da Empresa' : 'Nome Completo'}
+                    {selectedRole === 'company' ? t.auth.companyName : t.auth.fullName}
                   </Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    placeholder={selectedRole === 'company' ? 'A sua empresa' : 'O seu nome'}
+                    placeholder={selectedRole === 'company' ? t.auth.placeholderCompany : t.auth.placeholderName}
                   />
                 </div>
               )}

@@ -85,7 +85,7 @@ export default function HowItWorks() {
                       <h3 className="text-xl font-bold">{step.title}</h3>
                     </div>
                     <p className="text-muted-foreground mb-6">{step.description}</p>
-                    
+
                     <ul className="grid sm:grid-cols-2 gap-3">
                       {step.details.map((detail) => (
                         <li key={detail} className="flex items-center gap-2 text-sm">
@@ -106,10 +106,10 @@ export default function HowItWorks() {
       <section className="cpc-section bg-muted/30">
         <div className="cpc-container text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">
-            Pronto para iniciar o seu percurso?
+            {t.howItWorks.ctaTitle}
           </h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Registe-se gratuitamente e comece hoje a sua jornada de integração.
+            {t.howItWorks.ctaSubtitle}
           </p>
           <Button size="lg" asChild>
             <Link to="/registar">

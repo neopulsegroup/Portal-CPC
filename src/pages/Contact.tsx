@@ -16,10 +16,10 @@ export default function Contact() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Simulate submission
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    
+
     setIsSubmitting(false);
     setSubmitted(true);
     toast.success(t.contact.form.success);
@@ -32,20 +32,7 @@ export default function Contact() {
     { icon: Clock, label: t.contact.info.hours, value: 'Seg-Sex: 9h-18h' },
   ];
 
-  const faqs = [
-    {
-      q: 'O serviço é gratuito?',
-      a: 'Sim, todos os serviços do CPC são completamente gratuitos para pessoas migrantes.',
-    },
-    {
-      q: 'Preciso de documentos para me registar?',
-      a: 'Não é necessário apresentar documentos para criar conta. A documentação será solicitada conforme necessário durante o processo.',
-    },
-    {
-      q: 'Em que línguas posso receber apoio?',
-      a: 'Oferecemos apoio em português, inglês, e outras línguas através de mediadores culturais.',
-    },
-  ];
+  const faqs = t.contact.faqs;
 
   return (
     <Layout>
@@ -68,23 +55,23 @@ export default function Contact() {
                   <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4">
                     <CheckCircle className="h-8 w-8" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Mensagem Enviada!</h3>
+                  <h3 className="text-xl font-semibold mb-2">{t.contact.form.sent}</h3>
                   <p className="text-muted-foreground">
-                    Entraremos em contacto em breve.
+                    {t.contact.form.sentSubtitle}
                   </p>
                   <Button className="mt-6" onClick={() => setSubmitted(false)}>
-                    Enviar outra mensagem
+                    {t.contact.form.sendAnother}
                   </Button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="name">{t.contact.form.name}</Label>
-                    <Input id="name" required placeholder="O seu nome" />
+                    <Input id="name" required placeholder={t.contact.form.placeholderName} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">{t.contact.form.email}</Label>
-                    <Input id="email" type="email" required placeholder="exemplo@email.com" />
+                    <Input id="email" type="email" required placeholder={t.contact.form.placeholderEmail} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">{t.contact.form.message}</Label>
@@ -92,7 +79,7 @@ export default function Contact() {
                       id="message"
                       required
                       rows={5}
-                      placeholder="Como podemos ajudar?"
+                      placeholder={t.contact.form.placeholderMessage}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -137,7 +124,7 @@ export default function Contact() {
       {/* FAQ */}
       <section className="cpc-section bg-muted/30">
         <div className="cpc-container">
-          <h2 className="text-2xl font-bold text-center mb-8">Perguntas Frequentes</h2>
+          <h2 className="text-2xl font-bold text-center mb-8">{t.contact.faqTitle}</h2>
           <div className="max-w-2xl mx-auto space-y-4">
             {faqs.map((faq) => (
               <div key={faq.q} className="cpc-card p-6">

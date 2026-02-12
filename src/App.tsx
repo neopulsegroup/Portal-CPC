@@ -36,34 +36,34 @@ function LoadingScreen() {
 // Protected Route Component
 function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
   const { isAuthenticated, profile, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return <LoadingScreen />;
   }
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/entrar" replace />;
   }
-  
+
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 // Triage Guard
 function TriageGuard({ children }: { children: React.ReactNode }) {
   const { profile, triage, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return <LoadingScreen />;
   }
-  
+
   if (profile?.role === 'migrant' && !triage?.completed) {
     return <Navigate to="/triagem" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -77,10 +77,16 @@ function AppRoutes() {
       <Route path="/contacto" element={<Contact />} />
       <Route path="/entrar" element={<Auth />} />
       <Route path="/registar" element={<Auth />} />
+      <Route path="/ajuda" element={<NotFound />} />
+      <Route path="/termos" element={<NotFound />} />
+      <Route path="/privacidade" element={<NotFound />} />
+      <Route path="/cookies" element={<NotFound />} />
+      <Route path="/trails" element={<NotFound />} />
+      <Route path="/precos" element={<NotFound />} />
       {import.meta.env.DEV && (
         <Route path="/dev/criar-usuarios" element={<CreateTestUsersDev />} />
       )}
-      
+
       {/* Triage */}
       <Route
         path="/triagem"
@@ -90,7 +96,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       {/* Migrant Dashboard */}
       <Route
         path="/dashboard/migrante/*"
@@ -102,7 +108,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       {/* CPC Dashboard */}
       <Route
         path="/dashboard/cpc/*"
@@ -128,7 +134,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       {/* Company Dashboard */}
       <Route
         path="/dashboard/empresa/*"
@@ -138,7 +144,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -4,7 +4,7 @@ import { Language, translations, Translations } from '@/lib/i18n';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: Translations;
+  t: Translations & { get: (path: string) => string };
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -20,10 +20,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('cpc-language', lang);
   }, []);
 
-  const t = translations[language];
+  const get = useCallback((path: string): string => {
+    const keys = path.split('.');
+    let current: any = translations[language];
+    for (const key of keys) {
+      if (current && typeof current === 'object' && key in current) {
+        current = current[key];
+      } else {
+        return path;
+      }
+    }
+    return typeof current === 'string' ? current : path;
+  }, [language]);
+
+  const t = {
+    ...translations[language],
+    get
+  };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t } as LanguageContextType}>
       {children}
     </LanguageContext.Provider>
   );

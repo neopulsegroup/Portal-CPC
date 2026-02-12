@@ -35,8 +35,7 @@ export default function About() {
 
             <div className="cpc-card p-8 bg-accent/30 border-none">
               <p className="text-lg text-center italic text-muted-foreground">
-                "O CPC nasceu da necessidade de criar pontes entre pessoas migrantes e o mercado de trabalho português, 
-                oferecendo um percurso completo de capacitação, apoio e integração."
+                "{t.about.missionQuote}"
               </p>
             </div>
           </div>
@@ -64,7 +63,7 @@ export default function About() {
       {/* Areas */}
       <section className="cpc-section">
         <div className="cpc-container">
-          <h2 className="text-3xl font-bold text-center mb-12">Áreas de Atuação</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">{t.about.areas}</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="cpc-card p-6">
               <h3 className="text-xl font-semibold mb-3 text-primary">Lisboa e Vale do Tejo</h3>

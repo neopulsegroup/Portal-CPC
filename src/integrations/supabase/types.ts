@@ -310,6 +310,7 @@ export type Database = {
       }
       triage: {
         Row: {
+          answers: Json | null
           completed: boolean | null
           completed_at: string | null
           created_at: string
@@ -324,6 +325,7 @@ export type Database = {
           work_status: Database["public"]["Enums"]["work_status"] | null
         }
         Insert: {
+          answers?: Json | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string
@@ -338,6 +340,7 @@ export type Database = {
           work_status?: Database["public"]["Enums"]["work_status"] | null
         }
         Update: {
+          answers?: Json | null
           completed?: boolean | null
           completed_at?: string | null
           created_at?: string

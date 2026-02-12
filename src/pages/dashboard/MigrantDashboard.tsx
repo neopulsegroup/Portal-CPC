@@ -14,15 +14,21 @@ import {
   ChevronRight,
   Clock,
   ArrowRight,
+  ArrowLeft,
   Bell,
   AlertTriangle,
+  AlertCircle,
   MessageCircle,
+  MessageSquare,
   FileText,
   Settings,
   ClipboardList,
   ShieldCheck,
   CheckCircle,
+  Search,
+  ListChecks,
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -109,14 +115,14 @@ function MigrantHome() {
   }, [user]);
 
   const upcomingSessions = useMemo(() => {
-    const now = new Date().toISOString().slice(0,10);
-    return sessions.filter(s => s.scheduled_date >= now).sort((a,b) => a.scheduled_date.localeCompare(b.scheduled_date));
+    const now = new Date().toISOString().slice(0, 10);
+    return sessions.filter(s => s.scheduled_date >= now).sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
   }, [sessions]);
 
   const trailsProgressAvg = useMemo(() => {
     const values = progress.map(p => p.progress_percent || 0);
     if (values.length === 0) return 0;
-    return Math.round(values.reduce((a,b)=>a+b,0) / values.length);
+    return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   }, [progress]);
 
   const sessionsProgress = useMemo(() => {
@@ -134,20 +140,30 @@ function MigrantHome() {
 
   const overallProgress = useMemo(() => {
     const parts = [trailsProgressAvg, sessionsProgress, profileCompleteness];
-    return Math.round(parts.reduce((a,b)=>a+b,0) / parts.length);
+    return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
   }, [trailsProgressAvg, sessionsProgress, profileCompleteness]);
 
   const suggestedActions = useMemo(() => {
     const actions: Array<{ label: string; href: string }> = [];
-    if (!extras?.professionalExperience || !extras?.professionalTitle) actions.push({ label: 'Completar CV', href: '/dashboard/migrante/perfil' });
-    if (progress.length === 0) actions.push({ label: 'Iniciar trilha formativa', href: '/dashboard/migrante/trilhas' });
-    if (upcomingSessions.length === 0) actions.push({ label: 'Marcar sessão', href: '#' });
+    if (!extras?.professionalExperience || !extras?.professionalTitle) actions.push({ label: t.dashboard.complete_cv_action, href: '/dashboard/migrante/perfil' });
+    if (progress.length === 0) actions.push({ label: t.dashboard.start_trail_action, href: '/dashboard/migrante/trilhas' });
+    if (upcomingSessions.length === 0) actions.push({ label: t.dashboard.book_session_action, href: '#' });
     return actions;
   }, [extras, progress, upcomingSessions.length]);
 
   async function bookSession() {
     if (!user || !bookDate || !bookTime) return;
-    await supabase.from('sessions').insert({ migrant_id: user.id, session_type: bookType, scheduled_date: bookDate, scheduled_time: bookTime, status: 'Agendada' });
+    const { data: newSessionData, error } = await supabase
+      .from('sessions')
+      .insert({
+        migrant_id: user.id,
+        session_type: bookType,
+        scheduled_date: bookDate,
+        scheduled_time: bookTime,
+        status: 'pending' // Corrected from 'Agendada'
+      })
+      .select()
+      .single();
     setBookOpen(false);
     const { data } = await supabase.from('sessions').select('id, session_type, scheduled_date, scheduled_time, status').eq('migrant_id', user.id);
     setSessions(data || []);
@@ -202,8 +218,8 @@ function MigrantHome() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold">Bem-vindo(a), {profile?.name}!</h1>
-        <p className="text-muted-foreground mt-1">Resumo personalizado da sua integração</p>
+        <h1 className="text-2xl md:text-3xl font-bold">{t.dashboard.welcome}, {profile?.name}!</h1>
+        <p className="text-muted-foreground mt-1">{t.dashboard.overview_desc}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -222,99 +238,119 @@ function MigrantHome() {
         ))}
       </div>
 
-      <div className="grid xl:grid-cols-3 gap-6">
+      <div className="grid xl:grid-cols-3 gap-6 mb-8">
+        {/* Left Column (Main Content) */}
         <div className="xl:col-span-2 space-y-6">
+          {/* Overview Card */}
           <div className="cpc-card p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Visão Geral</h2>
+              <h2 className="font-semibold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />{t.dashboard.overview}</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Perfil de necessidades</p>
+                <p className="text-sm text-muted-foreground">{t.dashboard.needs_profile}</p>
                 <div className="mt-2 text-sm">
-                  <span className="font-medium">Urgências:</span> {(triage?.urgencies || []).join(', ') || '—'}
+                  <span className="font-medium">{t.dashboard.urgencies}:</span> {(triage?.urgencies || []).join(', ') || '—'}
                 </div>
                 <div className="mt-1 text-sm">
-                  <span className="font-medium">Interesses:</span> {(triage?.interests || []).join(', ') || '—'}
+                  <span className="font-medium">{t.dashboard.interests}:</span> {(triage?.interests || []).join(', ') || '—'}
                 </div>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Progresso Geral</p>
-                <div className="mt-2">
+                <p className="text-sm text-muted-foreground">{t.dashboard.overall_progress}</p>
+                <div className="mt-2 text-sm">
                   <Progress value={overallProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-2">Trilhas {trailsProgressAvg}% • Sessões {sessionsProgress}% • Perfil {profileCompleteness}%</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t.dashboard.trails}: {trailsProgressAvg}% • {t.dashboard.sessions}: {sessionsProgress}% • {t.dashboard.profile}: {profileCompleteness}%
+                  </p>
                 </div>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {suggestedActions.map(a => (
-                <Link key={a.label} to={a.href} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><ClipboardList className="h-4 w-4" />{a.label}</Link>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => setBookOpen(true)}><Calendar className="h-4 w-4 mr-2" />Marcar sessão</Button>
-            </div>
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold flex items-center gap-2"><Bell className="h-4 w-4" /> Notificações importantes</h3>
-              {notifications.length > 0 ? (
-                <div className="space-y-3 mt-2">
-                  {notifications.slice(0,4).map(n => (
-                    <div key={n.id} className="p-3 rounded-lg bg-muted/50 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{n.title}</p>
-                        <p className="text-xs text-muted-foreground">{n.body}</p>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{new Date(n.date).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-2">Sem notificações</p>
-              )}
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Button variant="outline" size="sm"><FileText className="h-4 w-4 mr-2" />{t.dashboard.complete_cv_action}</Button>
+              <Button variant="outline" size="sm"><ListChecks className="h-4 w-4 mr-2" />{t.dashboard.start_trail_action}</Button>
+              <Button variant="default" size="sm" onClick={() => setBookOpen(true)}><Calendar className="h-4 w-4 mr-2" />{t.dashboard.book_session_action}</Button>
             </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="cpc-card p-6">
-              <div className="flex items-center justify-between mb-4"><h2 className="font-semibold flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" /> Agendamentos</h2><Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">Ver todas</Link></div>
-              {upcomingSessions.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingSessions.slice(0,4).map(s => (
-                    <div key={s.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Clock className="h-5 w-5" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">{s.session_type}</p><p className="text-xs text-muted-foreground">{new Date(s.scheduled_date).toLocaleDateString()} • {s.scheduled_time}</p></div>
-                      <span className="text-xs text-muted-foreground">{s.status || 'Agendada'}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">Sem sessões futuras</div>
-              )}
-              <div className="mt-3"><Button variant="outline" size="sm" onClick={() => setBookOpen(true)}>Marcar sessão</Button></div>
-            </div>
-            <div className="cpc-card p-6">
-              <div className="flex items-center justify-between mb-4"><h2 className="font-semibold flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /> Trilhas Formativas</h2><Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline">Ver todas</Link></div>
-              {progress.length > 0 ? (
-                <div className="space-y-3">
-                  {progress.slice(0,4).map(p => (
-                    <div key={p.trail_id} className="p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center justify-between mb-1"><p className="text-sm font-medium">{trails[p.trail_id]?.title || p.trail_id}</p><span className="text-xs text-muted-foreground">{p.modules_completed || 0}/{trails[p.trail_id]?.modules_count || 0} módulos</span></div>
-                      <Progress value={p.progress_percent || 0} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">Sem trilhas iniciadas</div>
-              )}
-              <div className="mt-3"><Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline inline-flex items-center"><ArrowRight className="h-4 w-4 mr-1" /> Explorar trilhas</Link></div>
-            </div>
+            {/* Sessions Card */}
+            <Card className="p-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <h3 className="font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> {t.dashboard.upcomingSessions}</h3>
+                <Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
+              </CardHeader>
+              <CardContent>
+                {upcomingSessions.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingSessions.slice(0, 4).map(s => (
+                      <div key={s.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><Clock className="h-5 w-5" /></div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{s.session_type}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(s.scheduled_date).toLocaleDateString()} • {s.scheduled_time}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{s.status || t.dashboard.status_scheduled}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground mb-4">{t.dashboard.no_sessions}</div>
+                )}
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setBookOpen(true)}>{t.dashboard.book_session_action}</Button>
+              </CardContent>
+            </Card>
+
+            {/* Trails Card */}
+            <Card className="p-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <h3 className="font-semibold flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> {t.dashboard.training_trails}</h3>
+                <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
+              </CardHeader>
+              <CardContent>
+                {progress.length > 0 ? (
+                  <div className="space-y-3">
+                    {progress.slice(0, 4).map(p => (
+                      <div key={p.trail_id} className="p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium">{trails[p.trail_id]?.title || p.trail_id}</p>
+                          <span className="text-xs text-muted-foreground">{p.modules_completed || 0}/{trails[p.trail_id]?.modules_count || 0}</span>
+                        </div>
+                        <Progress value={p.progress_percent || 0} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground mb-4">{t.dashboard.no_trails}</div>
+                )}
+                <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline inline-flex items-center">
+                  <ArrowRight className="h-4 w-4 mr-1" /> {t.dashboard.startTrail}
+                </Link>
+              </CardContent>
+            </Card>
           </div>
 
+          {/* Employment Card */}
           <div className="cpc-card p-6">
-            <div className="flex items-center justify-between mb-4"><h2 className="font-semibold flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> Área de Emprego</h2><Link to="/dashboard/migrante/emprego" className="text-sm text-primary hover:underline">Ver todas</Link></div>
-            <div className="flex flex-wrap gap-2"><Link to="/dashboard/migrante/perfil" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><FileText className="h-4 w-4" />Criar/editar CV</Link><Link to="/dashboard/migrante/emprego" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Briefcase className="h-4 w-4" />Ver vagas</Link></div>
-            <div className="grid md:grid-cols-2 gap-3 mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> {t.dashboard.employment_area}</h2>
+              <Link to="/dashboard/migrante/emprego" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Link to="/dashboard/migrante/perfil" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted">
+                <FileText className="h-4 w-4" />{t.dashboard.completeCv}
+              </Link>
+              <Link to="/dashboard/migrante/emprego" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted">
+                <Briefcase className="h-4 w-4" />{t.dashboard.view_vacancies}
+              </Link>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
               {[{ id: '1', title: 'Auxiliar de Limpeza', company: 'CleanPro', location: 'Lisboa' }, { id: '2', title: 'Operador de Armazém', company: 'LogiTech', location: 'Sintra' }].map(job => (
                 <Link key={job.id} to="/dashboard/migrante/emprego" className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted">
-                  <div><p className="text-sm font-medium">{job.title}</p><p className="text-xs text-muted-foreground">{job.company} • {job.location}</p></div>
+                  <div>
+                    <p className="text-sm font-medium">{job.title}</p>
+                    <p className="text-xs text-muted-foreground">{job.company} • {job.location}</p>
+                  </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
               ))}
@@ -322,49 +358,112 @@ function MigrantHome() {
           </div>
         </div>
 
+        {/* Right Column (Sidebar) */}
         <div className="space-y-6">
-          <div className="cpc-card p-6">
-            <h2 className="font-semibold mb-4">Solicitação de Apoio</h2>
-            <p className="text-sm text-muted-foreground">Crie um pedido urgente para necessidades imediatas</p>
-            <div className="mt-3"><Button variant="outline" size="sm" onClick={() => setUrgentOpen(true)}><AlertTriangle className="h-4 w-4 mr-2" />Novo pedido urgente</Button></div>
-          </div>
-          <div className="cpc-card p-6">
-            <h2 className="font-semibold mb-4">Comunicação</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2"><MessageCircle className="h-4 w-4" /><span className="text-sm">Mensagens com a equipa CPC</span></div>
-              <div className="flex items-center gap-2">
-                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Escrever mensagem" />
-                <Button onClick={sendChat}>Enviar</Button>
+          {/* Notifications */}
+          <Card className="p-0">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold flex items-center gap-2"><Bell className="h-4 w-4" />{t.dashboard.notifications}</h3>
+            </CardHeader>
+            <CardContent>
+              {notifications.length > 0 ? (
+                <div className="space-y-3">
+                  {notifications.slice(0, 4).map(n => (
+                    <div key={n.id} className="p-3 rounded-lg bg-muted/50 flex flex-col gap-1">
+                      <p className="font-medium text-sm">{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{n.body}</p>
+                      <span className="text-[10px] text-muted-foreground mt-1">{new Date(n.date).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t.dashboard.no_notifications}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Urgent Request */}
+          <Card className="border-primary/20 bg-primary/5 p-0">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold flex items-center gap-2">{t.dashboard.support_request}</h3>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                {t.dashboard.support_desc}
+              </p>
+              <Button className="w-full flex items-center justify-center gap-2" variant="outline" onClick={() => setUrgentOpen(true)}>
+                <AlertCircle className="h-4 w-4 text-primary" />
+                {t.dashboard.new_support_request}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Communication */}
+          <Card className="p-0">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold flex items-center gap-2">{t.dashboard.communication}</h3>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MessageSquare className="h-4 w-4 text-primary" />
+                {t.dashboard.chat_prompt}
               </div>
-              <div className="space-y-2">
-                {chatMessages.slice(0,5).map(m => (
-                  <div key={m.id} className="p-2 rounded-md bg-muted/50 text-sm flex items-center justify-between"><span>{m.text}</span><span className="text-[10px] text-muted-foreground">{new Date(m.date).toLocaleString()}</span></div>
+              <div className="flex gap-2">
+                <Input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder={t.dashboard.write_message} className="flex-1" />
+                <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={sendChat}>{t.dashboard.send}</Button>
+              </div>
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                {chatMessages.slice(0, 5).map(m => (
+                  <div key={m.id} className={`p-2 rounded-lg text-xs ${m.from === 'migrante' ? 'bg-primary/10 ml-4' : 'bg-muted mr-4'}`}>
+                    {m.text}
+                  </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Statistics/History Card */}
+        <div className="cpc-card p-6">
+          <h2 className="font-semibold mb-4">{t.dashboard.history_reports}</h2>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-md bg-muted/50">
+              <p className="text-muted-foreground mb-1">{t.dashboard.sessions_done}</p>
+              <p className="font-semibold text-sm">{sessions.filter(s => s.status === 'completed' || s.status === t.dashboard.status_concluded).length}</p>
+            </div>
+            <div className="p-3 rounded-md bg-muted/50">
+              <p className="text-muted-foreground mb-1">{t.dashboard.modules_done}</p>
+              <p className="font-semibold text-sm">{progress.reduce((a, b) => a + (b.modules_completed || 0), 0)}</p>
+            </div>
+            <div className="p-3 rounded-md bg-muted/50">
+              <p className="text-muted-foreground mb-1">{t.dashboard.applications}</p>
+              <p className="font-semibold text-sm">—</p>
+            </div>
+            <div className="p-3 rounded-md bg-muted/50">
+              <p className="text-muted-foreground mb-1">{t.dashboard.progress_report}</p>
+              <p className="font-semibold text-sm">{overallProgress}%</p>
             </div>
           </div>
-          <div className="cpc-card p-6">
-            <h2 className="font-semibold mb-4">Histórico & Relatórios</h2>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="p-3 rounded-md bg-muted/50"><p className="font-medium">Sessões realizadas</p><p className="text-muted-foreground">{sessions.filter(s => (s.status || '') === 'Concluída').length}</p></div>
-              <div className="p-3 rounded-md bg-muted/50"><p className="font-medium">Módulos concluídos</p><p className="text-muted-foreground">{progress.reduce((a,b)=>a+(b.modules_completed||0),0)}</p></div>
-              <div className="p-3 rounded-md bg-muted/50"><p className="font-medium">Candidaturas</p><p className="text-muted-foreground">—</p></div>
-              <div className="p-3 rounded-md bg-muted/50"><p className="font-medium">Relatório de progresso</p><p className="text-muted-foreground">{overallProgress}%</p></div>
+        </div>
+
+        {/* Settings Card */}
+        <div className="cpc-card p-6">
+          <h2 className="font-semibold mb-4">{t.dashboard.settings}</h2>
+          <div className="space-y-4 text-sm">
+            <div>
+              <Label className="text-xs">{t.dashboard.language}</Label>
+              <Select value={localStorage.getItem('cpc-language') || 'pt'} onValueChange={(v) => { localStorage.setItem('cpc-language', v); location.reload(); }}>
+                <SelectTrigger className="mt-1 h-8"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pt">Português</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="es">Español</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-          <div className="cpc-card p-6">
-            <h2 className="font-semibold mb-4">Configurações</h2>
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <div>
-                <Label>Idioma</Label>
-                <div className="mt-1">
-                  <Select value={localStorage.getItem('cpc-language') || 'pt'} onValueChange={(v) => { localStorage.setItem('cpc-language', v); location.reload(); }}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="pt">Português</SelectItem><SelectItem value="en">English</SelectItem></SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <label className="flex items-center gap-2"><Checkbox checked={accessibility} onCheckedChange={(c) => setAccessibility(!!c)} /> Modo de acessibilidade (alto contraste)</label>
+            <div className="flex items-center gap-2">
+              <Checkbox id="accessibility" checked={accessibility} onCheckedChange={(c) => setAccessibility(!!c)} />
+              <Label htmlFor="accessibility" className="text-xs cursor-pointer">{t.dashboard.accessibility_mode}</Label>
             </div>
           </div>
         </div>
@@ -372,10 +471,10 @@ function MigrantHome() {
 
       <Dialog open={bookOpen} onOpenChange={setBookOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Marcar sessão</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t.dashboard.book_session_action}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <Label>Tipo</Label>
+              <Label>{t.dashboard.type}</Label>
               <Select value={bookType} onValueChange={(v) => setBookType(v as typeof bookType)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -386,24 +485,24 @@ function MigrantHome() {
               </Select>
             </div>
             <div>
-              <Label>Data</Label>
+              <Label>{t.dashboard.date}</Label>
               <Input type="date" value={bookDate} onChange={(e) => setBookDate(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label>Hora</Label>
+              <Label>{t.dashboard.time}</Label>
               <Input type="time" value={bookTime} onChange={(e) => setBookTime(e.target.value)} className="mt-1" />
             </div>
           </div>
-          <DialogFooter><Button onClick={bookSession}>Confirmar</Button></DialogFooter>
+          <DialogFooter><Button onClick={bookSession}>{t.dashboard.confirm}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={urgentOpen} onOpenChange={setUrgentOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Novo pedido urgente</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t.dashboard.new_support_request}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <Label>Tipo</Label>
+              <Label>{t.dashboard.type}</Label>
               <Select value={urgentType} onValueChange={(v) => setUrgentType(v as typeof urgentType)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -415,11 +514,11 @@ function MigrantHome() {
               </Select>
             </div>
             <div className="md:col-span-2">
-              <Label>Descrição</Label>
+              <Label>{t.dashboard.description}</Label>
               <Textarea value={urgentDesc} onChange={(e) => setUrgentDesc(e.target.value)} className="mt-1" />
             </div>
           </div>
-          <DialogFooter><Button onClick={addUrgentRequest}>Submeter</Button></DialogFooter>
+          <DialogFooter><Button onClick={addUrgentRequest}>{t.dashboard.submit}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>
