@@ -1,9 +1,17 @@
+<<<<<<< HEAD
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+<<<<<<< HEAD
+=======
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
 @layer base {
   :root {
     --background: 210 20% 98%;

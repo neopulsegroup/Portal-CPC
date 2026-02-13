@@ -163,6 +163,7 @@ export function Header() {
                   </Button>
                 </div>
               )}
+<<<<<<< HEAD
               {isAuthenticated && (
                 <div className="mt-4 pt-4 border-t border-border">
                   <Button
@@ -178,6 +179,8 @@ export function Header() {
                   </Button>
                 </div>
               )}
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
             </nav>
           </div>
         )}

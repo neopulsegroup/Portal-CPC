@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [triage, setTriage] = useState<TriageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+<<<<<<< HEAD
   const fetchProfile = useCallback(async (userId: string, retries = 3, delay = 1000) => {
     try {
       const { data, error } = await supabase
@@ -104,6 +105,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('Unexpected error in fetchProfile:', err);
+=======
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (data && !error) {
+      setProfile(data as Profile);
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
     }
   }, []);
 
@@ -130,7 +142,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const initializeAuth = async () => {
+<<<<<<< HEAD
       const timeout = 10000; // Increased timeout to 10s
+=======
+      const timeout = 3000; // 3 seconds timeout
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Auth timeout')), timeout)
       );
@@ -228,7 +244,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: data.email,
       password: data.password,
       options: {
+<<<<<<< HEAD
         emailRedirectTo: `${window.location.origin}/auth/callback`, // Better practice for Supabase Auth
+=======
+        emailRedirectTo: redirectUrl,
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
         data: {
           name: data.name,
           role: data.role,

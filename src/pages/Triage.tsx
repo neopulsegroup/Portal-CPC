@@ -461,7 +461,11 @@ export default function Triage() {
         baseData.legal_status = ['regularized', 'pending', 'not_regularized', 'refugee'].includes(answers.legal_status) ? answers.legal_status : null;
         baseData.language_level = ['native', 'advanced', 'intermediate', 'basic', 'none'].includes(answers.language_level) ? answers.language_level : null;
         baseData.housing_status = ['stable', 'temporary', 'precarious', 'homeless'].includes(answers.housing_status) ? answers.housing_status : null;
+<<<<<<< HEAD
         baseData.work_status = ['employed', 'unemployed_seeking', 'student'].includes(answers.work_status) ? answers.work_status : null;
+=======
+        baseData.work_status = ['employed', 'unemployed_seeking', 'student', 'other'].includes(answers.work_status) ? answers.work_status : null;
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
         baseData.urgencies = answers.identified_needs || [];
       } else {
         baseData.urgencies = answers.desired_support || [];
@@ -471,6 +475,7 @@ export default function Triage() {
         }
       }
       baseData.interests = answers.professional_interests || [];
+<<<<<<< HEAD
       // education_level removed as column does not exist in DB yet. Stored in answers JSON.
 
 
@@ -478,15 +483,27 @@ export default function Triage() {
 
       // Check existing
       console.log('Checking existing triage...');
+=======
+      baseData.education_level = answers.education_level || null;
+
+
+      // Check existing
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       const { data: existing } = await supabase.from('triage').select('id').eq('user_id', user.id).maybeSingle();
 
       let error;
       if (existing) {
+<<<<<<< HEAD
         console.log('Updating existing triage...');
         const { error: updateError } = await supabase.from('triage').update({ ...baseData, answers: answers }).eq('user_id', user.id);
         error = updateError;
       } else {
         console.log('Inserting new triage...');
+=======
+        const { error: updateError } = await supabase.from('triage').update({ ...baseData, answers: answers }).eq('user_id', user.id);
+        error = updateError;
+      } else {
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
         const { error: insertError } = await supabase.from('triage').insert({ ...baseData, answers: answers });
         error = insertError;
       }
@@ -496,20 +513,30 @@ export default function Triage() {
         // If 'answers' column causes an error (e.g., schema mismatch or type issue), try saving without it.
         // This assumes 'answers' is a JSONB column and might be problematic if not configured correctly or if the payload is too large.
         if (existing) {
+<<<<<<< HEAD
           console.log('Retry update without answers...');
           const { error: updateError2 } = await supabase.from('triage').update(baseData).eq('user_id', user.id);
           if (updateError2) throw updateError2;
         } else {
           console.log('Retry insert without answers...');
+=======
+          const { error: updateError2 } = await supabase.from('triage').update(baseData).eq('user_id', user.id);
+          if (updateError2) throw updateError2;
+        } else {
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
           const { error: insertError2 } = await supabase.from('triage').insert(baseData);
           if (insertError2) throw insertError2;
         }
       }
 
+<<<<<<< HEAD
       console.log('Triage saved successfully. Refreshing profile...');
       await refreshProfile();
       console.log('Profile refreshed. Navigating...');
 
+=======
+      await refreshProfile();
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       toast.success(t.triage.success);
       navigate('/dashboard/migrante');
     } catch (err: any) {
@@ -520,7 +547,11 @@ export default function Triage() {
     }
   };
 
+<<<<<<< HEAD
   if (!currentStep) return <div className="p-8 text-center flex flex-col items-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /><p>Carregando Triagem...</p></div>;
+=======
+  if (!currentStep) return <div className="p-8 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto" /></div>;
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
 
   return (
     <Layout hideFooter>
@@ -565,7 +596,11 @@ export default function Triage() {
 
                   {question.type === 'radio' && question.options && (
                     <RadioGroup
+<<<<<<< HEAD
                       value={answers[question.id] || ""}
+=======
+                      value={answers[question.id]}
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
                       onValueChange={(val) => updateAnswer(question.id, val)}
                       className="space-y-2"
                     >

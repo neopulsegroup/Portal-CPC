@@ -21,7 +21,10 @@ import NotFound from "./pages/NotFound";
 import CreateTestUsersDev from "./pages/dev/CreateTestUsers";
 import TrailsAdminPage from "./pages/dashboard/cpc/TrailsAdminPage";
 import TrailEditorPage from "./pages/dashboard/cpc/TrailEditorPage";
+<<<<<<< HEAD
 import ConnectionTest from "./pages/ConnectionTest";
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
 
 const queryClient = new QueryClient();
 
@@ -30,7 +33,10 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
+<<<<<<< HEAD
       <span className="ml-2">Carregando (App)...</span>
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
     </div>
   );
 }
@@ -147,9 +153,12 @@ function AppRoutes() {
         }
       />
 
+<<<<<<< HEAD
       {/* Diagnostics */}
       <Route path="/test-connection" element={<ConnectionTest />} />
 
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>

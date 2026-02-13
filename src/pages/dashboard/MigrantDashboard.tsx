@@ -27,7 +27,10 @@ import {
   CheckCircle,
   Search,
   ListChecks,
+<<<<<<< HEAD
   LogOut,
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -467,6 +470,7 @@ function MigrantHome() {
               <Label htmlFor="accessibility" className="text-xs cursor-pointer">{t.dashboard.accessibility_mode}</Label>
             </div>
           </div>
+<<<<<<< HEAD
 
           <div className="pt-2 border-t border-border">
             <Button
@@ -492,6 +496,11 @@ function MigrantHome() {
       </div>
 
 
+=======
+        </div>
+      </div>
+
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       <Dialog open={bookOpen} onOpenChange={setBookOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t.dashboard.book_session_action}</DialogTitle></DialogHeader>

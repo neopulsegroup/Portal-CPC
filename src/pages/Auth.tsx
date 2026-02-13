@@ -36,6 +36,7 @@ export default function Auth() {
   const navigate = useNavigate();
 
   useEffect(() => {
+<<<<<<< HEAD
     // If authenticated and we have the profile, redirect based on role
     // We also check if we're not currently loading to ensure we have the latest data
     if (isAuthenticated && !authLoading) {
@@ -59,10 +60,22 @@ export default function Auth() {
         // Optionally navigate to a profile completion page or show an error
         // For now, we just let the user see the page (which might be the auth form) 
         // but we could redirect to a "complete profile" page if we had one.
+=======
+    if (isAuthenticated && profile && !authLoading) {
+      // Determine where to redirect based on role and triage status
+      if (profile.role === 'migrant') {
+        const triageCompleted = triage?.completed ?? false;
+        navigate(triageCompleted ? '/dashboard/migrante' : '/triagem');
+      } else if (profile.role === 'company') {
+        navigate('/dashboard/empresa');
+      } else {
+        navigate('/dashboard/cpc');
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       }
     }
   }, [isAuthenticated, profile, triage, authLoading, navigate]);
 
+<<<<<<< HEAD
   // Fallback: If authenticated but no profile after a delay, let's force a redirect based on selected role or default
   useEffect(() => {
     if (isAuthenticated && !authLoading && !profile && selectedRole) {
@@ -77,6 +90,8 @@ export default function Auth() {
     }
   }, [isAuthenticated, authLoading, profile, selectedRole, navigate]);
 
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
   const roles = [
     { id: 'migrant' as UserRole, label: t.auth.roles.migrant, icon: User, description: t.auth.roles.migrantDesc },
     { id: 'company' as UserRole, label: t.auth.roles.company, icon: Building2, description: t.auth.roles.companyDesc },
@@ -113,8 +128,11 @@ export default function Auth() {
           role: selectedRole,
         });
         toast.success(t.auth.accountCreated);
+<<<<<<< HEAD
         setIsLoading(false); // Clear loading state so UI can update/redirect
         // The redirection will be handled by the useEffect when isAuthenticated becomes true
+=======
+>>>>>>> 351b2651eac9566321ff5dbe0b8a97e288420ce0
       }
     } catch (error: unknown) {
       console.error('Auth error:', error);
