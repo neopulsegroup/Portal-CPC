@@ -1,4 +1,4 @@
-import { Link, Routes, Route } from 'react-router-dom';
+import { Link, NavLink, Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import {
 
 export default function CPCDashboard() {
   const { profile } = useAuth();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('week');
@@ -341,6 +342,16 @@ export default function CPCDashboard() {
     }
   };
 
+  const sidebarItems = [
+    { to: '/dashboard/cpc', label: 'Visão geral', icon: TrendingUp },
+    { to: '/dashboard/cpc/migrantes', label: 'Migrantes', icon: Users },
+    { to: '/dashboard/cpc/agenda', label: 'Agenda', icon: Calendar },
+    { to: '/dashboard/cpc/candidaturas', label: 'Candidaturas', icon: FileText },
+    { to: '/dashboard/cpc/ofertas', label: 'Ofertas', icon: Briefcase },
+    { to: '/dashboard/cpc/trilhas', label: 'Trilhas', icon: BookOpen },
+  ];
+  const isHome = location.pathname === '/dashboard/cpc' || location.pathname === '/dashboard/cpc/';
+
   function exportCSV() {
     const headers = ['Indicador', 'Valor', 'Detalhe'];
     const rows = stats.map(s => [s.label, String(s.value), s.change]);
@@ -370,187 +381,207 @@ export default function CPCDashboard() {
     <Layout>
       <div className="cpc-section">
         <div className="cpc-container">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div className="grid lg:grid-cols-[250px_minmax(0,1fr)] gap-6">
+            <aside className="cpc-card p-4 h-fit lg:sticky lg:top-24">
+              <div className="mb-4 px-2">
+                <p className="text-sm text-muted-foreground">Menu CPC</p>
+                <p className="font-semibold">{profile?.name || 'Utilizador'}</p>
+              </div>
+              <nav className="space-y-1">
+                {sidebarItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/dashboard/cpc'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                    }
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">
-                Painel CPC
-              </h1>
-            <p className="text-muted-foreground mt-1">
-              Bem-vindo(a), {profile?.name}
-              </p>
-            </div>
-            <div className="flex gap-2 items-center">
-              <div className="w-44">
-                <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">Hoje</SelectItem>
-                    <SelectItem value="week">Semana</SelectItem>
-                    <SelectItem value="month">Mês</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button variant="outline" size="sm" onClick={exportCSV}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportPDF}>
-                <FileText className="mr-2 h-4 w-4" />
-                Exportar PDF
-              </Button>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="cpc-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <stat.icon className="h-5 w-5" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {stat.label === 'Pedidos Urgentes' && stat.value > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                    )}
-                    {stat.linkTo && (
-                      <Link to={`/dashboard/cpc/${stat.linkTo}`} className="text-xs text-primary hover:underline">Ver detalhes</Link>
-                    )}
-                  </div>
-                </div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <p className="text-xs text-primary">{stat.change}</p>
-                  {typeof stat.delta === 'number' && stat.delta !== 0 && (
-                    stat.delta > 0 ? (
-                      <ArrowUp className="h-3 w-3 text-green-600" />
-                    ) : (
-                      <ArrowDown className="h-3 w-3 text-red-600" />
-                    )
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Recent Migrants */}
-            <div className="cpc-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Migrantes Recentes
-                </h2>
-                <Link to="/dashboard/cpc/migrantes" className="text-sm text-primary hover:underline">
-                  Ver todos
-                </Link>
-              </div>
-
-              <div className="space-y-3">
-                {recentMigrants.map((migrant) => (
-                  <Link
-                    key={migrant.id}
-                    to={`/dashboard/cpc/candidatos/${migrant.id}`}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-medium">
-                        {migrant.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium flex items-center gap-2">
-                          {migrant.name}
-                          {migrant.urgency && (
-                            <span className="w-2 h-2 rounded-full bg-destructive" />
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{migrant.status}</p>
-                      </div>
+              {isHome ? (
+                <>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                    <div>
+                      <h1 className="text-2xl md:text-3xl font-bold">Painel CPC</h1>
+                      <p className="text-muted-foreground mt-1">Bem-vindo(a), {profile?.name}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{migrant.date}</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Today's Sessions */}
-            <div className="cpc-card p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-semibold flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Sessões de Hoje
-                </h2>
-                <Link to="/dashboard/cpc/agenda" className="text-sm text-primary hover:underline">
-                  Ver agenda
-                </Link>
-              </div>
-
-              <div className="space-y-3">
-                {todaySessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                        <Clock className="h-5 w-5" />
+                    <div className="flex gap-2 items-center">
+                      <div className="w-44">
+                        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Período" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="today">Hoje</SelectItem>
+                            <SelectItem value="week">Semana</SelectItem>
+                            <SelectItem value="month">Mês</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div>
-                        <p className="font-medium">{session.migrant}</p>
-                        <p className="text-sm text-muted-foreground">{session.type}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{session.time}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(session.status)}`}>
-                        {session.status}
-                      </span>
+                      <Button variant="outline" size="sm" onClick={exportCSV}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={exportPDF}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Exportar PDF
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="cpc-card p-6 lg:col-span-2">
-              <h2 className="font-semibold mb-6">Ações Rápidas</h2>
-              <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                  <Users className="h-5 w-5" />
-                  <span>Novo Migrante</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Agendar Sessão</span>
-                </Button>
-                <Link to="/dashboard/cpc/trilhas">
-                  <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                    <BookOpen className="h-5 w-5" />
-                    <span>Gerir Trilhas</span>
-                  </Button>
-                </Link>
-                <Button variant="outline" className="h-auto py-4 flex-col gap-2">
-                  <Briefcase className="h-5 w-5" />
-                  <span>Ofertas Emprego</span>
-                </Button>
-              </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    {stats.map((stat) => (
+                      <div key={stat.label} className="cpc-card p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                            <stat.icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {stat.linkTo && (
+                              <Link to={`/dashboard/cpc/${stat.linkTo}`} className="text-xs text-primary hover:underline">Ver detalhes</Link>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-2xl font-bold">{stat.value}</p>
+                        <p className="text-sm text-muted-foreground">{stat.label}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <p className="text-xs text-primary">{stat.change}</p>
+                          {typeof stat.delta === 'number' && stat.delta !== 0 ? (
+                            stat.delta > 0 ? (
+                              <ArrowUp className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3 text-red-600" />
+                            )
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    <div className="cpc-card p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="font-semibold flex items-center gap-2">
+                          <Users className="h-5 w-5 text-primary" />
+                          Migrantes Recentes
+                        </h2>
+                        <Link to="/dashboard/cpc/migrantes" className="text-sm text-primary hover:underline">
+                          Ver todos
+                        </Link>
+                      </div>
+
+                      <div className="space-y-3">
+                        {recentMigrants.map((migrant) => (
+                          <Link
+                            key={migrant.id}
+                            to={`/dashboard/cpc/candidatos/${migrant.id}`}
+                            className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-medium">
+                                {migrant.name.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="font-medium">{migrant.name}</p>
+                                <p className="text-sm text-muted-foreground">{migrant.status}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{migrant.date}</span>
+                              <ChevronRight className="h-4 w-4" />
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="cpc-card p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="font-semibold flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          Sessões de Hoje
+                        </h2>
+                        <Link to="/dashboard/cpc/agenda" className="text-sm text-primary hover:underline">
+                          Ver agenda
+                        </Link>
+                      </div>
+
+                      <div className="space-y-3">
+                        {todaySessions.map((session) => (
+                          <div key={session.id} className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                <Clock className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{session.migrant}</p>
+                                <p className="text-sm text-muted-foreground">{session.type}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">{session.time}</p>
+                              <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(session.status)}`}>
+                                {session.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {todaySessions.length === 0 ? (
+                          <div className="text-sm text-muted-foreground text-center py-6">Sem sessões para hoje</div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="cpc-card p-6 lg:col-span-2">
+                      <h2 className="font-semibold mb-6">Ações Rápidas</h2>
+                      <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <Link to="/dashboard/cpc/migrantes">
+                          <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                            <Users className="h-5 w-5" />
+                            <span>Migrantes</span>
+                          </Button>
+                        </Link>
+                        <Link to="/dashboard/cpc/agenda">
+                          <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                            <Calendar className="h-5 w-5" />
+                            <span>Agenda</span>
+                          </Button>
+                        </Link>
+                        <Link to="/dashboard/cpc/trilhas">
+                          <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                            <BookOpen className="h-5 w-5" />
+                            <span>Gerir Trilhas</span>
+                          </Button>
+                        </Link>
+                        <Link to="/dashboard/cpc/ofertas">
+                          <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
+                            <Briefcase className="h-5 w-5" />
+                            <span>Ofertas</span>
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              <Routes>
+                <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
+                <Route path="migrantes" element={<MigrantsAdminPage />} />
+                <Route path="agenda" element={<TeamAgendaPage />} />
+                <Route path="candidaturas" element={<CandidaturasDetalhadas />} />
+                <Route path="ofertas" element={<OfertasAguardandoAprovacao />} />
+              </Routes>
             </div>
           </div>
         </div>
-        <Routes>
-          <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
-          <Route path="migrantes" element={<MigrantsAdminPage />} />
-          <Route path="agenda" element={<TeamAgendaPage />} />
-          <Route path="candidaturas" element={<CandidaturasDetalhadas />} />
-          <Route path="ofertas" element={<OfertasAguardandoAprovacao />} />
-        </Routes>
       </div>
     </Layout>
   );
