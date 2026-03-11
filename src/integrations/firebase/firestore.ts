@@ -12,6 +12,7 @@ import {
     limit,
     serverTimestamp,
     Timestamp,
+    WhereFilterOp,
 } from 'firebase/firestore';
 import { db } from './client';
 
@@ -57,7 +58,7 @@ export async function setDocument<T>(
 export async function updateDocument(
     collectionName: string,
     documentId: string,
-    data: any
+    data: Record<string, unknown>
 ) {
     try {
         const docRef = doc(db, collectionName, documentId);
@@ -102,7 +103,7 @@ export async function getCollection<T>(collectionName: string): Promise<T[]> {
  */
 export async function queryDocuments<T>(
     collectionName: string,
-    filters: { field: string; operator: any; value: any }[],
+    filters: { field: string; operator: WhereFilterOp; value: unknown }[],
     orderByField?: string,
     limitCount?: number
 ): Promise<T[]> {

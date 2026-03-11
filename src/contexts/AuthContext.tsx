@@ -25,7 +25,7 @@ export interface Profile {
 export interface TriageData {
   userId: string;
   completed: boolean;
-  answers?: any;
+  answers?: Record<string, unknown>;
   location?: string | null;
   arrivalDate?: string | null;
 }
@@ -52,6 +52,16 @@ interface RegisterData {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0) {
+      return message;
+    }
+  }
+  return fallback;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -134,9 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await loginUser(email, password);
       // onAuthStateChanged will handle the rest
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      throw new Error(error.message || 'Failed to login');
+      throw new Error(getErrorMessage(error, 'Failed to login'));
     }
   }, []);
 
@@ -144,9 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await registerUser(data.email, data.password, data.name, data.role, { nif: data.nif });
       // onAuthStateChanged will handle the rest
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
-      throw new Error(error.message || 'Failed to register');
+      throw new Error(getErrorMessage(error, 'Failed to register'));
     }
   }, []);
 
@@ -157,9 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setProfileData(null);
       setTriage(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Logout error:', error);
-      throw new Error(error.message || 'Failed to logout');
+      throw new Error(getErrorMessage(error, 'Failed to logout'));
     }
   }, []);
 

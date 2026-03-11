@@ -12,6 +12,17 @@ type Result = {
   message?: string;
 };
 
+function getErrorInfo(error: unknown): { code?: string; message: string } {
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    return {
+      code: typeof record.code === 'string' ? record.code : undefined,
+      message: typeof record.message === 'string' ? record.message : 'Erro desconhecido',
+    };
+  }
+  return { message: 'Erro desconhecido' };
+}
+
 async function createUser(
   email: string,
   password: string,
@@ -40,11 +51,12 @@ async function createUser(
       });
     }
     return { email, role, status: 'created' };
-  } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
+  } catch (error: unknown) {
+    const info = getErrorInfo(error);
+    if (info.code === 'auth/email-already-in-use') {
       return { email, role, status: 'exists', message: 'Já existe' };
     }
-    return { email, role, status: 'error', message: error.message || 'Erro desconhecido' };
+    return { email, role, status: 'error', message: info.message };
   }
 }
 
@@ -108,8 +120,9 @@ export default function CreateTestUsersDev() {
         const res = await createUser(email, password, 'CPC Admin', 'admin');
         setResults(prev => [...prev, res]);
       }
-    } catch (e: any) {
-        setResults(prev => [...prev, { email, role: 'admin', status: 'error', message: e.message }]);
+    } catch (e: unknown) {
+        const info = getErrorInfo(e);
+        setResults(prev => [...prev, { email, role: 'admin', status: 'error', message: info.message }]);
     } finally {
         setRunning(false);
     }

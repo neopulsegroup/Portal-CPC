@@ -39,6 +39,9 @@ interface TriageStep {
   questions: TriageQuestion[];
 }
 
+type AnswerValue = string | string[] | boolean | null | undefined;
+type TriageAnswers = Record<string, AnswerValue>;
+
 // --- Countries List (Simplified) ---
 const COUNTRIES = [
   'Portugal', 'Brasil', 'Angola', 'Moçambique', 'Cabo Verde', 
@@ -440,16 +443,16 @@ export default function Triage() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<TriageAnswers>({});
   const [saving, setSaving] = useState(false);
 
   const currentStep = ALL_STEPS[step];
 
-  const getVisibleQuestions = (currentStep: TriageStep, currentAnswers: Record<string, any>) => {
+  const getVisibleQuestions = (currentStep: TriageStep, currentAnswers: TriageAnswers) => {
     return currentStep.questions.filter(q => !q.dependsOn || currentAnswers[q.dependsOn.field] === q.dependsOn.value);
   };
 
-  const getNextStepIndex = (currentIndex: number, currentAnswers: Record<string, any>) => {
+  const getNextStepIndex = (currentIndex: number, currentAnswers: TriageAnswers) => {
     let nextIndex = currentIndex + 1;
     while (nextIndex < ALL_STEPS.length) {
       if (getVisibleQuestions(ALL_STEPS[nextIndex], currentAnswers).length > 0) {
@@ -460,7 +463,7 @@ export default function Triage() {
     return -1; // End of triage
   };
 
-  const getPrevStepIndex = (currentIndex: number, currentAnswers: Record<string, any>) => {
+  const getPrevStepIndex = (currentIndex: number, currentAnswers: TriageAnswers) => {
     let prevIndex = currentIndex - 1;
     while (prevIndex >= 0) {
       if (getVisibleQuestions(ALL_STEPS[prevIndex], currentAnswers).length > 0) {
@@ -491,7 +494,7 @@ export default function Triage() {
 
   const progress = ((step + 1) / ALL_STEPS.length) * 100;
 
-  const updateAnswer = (questionId: string, value: any) => {
+  const updateAnswer = (questionId: string, value: AnswerValue) => {
     setAnswers(prev => ({
       ...prev,
       [questionId]: value
@@ -524,7 +527,7 @@ export default function Triage() {
     try {
       console.log('[Triage] Starting save process...');
 
-      const baseData: any = {
+      const baseData: Record<string, unknown> = {
         userId: user.uid,
         completed: true,
         completedAt: new Date().toISOString(),
@@ -540,8 +543,8 @@ export default function Triage() {
         baseData.urgencies = answers.identified_needs || [];
       } else {
         baseData.urgencies = answers.desired_support || [];
-        if (answers.portuguese_level) {
-          const mapLang: any = { 'fluent': 'native', 'none': 'none', 'basic': 'basic', 'intermediate': 'intermediate', 'advanced': 'advanced' };
+        if (typeof answers.portuguese_level === 'string') {
+          const mapLang: Record<string, string> = { 'fluent': 'native', 'none': 'none', 'basic': 'basic', 'intermediate': 'intermediate', 'advanced': 'advanced' };
           baseData.language_level = mapLang[answers.portuguese_level];
         }
       }
@@ -567,7 +570,7 @@ export default function Triage() {
       toast.success(t.triage.success);
       console.log('[Triage] Navigating to dashboard...');
       navigate('/dashboard/migrante');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[Triage] Final triage save error:', err);
       toast.error('Erro ao salvar triagem. Tente novamente.');
     } finally {

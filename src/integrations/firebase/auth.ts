@@ -14,8 +14,18 @@ export interface UserProfile {
     name: string;
     role: 'migrant' | 'company' | 'admin' | 'mediator' | 'lawyer' | 'psychologist' | 'manager' | 'coordinator' | 'trainer';
     nif?: string;
-    createdAt: any;
-    updatedAt: any;
+    createdAt: unknown;
+    updatedAt: unknown;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    if (error && typeof error === 'object' && 'message' in error) {
+        const message = (error as { message?: unknown }).message;
+        if (typeof message === 'string' && message.length > 0) {
+            return message;
+        }
+    }
+    return fallback;
 }
 
 /**
@@ -61,9 +71,9 @@ export async function registerUser(
         });
 
         return { user, profile: userProfile };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error registering user:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error registering user'));
     }
 }
 
@@ -74,9 +84,9 @@ export async function loginUser(email: string, password: string) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error logging in:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error logging in'));
     }
 }
 
@@ -86,9 +96,9 @@ export async function loginUser(email: string, password: string) {
 export async function logoutUser() {
     try {
         await signOut(auth);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error logging out:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error logging out'));
     }
 }
 
@@ -98,9 +108,9 @@ export async function logoutUser() {
 export async function resetPassword(email: string) {
     try {
         await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error sending password reset email:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error sending password reset email'));
     }
 }
 
@@ -114,9 +124,9 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
             return userDoc.data() as UserProfile;
         }
         return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error getting user profile:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error getting user profile'));
     }
 }
 
@@ -129,9 +139,9 @@ export async function updateUserProfile(userId: string, data: Partial<UserProfil
             ...data,
             updatedAt: serverTimestamp(),
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error updating user profile:', error);
-        throw error;
+        throw new Error(getErrorMessage(error, 'Error updating user profile'));
     }
 }
 
