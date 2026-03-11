@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Users, Filter, Eye, Ban, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Users, Filter, Eye, Ban, CheckCircle, AlertTriangle, Clock, ClipboardList } from 'lucide-react';
+
+type TriageAnswers = Record<string, unknown>;
 
 type MigrantRow = {
   user_id: string;
@@ -15,6 +19,7 @@ type MigrantRow = {
   work_status?: string | null;
   language_level?: string | null;
   urgencies?: string[] | null;
+  triage_answers?: TriageAnswers | null;
   upcoming_sessions?: number;
   trails_progress_avg?: number;
   blocked?: boolean;
@@ -22,7 +27,7 @@ type MigrantRow = {
 
 type UserDoc = { id: string; name?: string | null; email?: string | null; role?: string | null };
 type ProfileDoc = { name?: string | null; email?: string | null };
-type TriageDoc = { legal_status?: string | null; work_status?: string | null; language_level?: string | null; urgencies?: string[] | null };
+type TriageDoc = { legal_status?: string | null; work_status?: string | null; language_level?: string | null; urgencies?: string[] | null; answers?: TriageAnswers | null };
 type SessionDoc = { migrant_id?: string | null; scheduled_date?: string | null; status?: string | null };
 type ProgressDoc = { user_id?: string | null; progress_percent?: number | null };
 
@@ -100,7 +105,16 @@ function languageLabel(value?: string | null): string {
   return '—';
 }
 
+function answerValue(value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(', ');
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 export default function MigrantsAdminPage() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Array<MigrantRow>>([]);
   const [query, setQuery] = useState('');
@@ -108,6 +122,16 @@ export default function MigrantsAdminPage() {
   const [workFilter, setWorkFilter] = useState<'all' | 'empregado' | 'desempregado' | 'informal'>('all');
   const [langFilter, setLangFilter] = useState<'all' | 'iniciante' | 'intermediario' | 'avancado'>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'juridico' | 'psicologico' | 'habitacional'>('all');
+  const [selectedTriage, setSelectedTriage] = useState<MigrantRow | null>(null);
+
+  function answerLabel(key: string): string {
+    const path = `triage.questions.${key}`;
+    const translated = t.get(path);
+    if (translated !== path) return translated;
+    return key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (m) => m.toUpperCase());
+  }
 
   useEffect(() => {
     async function fetchAll() {
@@ -167,6 +191,7 @@ export default function MigrantsAdminPage() {
           work_status: triageMap[p.user_id]?.work_status || null,
           language_level: triageMap[p.user_id]?.language_level || null,
           urgencies: normalizeUrgencies(triageMap[p.user_id]?.urgencies),
+          triage_answers: triageMap[p.user_id]?.answers || null,
           upcoming_sessions: sessionsMap[p.user_id] || 0,
           trails_progress_avg: progressMap[p.user_id] || 0,
           blocked: blockedSet.has(p.user_id),
@@ -305,9 +330,12 @@ export default function MigrantsAdminPage() {
                     <span className="flex items-center gap-1"><CheckCircle className="h-4 w-4" /> {r.trails_progress_avg || 0}% progresso médio</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Link to={`/dashboard/cpc/candidatos/${r.user_id}`} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> Ver perfil</Link>
-                  <Button variant="outline" className="inline-flex items-center gap-2" onClick={() => toggleBlock(r.user_id)}>
+                <div className="flex flex-col items-stretch gap-2">
+                  <Link to={`/dashboard/cpc/candidatos/${r.user_id}`} className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> Ver perfil</Link>
+                  <Button variant="outline" className="inline-flex items-center justify-center gap-2 w-full" onClick={() => setSelectedTriage(r)}>
+                    <ClipboardList className="h-4 w-4" /> Triagem Inicial
+                  </Button>
+                  <Button variant="outline" className="inline-flex items-center justify-center gap-2 w-full" onClick={() => toggleBlock(r.user_id)}>
                     <Ban className="h-4 w-4" /> {r.blocked ? 'Ativar' : 'Bloquear'}
                   </Button>
                 </div>
@@ -316,6 +344,30 @@ export default function MigrantsAdminPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!selectedTriage} onOpenChange={(open) => { if (!open) setSelectedTriage(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Triagem Inicial — {selectedTriage?.name || 'Migrante'}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            {(selectedTriage?.triage_answers && Object.keys(selectedTriage.triage_answers).length > 0) ? (
+              <div className="space-y-3">
+                {Object.entries(selectedTriage.triage_answers).map(([key, value]) => (
+                  <div key={key} className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground">{answerLabel(key)}</p>
+                    <p className="text-sm font-medium break-words">{answerValue(value)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
+                Este migrante ainda não possui respostas registradas da triagem inicial.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
