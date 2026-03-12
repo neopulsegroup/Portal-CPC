@@ -148,6 +148,31 @@ function MigrantHome() {
     return percent;
   }, [extras, profile]);
 
+  const triageUrgenciesLabel = useMemo(() => {
+    const values = triage?.urgencies || [];
+    if (!values.length) return '—';
+    const isPostArrival = Boolean(triage?.work_status || triage?.legal_status || (triage as { housing_status?: string | null } | null)?.housing_status);
+    const keyBase = isPostArrival ? 'triage.options.identified_needs' : 'triage.options.desired_support';
+    return values
+      .map((v) => {
+        const label = t.get(`${keyBase}.${v}`);
+        return label === `${keyBase}.${v}` ? v : label;
+      })
+      .join(', ') || '—';
+  }, [triage, t]);
+
+  const triageInterestsLabel = useMemo(() => {
+    const values = triage?.interests || [];
+    if (!values.length) return '—';
+    const keyBase = 'triage.options.professional_interests';
+    return values
+      .map((v) => {
+        const label = t.get(`${keyBase}.${v}`);
+        return label === `${keyBase}.${v}` ? v : label;
+      })
+      .join(', ') || '—';
+  }, [triage, t]);
+
   const overallProgress = useMemo(() => {
     const parts = [trailsProgressAvg, sessionsProgress, profileCompleteness];
     return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
@@ -259,10 +284,10 @@ function MigrantHome() {
               <div>
                 <p className="text-sm text-muted-foreground">{t.dashboard.needs_profile}</p>
                 <div className="mt-2 text-sm">
-                  <span className="font-medium">{t.dashboard.urgencies}:</span> {(triage?.urgencies || []).join(', ') || '—'}
+                  <span className="font-medium">{t.dashboard.urgencies}:</span> {triageUrgenciesLabel}
                 </div>
                 <div className="mt-1 text-sm">
-                  <span className="font-medium">{t.dashboard.interests}:</span> {(triage?.interests || []).join(', ') || '—'}
+                  <span className="font-medium">{t.dashboard.interests}:</span> {triageInterestsLabel}
                 </div>
               </div>
               <div>
