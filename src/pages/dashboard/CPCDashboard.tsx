@@ -1172,6 +1172,8 @@ export default function CPCDashboard() {
                 <Route path="agenda" element={<TeamAgendaPage />} />
                 <Route path="candidaturas" element={<CandidaturasDetalhadas />} />
                 <Route path="ofertas" element={<OfertasAguardandoAprovacao />} />
+                <Route path="trilhas" element={<TrailsAdminPage />} />
+                <Route path="trilhas/:trailId" element={<TrailEditorPage />} />
                 <Route path="equipa" element={<EquipaPage />} />
               </Routes>
             </div>
@@ -1185,3 +1187,5 @@ import CandidateProfilePage from './company/CandidateProfilePage';
 import MigrantsAdminPage from './cpc/MigrantsAdminPage';
 import TeamAgendaPage from './cpc/TeamAgendaPage';
 import MigrantProfilePage from './migrant/ProfilePage';
+import TrailsAdminPage from './cpc/TrailsAdminPage';
+import TrailEditorPage from './cpc/TrailEditorPage';

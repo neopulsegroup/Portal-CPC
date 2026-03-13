@@ -89,6 +89,84 @@ src/
 
 5.  Acesse a aplicação em `http://localhost:8080`.
 
+## 🧪 Conteúdos de demonstração (CPC • Trilhas)
+
+Esta funcionalidade permite exibir **conteúdo fictício/de exemplo** na rota **`/dashboard/cpc/trilhas`**, mantendo os conteúdos reais (vindos do Firestore) separados e com indicadores visuais claros.
+
+### Objetivo
+*   Fornecer uma **pré-visualização** de trilhas (cards com imagem/metadata) quando a base de dados não está populada ou quando é necessário demonstrar o fluxo.
+*   Tornar os dados de demonstração **inequivocamente identificáveis** através de badges e rotulagem.
+*   Reduzir tempo de carregamento com **cache local** (stale-while-revalidate).
+
+### Como usar
+1. Aceda a **`/dashboard/cpc/trilhas`**
+2. Utilize o botão **“Mostrar demonstração”** para revelar a secção de conteúdos de exemplo
+3. Utilize **“Ocultar demonstração”** para esconder a secção
+4. O botão **“Criar trilhas demo”** (já existente) cria trilhas e módulos na base de dados (Firestore) — isto é diferente do modo demonstração (que não persiste dados)
+
+### Onde fica implementado
+*   Página: [TrailsAdminPage.tsx](file:///Users/renatomenezes/Desktop/Projetos/Portal-CPC/app/Backup/Backup-CPC-main/src/pages/dashboard/cpc/TrailsAdminPage.tsx)
+*   Testes: [TrailsAdminPage.test.tsx](file:///Users/renatomenezes/Desktop/Projetos/Portal-CPC/app/Backup/Backup-CPC-main/src/pages/dashboard/cpc/TrailsAdminPage.test.tsx)
+
+### Estrutura de dados (demo)
+Os conteúdos de demonstração são definidos como uma lista de objetos com os campos:
+* `title` (título)
+* `description` (descrição)
+* `image_url` (imagem/thumbnail)
+* `duration_minutes` (duração)
+* `category` (categoria)
+* `created_at` (data de criação)
+
+Cada card apresenta ainda badges de **categoria**, **dificuldade** e um badge explícito **Demo**.
+
+### Diferenciação visual (real vs demo)
+* Conteúdos reais: renderizados na secção **“Trilhas existentes”** e abrem o editor (`/dashboard/cpc/trilhas/:trailId`)
+* Conteúdos demo: renderizados na secção **“Conteúdos de demonstração”**, com badge **Demo** e texto informativo indicando que **não são gravados na base de dados**
+
+### Cache (otimização de carregamento)
+Implementado em `localStorage` com estratégia **stale-while-revalidate**:
+* Chave: `cpc-trails-cache:v1`
+* Formato: `{ ts: number, data: Trail[] }`
+* TTL: **5 minutos**
+* Com cache válido, a página renderiza imediatamente e faz atualização em background (indicador “Atualizando…”)
+
+A preferência de exibição de demo é persistida em:
+* Chave: `cpc-trails-demo:show` (`true`/`false`)
+
+## 🔁 Alternância de visualização (CPC • Trilhas existentes)
+
+Na mesma rota **`/dashboard/cpc/trilhas`**, a secção **“Trilhas existentes”** suporta alternância entre:
+* **Grade (grid)**: cards responsivos com imagem, título e resumo
+* **Lista (list)**: linhas com detalhes (título, descrição, data, status) e ações (ex.: editar)
+
+### Onde fica implementado
+* Página: [TrailsAdminPage.tsx](file:///Users/renatomenezes/Desktop/Projetos/Portal-CPC/app/Backup/Backup-CPC-main/src/pages/dashboard/cpc/TrailsAdminPage.tsx)
+* Testes: [TrailsAdminPage.test.tsx](file:///Users/renatomenezes/Desktop/Projetos/Portal-CPC/app/Backup/Backup-CPC-main/src/pages/dashboard/cpc/TrailsAdminPage.test.tsx)
+
+### Estado e persistência
+* Estado: `viewMode` (`'grid' | 'list'`)
+* Persistência: `localStorage` com a chave `cpc-trails:viewMode`
+* Comportamento: ao recarregar a página ou ao navegar e voltar, o modo selecionado é restaurado automaticamente
+
+### UI e eventos
+Implementado com `ToggleGroup` (shadcn/ui), usando:
+* `type="single"`
+* `value={viewMode}`
+* `onValueChange={(v) => ...}` para atualizar o estado e persistir em `localStorage`
+* `ToggleGroupItem value="grid"` e `ToggleGroupItem value="list"` para trocar o modo
+
+### Testes
+Testes cobrem:
+* Toggle de demonstração (mostrar/ocultar)
+* Render rápido via cache + atualização em background
+* Cenário de erro + fallback para demonstração
+* Alternância de visualização (grade/lista) + persistência em `localStorage`
+
+Para executar:
+```bash
+npm run test:run
+```
+
 ## 🤝 Contribuição
 
 Contribuições são bem-vindas! Por favor, siga as boas práticas de desenvolvimento, mantenha o estilo de código consistente e certifique-se de testar suas alterações.

@@ -1,13 +1,28 @@
 # Project Tasks
 
-## Processo Obrigatório
-- Toda nova task iniciada deve ser adicionada imediatamente a este arquivo com descrição detalhada.
-- Toda task deve ser marcada como concluída (- [x]) somente quando finalizada e validada (build/test/lint quando aplicável).
-- A task "Migração completa do sistema" deve permanecer visível em "Tarefas Pendentes" e marcada como não realizada até execução futura.
+## Processo Obrigatório (Regra do Projeto)
+- Toda alteração relevante (código, UI, infra, testes) exige atualização imediata deste arquivo, mantendo o estado real do projeto refletido aqui.
+- Toda tarefa ativa deve existir no **Registro de Tarefas (obrigatório)** com: status, prioridade, responsável, prazo, progresso e data de atualização.
+- Conclusões só podem ser marcadas como `done` quando validadas (lint/typecheck/test/build quando aplicável) e com `Progresso = 100`.
+- Revisão diária obrigatória: tarefas ativas devem ter `Atualizado em` recente; tarefas vencidas devem ser replanejadas (atualizar `Prazo` + `Atualizado em`) ou concluídas.
 
-## Tarefas em Progresso
+## Registro de Tarefas (Obrigatório)
+Formato validado automaticamente.
 
-## Tarefas Implementadas
+| ID | Tarefa | Status | Prioridade | Responsável | Prazo | Progresso | Atualizado em | Referência |
+|---|---|---|---|---|---|---:|---|---|
+| CPC-101 | CPC • Trilhas: alternância de visualização (grade/lista) em “Trilhas existentes” | done | P2 | Renato | 2026-03-13 | 100 | 2026-03-13 | src/pages/dashboard/cpc/TrailsAdminPage.tsx |
+| OPS-001 | Automação: validação e notificações do project-tasks.md (CI + revisão diária) | done | P0 | Equipa | 2026-03-20 | 100 | 2026-03-13 | .github/workflows/project-tasks.yml |
+
+### Convenções do Registro
+- `Status`: `todo` | `in_progress` | `blocked` | `done`
+- `Prioridade`: `P0` (crítico) | `P1` (alta) | `P2` (média) | `P3` (baixa)
+- `Prazo` e `Atualizado em`: formato `YYYY-MM-DD`
+- `Referência`: arquivo, link de issue/PR, ou contexto suficiente para rastreabilidade
+
+## Tarefas em Progresso (Legacy)
+
+## Tarefas Implementadas (Legacy)
 - [x] Remoção completa de dependências do Supabase no runtime (imports/uso do client) e limpeza de integrações Supabase no código.
 - [x] Refatoração para Firestore nas páginas do Migrante (sessões, ofertas de emprego e detalhe, visualizador de módulos e progresso).
 - [x] Refatoração para Firestore nas páginas da Empresa (criar oferta, listar ofertas, listar candidaturas, perfil de candidato).

@@ -19,8 +19,6 @@ import CPCDashboard from "./pages/dashboard/CPCDashboard";
 import CompanyDashboard from "./pages/dashboard/CompanyDashboard";
 import NotFound from "./pages/NotFound";
 import CreateTestUsersDev from "./pages/dev/CreateTestUsers";
-import TrailsAdminPage from "./pages/dashboard/cpc/TrailsAdminPage";
-import TrailEditorPage from "./pages/dashboard/cpc/TrailEditorPage";
 
 const queryClient = new QueryClient();
 
@@ -128,22 +126,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'admin']}>
             <CPCDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard/cpc/trilhas"
-        element={
-          <ProtectedRoute allowedRoles={['mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'admin']}>
-            <TrailsAdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard/cpc/trilhas/:trailId"
-        element={
-          <ProtectedRoute allowedRoles={['mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'admin']}>
-            <TrailEditorPage />
           </ProtectedRoute>
         }
       />
