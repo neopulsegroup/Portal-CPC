@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, NavLink, useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -11,6 +11,7 @@ import {
   BookOpen,
   Briefcase,
   User,
+  TrendingUp,
   ChevronRight,
   Clock,
   ArrowRight,
@@ -251,11 +252,6 @@ function MigrantHome() {
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold">{t.dashboard.welcome}, {profile?.name}!</h1>
-        <p className="text-muted-foreground mt-1">{t.dashboard.overview_desc}</p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
         {navItems.map((item) => (
           <Link key={item.label} to={item.href} className="cpc-card p-4 flex flex-col items-center text-center hover:border-primary/50 transition-colors">
@@ -560,20 +556,71 @@ function MigrantHome() {
 }
 
 export default function MigrantDashboard() {
+  const location = useLocation();
+  const { profile } = useAuth();
+  const isHome = location.pathname === '/dashboard/migrante' || location.pathname === '/dashboard/migrante/';
+  const sidebarItems = [
+    { to: '/dashboard/migrante', label: 'Visão geral', icon: TrendingUp },
+    { to: '/dashboard/migrante/perfil', label: 'Perfil', icon: User },
+    { to: '/dashboard/migrante/sessoes', label: 'Sessões', icon: Calendar },
+    { to: '/dashboard/migrante/emprego', label: 'Emprego', icon: Briefcase },
+    { to: '/dashboard/migrante/trilhas', label: 'Trilhas', icon: BookOpen },
+  ];
+
   return (
     <Layout>
       <div className="cpc-section">
         <div className="cpc-container">
-          <Routes>
-            <Route index element={<MigrantHome />} />
-            <Route path="sessoes" element={<SessionsPage />} />
-            <Route path="trilhas" element={<TrailsPage />} />
-            <Route path="trilhas/:trailId" element={<TrailDetailPage />} />
-            <Route path="trilhas/:trailId/modulo/:moduleId" element={<ModuleViewerPage />} />
-            <Route path="emprego" element={<JobsPage />} />
-            <Route path="emprego/:jobId" element={<JobDetailPage />} />
-            <Route path="perfil" element={<ProfilePage />} />
-          </Routes>
+          {/* Layout refactor: alinhar estrutura/estilos com o dashboard CPC (sidebar + conteúdo) */}
+          <div className="grid lg:grid-cols-[250px_minmax(0,1fr)] gap-6">
+            <aside className="cpc-card p-4 h-fit lg:sticky lg:top-24">
+              <div className="mb-4 px-2">
+                <p className="text-sm text-muted-foreground">Menu Migrante</p>
+                <p className="font-semibold">{profile?.name || 'Utilizador'}</p>
+              </div>
+
+              {/* Navegação: mesma hierarquia tipográfica e estados hover/active do CPC */}
+              <nav className="space-y-1">
+                {sidebarItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/dashboard/migrante'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                    }
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+
+            <div>
+              {isHome ? (
+                <div className="mb-8">
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                    Bem-vindo(a), <span className="text-primary">{profile?.name || 'Migrante'}</span>
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Resumo personalizado da sua integração.
+                  </p>
+                </div>
+              ) : null}
+
+              <Routes>
+                <Route index element={<MigrantHome />} />
+                <Route path="sessoes" element={<SessionsPage />} />
+                <Route path="trilhas" element={<TrailsPage />} />
+                <Route path="trilhas/:trailId" element={<TrailDetailPage />} />
+                <Route path="trilhas/:trailId/modulo/:moduleId" element={<ModuleViewerPage />} />
+                <Route path="emprego" element={<JobsPage />} />
+                <Route path="emprego/:jobId" element={<JobDetailPage />} />
+                <Route path="perfil" element={<ProfilePage />} />
+              </Routes>
+            </div>
+          </div>
         </div>
       </div>
     </Layout>
