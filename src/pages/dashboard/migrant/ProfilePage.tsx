@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, BookOpen, Clock, Edit } from 'lucide-react';
+import { Calendar, BookOpen, Clock, User, FileText, Camera } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [data, setData] = useState<MigrantProfileResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const [edit, setEdit] = useState<{
@@ -126,6 +127,7 @@ export default function ProfilePage() {
           mainNeeds: merged?.mainNeeds || '',
           contactPreference: (merged?.contactPreference as 'email' | 'phone') || 'email',
         });
+        setEditMode(false);
       } catch (err: unknown) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : '';
@@ -184,87 +186,95 @@ export default function ProfilePage() {
     return { phone, birth, nationality };
   }, [profileDoc?.birthDate, profileDoc?.nationality, profileDoc?.phone, triageAnswers]);
 
-  const statusSections = useMemo(
-    () => [
-      {
-        titleKey: 'triage.steps.location',
-        questionIds: ['is_in_portugal', 'current_country', 'arrival_date', 'arrival_date_pt'],
-      },
-      {
-        titleKey: 'triage.steps.pre_arrival_legal',
-        questionIds: ['visa_started', 'visa_stage'],
-      },
-      {
-        titleKey: 'triage.steps.pre_arrival_general',
-        questionIds: ['knowledge_level'],
-      },
-      {
-        titleKey: 'triage.steps.pre_arrival_cultural',
-        questionIds: ['cultural_program_interest', 'portuguese_level', 'portuguese_classes_interest'],
-      },
-      {
-        titleKey: 'triage.steps.pre_arrival_expectations',
-        questionIds: ['motivation', 'doubts', 'challenges', 'why_portugal', 'desired_support', 'expectations_12_months', 'life_in_3_years', 'success_signs'],
-      },
-      {
-        titleKey: 'triage.steps.post_arrival_integration',
-        questionIds: ['legal_status'],
-      },
-      {
-        titleKey: 'triage.steps.post_arrival_autonomy',
-        questionIds: ['daily_autonomy', 'communication_comfort', 'social_norms', 'language_level'],
-      },
-      {
-        titleKey: 'triage.steps.post_arrival_needs',
-        questionIds: ['housing_status', 'basic_services', 'bank_account', 'sns_registered', 'identified_needs'],
-      },
-      {
-        titleKey: 'triage.steps.psychological_support',
-        questionIds: ['emotional_wellbeing', 'wants_psych_support'],
-      },
-      {
-        titleKey: 'triage.steps.professional_profile',
-        questionIds: ['education_level', 'education_validation_interest', 'professional_interests', 'professional_experience', 'work_status'],
-      },
-    ],
-    []
-  );
-
-  function translateOption(questionId: string, value: string) {
+  const translateOption = useCallback((questionId: string, value: string) => {
     const key = `triage.options.${questionId}.${value}`;
     const label = t.get(key);
     return label === key ? value : label;
-  }
+  }, [t]);
 
-  function formatAnswer(questionId: string, value: unknown) {
-    if (value === null || value === undefined) return '—';
-    if (typeof value === 'string') {
-      if (value.trim().length === 0) return '—';
-      return translateOption(questionId, value);
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return translateOption(questionId, String(value));
-    }
-    if (Array.isArray(value)) {
-      const items = value.filter((v) => typeof v === 'string' && v.trim().length > 0) as string[];
-      if (items.length === 0) return '—';
-      return (
-        <div className="flex flex-wrap gap-1.5 justify-start">
-          {items.map((v) => (
-            <span key={v} className="px-2 py-0.5 rounded-md border bg-muted/50 text-xs">
-              {translateOption(questionId, v)}
-            </span>
-          ))}
-        </div>
-      );
-    }
-    try {
-      const str = JSON.stringify(value);
-      return str && str !== '{}' ? str : '—';
-    } catch {
-      return '—';
-    }
-  }
+  const legalStatusLabel = useMemo(() => {
+    const raw = triage?.legal_status || (typeof triageAnswers.legal_status === 'string' ? triageAnswers.legal_status : null);
+    if (!raw) return null;
+    return translateOption('legal_status', raw);
+  }, [triage?.legal_status, triageAnswers.legal_status, translateOption]);
+
+  const arrivedSinceLabel = useMemo(() => {
+    const raw =
+      (typeof triageAnswers.arrival_date_pt === 'string' ? triageAnswers.arrival_date_pt : null) ||
+      (typeof triageAnswers.arrival_date === 'string' ? triageAnswers.arrival_date : null) ||
+      null;
+    if (!raw) return null;
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)?.[0] || null;
+    if (!iso) return raw;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return raw;
+    const label = d.toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' });
+    return label ? label.replace(/\.$/, '') : raw;
+  }, [triageAnswers]);
+
+  const integrationScales = useMemo(() => {
+    const scale = (id: string) => {
+      const v = triageAnswers[id];
+      const str = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : null;
+      const n = str ? Number(str) : NaN;
+      const normalized = Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : null;
+      const percent = normalized ? normalized * 20 : 0;
+      const label = normalized ? translateOption(id, String(normalized)) : '—';
+      return { value: normalized, percent, label };
+    };
+    return {
+      dailyAutonomy: scale('daily_autonomy'),
+      communicationComfort: scale('communication_comfort'),
+      socialNorms: scale('social_norms'),
+    };
+  }, [triageAnswers, translateOption]);
+
+  const identifiedNeeds = useMemo(() => {
+    const raw = (triage?.urgencies || []) as unknown;
+    const values = Array.isArray(raw) ? (raw.filter((v) => typeof v === 'string' && v.trim().length > 0) as string[]) : [];
+    return values.map((v) => ({ value: v, label: translateOption('identified_needs', v) }));
+  }, [triage?.urgencies, translateOption]);
+
+  const educationLabel = useMemo(() => {
+    const raw = triageAnswers.education_level;
+    if (typeof raw !== 'string' || !raw) return '—';
+    return translateOption('education_level', raw);
+  }, [triageAnswers.education_level, translateOption]);
+
+  const interestAreaLabel = useMemo(() => {
+    const raw = triageAnswers.professional_interests;
+    const arr = Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : [];
+    const first = (arr.find((v) => typeof v === 'string' && v.trim().length > 0) as string | undefined) || null;
+    if (!first) return null;
+    return translateOption('professional_interests', first);
+  }, [triageAnswers.professional_interests, translateOption]);
+
+  const skillsTokens = useMemo(() => {
+    const tokens = (edit.skills || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return Array.from(new Set(tokens)).slice(0, 6);
+  }, [edit.skills]);
+
+  const interfaceLanguageLabel = useMemo(() => {
+    if (language === 'pt') return 'Português';
+    if (language === 'en') return 'English';
+    return language;
+  }, [language]);
+
+  const contactPreferenceLabel = useMemo(() => {
+    return edit.contactPreference === 'phone' ? 'Telefone' : 'E-mail';
+  }, [edit.contactPreference]);
+
+  const upcomingSessions = useMemo(() => {
+    const now = new Date().toISOString().slice(0, 10);
+    return sessionsSorted.filter((s) => s.scheduled_date >= now).slice(0, 3);
+  }, [sessionsSorted]);
+
+  const featuredTrail = useMemo(() => {
+    return progressSorted.length ? progressSorted[0] : null;
+  }, [progressSorted]);
 
   async function save() {
     if (!user) return;
@@ -377,257 +387,445 @@ export default function ProfilePage() {
   }
 
   return (
-    <>
-      <div className="mb-8 grid lg:grid-cols-3 gap-6">
-        <div className="cpc-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Edit className="h-5 w-5 text-primary" />
-              Perfil
-            </h2>
-          </div>
-          <div className="flex items-center gap-4 mb-4">
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={profileDoc.photoUrl || undefined} alt={edit.name || profileDoc.email || 'Foto de perfil'} />
-              <AvatarFallback>{(edit.name || profileDoc.email || 'U').slice(0, 1).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.currentTarget.files?.[0];
-                e.currentTarget.value = '';
-                if (file) void uploadProfilePhoto(file);
-              }}
-              disabled={uploadingPhoto}
-            />
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={uploadingPhoto}
-                onClick={() => photoInputRef.current?.click()}
-              >
-                {uploadingPhoto ? 'A enviar…' : profileDoc.photoUrl ? 'Alterar foto' : 'Enviar foto'}
-              </Button>
-              {profileDoc.photoUrl ? (
-                <Button type="button" variant="ghost" size="sm" disabled={uploadingPhoto} onClick={removeProfilePhoto}>
-                  Remover
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" value={edit.name} onChange={(e) => setEdit((s) => ({ ...s, name: e.target.value }))} className="mt-1" />
-            </div>
-            <div>
-              <div className="rounded-md border bg-muted/20 px-3 py-2 min-h-10 flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                <span className="text-xs text-muted-foreground">Telefone</span>
-                <span className="text-sm font-medium md:text-right">{profileReadOnlyFields.phone || '—'}</span>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" value={profileDoc.email || ''} disabled className="mt-1" />
-            </div>
-            <div>
-              <div className="rounded-md border bg-muted/20 px-3 py-2 min-h-10 flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                <span className="text-xs text-muted-foreground">Data de nascimento</span>
-                <span className="text-sm font-medium md:text-right">{profileReadOnlyFields.birth || '—'}</span>
-              </div>
-            </div>
-            <div>
-              <div className="rounded-md border bg-muted/20 px-3 py-2 min-h-10 flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                <span className="text-xs text-muted-foreground">Nacionalidade</span>
-                <span className="text-sm font-medium md:text-right">{profileReadOnlyFields.nationality || '—'}</span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center justify-end">
-            <Button onClick={save} disabled={saving}>{saving ? 'A guardar…' : 'Guardar alterações'}</Button>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="cpc-card p-6">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Avatar className="h-20 w-20 rounded-2xl">
+                <AvatarImage src={profileDoc.photoUrl || undefined} alt={edit.name || profileDoc.email || 'Foto de perfil'} />
+                <AvatarFallback className="rounded-2xl bg-primary text-primary-foreground text-2xl font-semibold">
+                  {(edit.name || profileDoc.email || 'U').slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
 
-        <div className="cpc-card p-6">
-          <h2 className="font-semibold mb-4">Documentos</h2>
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="resumeUrl">Link do currículo (URL)</Label>
-              <Input id="resumeUrl" value={edit.resumeUrl} onChange={(e) => setEdit((s) => ({ ...s, resumeUrl: e.target.value }))} className="mt-1" placeholder="https://..." />
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  e.currentTarget.value = '';
+                  if (file) void uploadProfilePhoto(file);
+                }}
+                disabled={uploadingPhoto}
+              />
+
+              <button
+                type="button"
+                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full border bg-background shadow-sm flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                aria-label="Alterar foto"
+              >
+                <Camera className="h-4 w-4 text-muted-foreground" />
+              </button>
             </div>
-            {edit.resumeUrl ? (
-              <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
-                Abrir currículo
-              </a>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                {editMode ? (
+                  <div className="w-full max-w-sm">
+                    <Label htmlFor="profile-name" className="sr-only">
+                      Nome
+                    </Label>
+                    <Input
+                      id="profile-name"
+                      value={edit.name}
+                      onChange={(e) => setEdit((s) => ({ ...s, name: e.target.value }))}
+                      className="h-10 text-base md:text-lg font-semibold"
+                    />
+                  </div>
+                ) : (
+                  <h1 className="text-xl md:text-2xl font-bold truncate">{edit.name || '—'}</h1>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground truncate">{profileDoc.email || '—'}</p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {legalStatusLabel ? (
+                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">
+                    Situação: {legalStatusLabel}
+                  </span>
+                ) : null}
+                {arrivedSinceLabel ? (
+                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                    Portugal desde: {arrivedSinceLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 md:justify-end">
+            {editMode ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditMode(false);
+                    setEdit({
+                      name: profileDoc.name || data?.userProfile?.name || '',
+                      resumeUrl: profileDoc.resumeUrl || '',
+                      professionalTitle: profileDoc.professionalTitle || '',
+                      professionalExperience: profileDoc.professionalExperience || '',
+                      skills: profileDoc.skills || '',
+                      languagesList: profileDoc.languagesList || '',
+                      mainNeeds: profileDoc.mainNeeds || '',
+                      contactPreference: (profileDoc.contactPreference as 'email' | 'phone') || 'email',
+                    });
+                  }}
+                  disabled={saving || uploadingPhoto}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={save} disabled={saving || uploadingPhoto}>
+                  {saving ? 'A guardar…' : 'Guardar alterações'}
+                </Button>
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground">Sem currículo registado.</p>
+              <>
+                <Button type="button" onClick={() => setEditMode(true)} disabled={uploadingPhoto}>
+                  Editar Perfil
+                </Button>
+                <Button type="button" variant="outline" onClick={() => window.print()} disabled={uploadingPhoto}>
+                  Exportar PDF
+                </Button>
+              </>
             )}
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="cpc-card p-6">
+          <div className="flex items-start justify-between">
+            <h2 className="text-lg font-semibold">Informação Pessoal</h2>
+            <User className="h-5 w-5 text-muted-foreground" />
+          </div>
+
+          <div className="mt-5 space-y-5">
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Telefone</p>
+              <p className="mt-1 font-medium">{profileReadOnlyFields.phone || '—'}</p>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Nacionalidade</p>
+              <p className="mt-1 font-medium">{profileReadOnlyFields.nationality || '—'}</p>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Data de nascimento</p>
+              <p className="mt-1 font-medium">{profileReadOnlyFields.birth || '—'}</p>
+            </div>
+          </div>
+        </div>
 
         <div className="cpc-card p-6">
-          <h2 className="font-semibold mb-4">Configurações</h2>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="flex items-start justify-between">
+            <h2 className="text-lg font-semibold">Documentos &amp; Configurações</h2>
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+
+          <div className="mt-5 space-y-5">
             <div>
-              <Label htmlFor="language">Idioma</Label>
-              <Select value={language} onValueChange={(v) => setLanguage(v as typeof language)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pt">Português</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Currículo (URL)</p>
+              {editMode ? (
+                <Input
+                  value={edit.resumeUrl}
+                  onChange={(e) => setEdit((s) => ({ ...s, resumeUrl: e.target.value }))}
+                  className="mt-2"
+                  placeholder="https://..."
+                />
+              ) : edit.resumeUrl ? (
+                <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-sm text-primary hover:underline">
+                  Visualizar documento anexado
+                </a>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">—</p>
+              )}
             </div>
+
             <div>
-              <Label htmlFor="contactPreference">Preferência de contacto</Label>
-              <Select value={edit.contactPreference} onValueChange={(v) => setEdit((s) => ({ ...s, contactPreference: v as 'email' | 'phone' }))}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="phone">Telefone</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Idioma de interface</p>
+              {editMode ? (
+                <Select value={language} onValueChange={(v) => setLanguage(v as typeof language)}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pt">Português</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="mt-1 font-medium">{interfaceLanguageLabel}</p>
+              )}
             </div>
+
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Preferência de contacto</p>
+              {editMode ? (
+                <Select value={edit.contactPreference} onValueChange={(v) => setEdit((s) => ({ ...s, contactPreference: v as 'email' | 'phone' }))}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="phone">Telefone</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="mt-1 font-medium">{contactPreferenceLabel}</p>
+              )}
+            </div>
+
+            {profileDoc.photoUrl ? (
+              <div className="pt-1">
+                <Button type="button" variant="ghost" size="sm" className="px-0" disabled={uploadingPhoto} onClick={removeProfilePhoto}>
+                  Remover foto
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="cpc-card p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Marcações</h2>
+            </div>
+            <Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">
+              Ver todas
+            </Link>
+          </div>
+
+          <div className="mt-5 rounded-xl border bg-muted/30 p-6 min-h-[160px] flex items-center justify-center">
+            {upcomingSessions.length ? (
+              <div className="w-full space-y-3">
+                {upcomingSessions.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg bg-background/70 border px-4 py-3">
+                    <div>
+                      <p className="font-medium text-sm">{s.session_type}</p>
+                      <p className="text-xs text-muted-foreground">Status: {s.status || '—'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{new Date(s.scheduled_date).toLocaleDateString('pt-PT')}</p>
+                      <p className="text-xs text-muted-foreground">{s.scheduled_time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="mx-auto h-12 w-12 rounded-full bg-background border flex items-center justify-center text-muted-foreground">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">Sem marcações agendadas no momento.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="cpc-card p-6">
-          <h2 className="font-semibold mb-4">Status Migratório</h2>
-          {triage ? (
-            <div className="space-y-5 text-sm">
-              {statusSections.map((section) => (
-                <div key={section.titleKey} className="rounded-lg border bg-card">
-                  <div className="px-4 py-3 border-b">
-                    <h3 className="font-medium">{t.get(section.titleKey)}</h3>
-                  </div>
-                  <div className="px-4">
-                    {section.questionIds.map((questionId) => {
-                      const labelKey = `triage.questions.${questionId}`;
-                      const label = t.get(labelKey);
-                      const value = triageAnswers[questionId];
-                      return (
-                        <div key={questionId} className="grid grid-cols-1 md:grid-cols-2 gap-2 py-3 border-b last:border-b-0">
-                          <div className="text-muted-foreground">{label === labelKey ? questionId : label}</div>
-                          <div className="font-medium break-words">{formatAnswer(questionId, value)}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="cpc-card p-6 lg:col-span-2">
+          <div className="flex items-start justify-between">
+            <h2 className="text-lg font-semibold">Status Migratório &amp; Integração</h2>
+            <Link to="/triagem" className="text-sm text-primary hover:underline">
+              Atualizar
+            </Link>
+          </div>
 
-              <div className="pt-1">
-                <Link to="/triagem" className="text-primary hover:underline">Atualizar dados de triagem</Link>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Autonomia diária</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.dailyAutonomy.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.dailyAutonomy.label}</span>
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Triagem não encontrada.</p>
-          )}
-        </div>
 
-        <div className="cpc-card p-6">
-          <h2 className="font-semibold mb-4">Perfil Profissional</h2>
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label htmlFor="professionalTitle">Título profissional</Label>
-              <Input id="professionalTitle" value={edit.professionalTitle} onChange={(e) => setEdit((s) => ({ ...s, professionalTitle: e.target.value }))} className="mt-1" />
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Conforto na comunicação</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.communicationComfort.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.communicationComfort.label}</span>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="professionalExperience">Experiência</Label>
-              <Textarea id="professionalExperience" value={edit.professionalExperience} onChange={(e) => setEdit((s) => ({ ...s, professionalExperience: e.target.value }))} className="mt-1" />
+
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Normas sociais</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.socialNorms.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.socialNorms.label}</span>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="skills">Competências</Label>
-              <Textarea id="skills" value={edit.skills} onChange={(e) => setEdit((s) => ({ ...s, skills: e.target.value }))} className="mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="languagesList">Idiomas</Label>
-              <Input id="languagesList" value={edit.languagesList} onChange={(e) => setEdit((s) => ({ ...s, languagesList: e.target.value }))} className="mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="mainNeeds">Necessidades principais</Label>
-              <Textarea id="mainNeeds" value={edit.mainNeeds} onChange={(e) => setEdit((s) => ({ ...s, mainNeeds: e.target.value }))} className="mt-1" />
+          </div>
+
+          <div className="mt-6 pt-6 border-t">
+            <p className="font-semibold">Necessidades Identificadas</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {identifiedNeeds.length ? (
+                identifiedNeeds.map((n) => {
+                  const tone =
+                    n.value === 'psychological'
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : n.value === 'employment'
+                        ? 'bg-green-100 text-green-700'
+                        : n.value === 'housing'
+                          ? 'bg-orange-100 text-orange-700'
+                          : n.value === 'health'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-muted text-muted-foreground';
+                  return (
+                    <span key={n.value} className={`text-xs font-medium px-3 py-1 rounded-full ${tone}`}>
+                      {n.label}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <div className="cpc-card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Histórico de Marcações
-            </h2>
-            <Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">Ver todas</Link>
-          </div>
-          {sessionsSorted.length ? (
-            <div className="space-y-3">
-              {sessionsSorted.slice(0, 5).map((s) => (
-                <div key={s.id} className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                    <Clock className="h-6 w-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">{s.session_type}</p>
-                    <p className="text-sm text-muted-foreground">Status: {s.status || '—'}</p>
-                  </div>
-                  <div className="text-right text-sm">
-                    <p className="font-medium">{new Date(s.scheduled_date).toLocaleDateString('pt-PT')}</p>
-                    <p className="text-muted-foreground">{s.scheduled_time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sem marcações registadas.</p>
-          )}
-        </div>
 
         <div className="cpc-card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-semibold flex items-center gap-2">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
-              Histórico de Trilhas
-            </h2>
-            <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline">Ver todas</Link>
-          </div>
-          {progressSorted.length ? (
-            <div className="space-y-4">
-              {progressSorted.slice(0, 6).map((p) => {
-                const t = data?.trails?.[p.trail_id];
-                const percent = p.progress_percent || 0;
-                const total = t?.modules_count || 0;
-                const completed = p.modules_completed || 0;
-                return (
-                  <Link key={p.id || p.trail_id} to={`/dashboard/migrante/trilhas/${p.trail_id}`} className="block p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-medium text-sm">{t?.title || p.trail_id}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {completed}/{total} módulos
-                      </span>
-                    </div>
-                    <Progress value={percent} className="h-2" />
-                  </Link>
-                );
-              })}
+              <h2 className="text-lg font-semibold">Trilhas de Sucesso</h2>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Ainda não iniciou nenhuma trilha.</p>
-          )}
+            <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline">
+              Ver todas
+            </Link>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            {featuredTrail ? (
+              <Link
+                to={`/dashboard/migrante/trilhas/${featuredTrail.trail_id}`}
+                className="block rounded-xl border bg-muted/20 px-4 py-4 hover:bg-muted/30 transition-colors"
+              >
+                <p className="text-[11px] tracking-wider text-primary uppercase font-semibold">Em curso</p>
+                <p className="mt-1 font-semibold text-sm">
+                  {data?.trails?.[featuredTrail.trail_id]?.title || featuredTrail.trail_id}
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <Progress value={featuredTrail.progress_percent || 0} className="h-2 flex-1" />
+                  <span className="text-xs font-semibold text-muted-foreground">{featuredTrail.progress_percent || 0}%</span>
+                </div>
+              </Link>
+            ) : (
+              <div className="rounded-xl border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                Ainda não iniciou nenhuma trilha.
+              </div>
+            )}
+
+            <Link
+              to="/dashboard/migrante/trilhas"
+              className="block rounded-xl border border-dashed px-4 py-3 text-center text-sm text-muted-foreground hover:bg-muted/30 transition-colors"
+            >
+              + Iniciar nova trilha
+            </Link>
+          </div>
         </div>
       </div>
-    </>
+
+      <div className="cpc-card p-6">
+        <div className="flex items-start justify-between">
+          <h2 className="text-lg font-semibold">Perfil Profissional</h2>
+          {edit.resumeUrl ? (
+            <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
+              Ver currículo completo
+            </a>
+          ) : (
+            <span className="text-sm text-muted-foreground"> </span>
+          )}
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Escolaridade</p>
+            <p className="mt-2 font-medium">{educationLabel}</p>
+          </div>
+
+          <div>
+            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Área de interesse</p>
+            {interestAreaLabel ? (
+              <span className="mt-2 inline-flex text-xs font-semibold px-3 py-1 rounded-full bg-muted">
+                {interestAreaLabel.toUpperCase()}
+              </span>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">—</p>
+            )}
+          </div>
+
+          <div className="md:col-span-3">
+            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Experiência profissional</p>
+            {editMode ? (
+              <Textarea
+                value={edit.professionalExperience}
+                onChange={(e) => setEdit((s) => ({ ...s, professionalExperience: e.target.value }))}
+                className="mt-2"
+              />
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {edit.professionalExperience?.trim() ? edit.professionalExperience : '—'}
+              </p>
+            )}
+          </div>
+
+          <div className="md:col-span-3">
+            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Competências</p>
+            {editMode ? (
+              <Textarea value={edit.skills} onChange={(e) => setEdit((s) => ({ ...s, skills: e.target.value }))} className="mt-2" />
+            ) : skillsTokens.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {skillsTokens.map((s) => (
+                  <span key={s} className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">—</p>
+            )}
+          </div>
+
+          <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Título profissional</p>
+              {editMode ? (
+                <Input value={edit.professionalTitle} onChange={(e) => setEdit((s) => ({ ...s, professionalTitle: e.target.value }))} className="mt-2" />
+              ) : (
+                <p className="mt-2 font-medium">{edit.professionalTitle?.trim() ? edit.professionalTitle : '—'}</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Idiomas</p>
+              {editMode ? (
+                <Input value={edit.languagesList} onChange={(e) => setEdit((s) => ({ ...s, languagesList: e.target.value }))} className="mt-2" />
+              ) : (
+                <p className="mt-2 font-medium">{edit.languagesList?.trim() ? edit.languagesList : '—'}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Necessidades principais</p>
+              {editMode ? (
+                <Textarea value={edit.mainNeeds} onChange={(e) => setEdit((s) => ({ ...s, mainNeeds: e.target.value }))} className="mt-2" />
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">{edit.mainNeeds?.trim() ? edit.mainNeeds : '—'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

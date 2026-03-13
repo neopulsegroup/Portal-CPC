@@ -70,17 +70,17 @@ describe('ProfilePage (dashboard/migrante)', () => {
 
     expect(document.querySelector('.animate-spin')).not.toBeNull();
 
-    expect(await screen.findByText('Perfil')).toBeInTheDocument();
-    expect(screen.getByLabelText('Email')).toHaveValue('ana@exemplo.com');
+    expect(await screen.findByText('Informação Pessoal')).toBeInTheDocument();
+    expect(screen.getByText('Editar Perfil')).toBeInTheDocument();
     expect(screen.queryByLabelText('Telefone')).toBeNull();
     expect(screen.queryByLabelText('Data de nascimento')).toBeNull();
     expect(screen.queryByLabelText('Nacionalidade')).toBeNull();
     expect(screen.getByText('+351 900 000 000')).toBeInTheDocument();
     expect(screen.getByText('03/02/1990')).toBeInTheDocument();
     expect(screen.getAllByText('Brasil').length).toBeGreaterThan(0);
-    expect(screen.getByText('Status Migratório')).toBeInTheDocument();
-    expect(screen.getByText('Histórico de Marcações')).toBeInTheDocument();
-    expect(screen.getByText('Histórico de Trilhas')).toBeInTheDocument();
+    expect(screen.getByText('Status Migratório & Integração')).toBeInTheDocument();
+    expect(screen.getByText('Marcações')).toBeInTheDocument();
+    expect(screen.getByText('Trilhas de Sucesso')).toBeInTheDocument();
   });
 
   it('mostra estado de não encontrado quando o perfil não existe', async () => {
@@ -119,7 +119,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
       </MemoryRouter>
     );
 
-    await screen.findByText('Perfil');
+    await screen.findByText('Informação Pessoal');
     expect(screen.queryByLabelText('Telefone')).toBeNull();
     expect(screen.queryByLabelText('Data de nascimento')).toBeNull();
     expect(screen.queryByLabelText('Nacionalidade')).toBeNull();
@@ -166,8 +166,9 @@ describe('ProfilePage (dashboard/migrante)', () => {
         <ProfilePage />
       </MemoryRouter>
     );
-    await screen.findByText('Perfil');
+    await screen.findByText('Informação Pessoal');
 
+    await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
     await user.clear(screen.getByLabelText('Nome'));
     await user.type(screen.getByLabelText('Nome'), 'Ana Maria');
     await user.click(screen.getByRole('button', { name: 'Guardar alterações' }));
@@ -203,7 +204,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
         <ProfilePage />
       </MemoryRouter>
     );
-    await screen.findByText('Perfil');
+    await screen.findByText('Informação Pessoal');
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
     expect(fileInput).not.toBeNull();
