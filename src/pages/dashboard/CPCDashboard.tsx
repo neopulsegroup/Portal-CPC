@@ -32,6 +32,7 @@ import {
   CalendarPlus,
   UserX,
   RotateCcw,
+  Wrench,
 } from 'lucide-react';
 
 type FirebaseUserDoc = {
@@ -1099,7 +1100,7 @@ export default function CPCDashboard() {
                         </div>
                       </div>
 
-                      <div className="cpc-card overflow-hidden">
+                      <div className="cpc-card overflow-hidden relative">
                         <div className="relative h-44 bg-gradient-to-br from-emerald-100 via-emerald-50 to-slate-50">
                           <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold shadow-sm">
                             <MapPin className="h-4 w-4 text-emerald-700" />
@@ -1115,9 +1116,15 @@ export default function CPCDashboard() {
                             <Progress value={82} />
                           </div>
                         </div>
+                        <div className="absolute inset-0 bg-white/30 dark:bg-background/45 backdrop-blur-sm flex items-center justify-center z-10 cursor-not-allowed">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/80 text-white/90 px-5 py-2 text-xs font-semibold shadow-md">
+                            <Wrench className="h-4 w-4" />
+                            EM BREVE
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="cpc-card p-6">
+                      <div className="cpc-card p-6 relative overflow-hidden">
                         <div className="flex items-center justify-between">
                           <h2 className="text-lg font-semibold">Equipa em serviço</h2>
                           <span className="text-xs font-semibold text-muted-foreground">Hoje</span>
@@ -1146,6 +1153,12 @@ export default function CPCDashboard() {
                             </div>
                           ))}
                         </div>
+                        <div className="absolute inset-0 bg-white/30 dark:bg-background/45 backdrop-blur-sm flex items-center justify-center z-10 cursor-not-allowed">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/80 text-white/90 px-5 py-2 text-xs font-semibold shadow-md">
+                            <Wrench className="h-4 w-4" />
+                            EM BREVE
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1154,6 +1167,7 @@ export default function CPCDashboard() {
 
               <Routes>
                 <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
+                <Route path="migrantes/:migrantId/perfil" element={<MigrantProfilePage />} />
                 <Route path="migrantes" element={<MigrantsAdminPage />} />
                 <Route path="agenda" element={<TeamAgendaPage />} />
                 <Route path="candidaturas" element={<CandidaturasDetalhadas />} />
@@ -1170,3 +1184,4 @@ export default function CPCDashboard() {
 import CandidateProfilePage from './company/CandidateProfilePage';
 import MigrantsAdminPage from './cpc/MigrantsAdminPage';
 import TeamAgendaPage from './cpc/TeamAgendaPage';
+import MigrantProfilePage from './migrant/ProfilePage';

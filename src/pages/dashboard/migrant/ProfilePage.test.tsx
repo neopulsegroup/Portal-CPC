@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import ProfilePage from './ProfilePage';
 
@@ -53,6 +53,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
 describe('ProfilePage (dashboard/migrante)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    stableUser.uid = 'u1';
   });
 
   it('mostra loading e depois renderiza dados vindos da base de dados', async () => {
@@ -180,6 +181,53 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await waitFor(() => {
       expect(mockUpdateDocument).toHaveBeenCalledWith('profiles', 'u1', expect.objectContaining({ name: 'Ana Maria' }));
       expect(mockUpdateUserProfile).toHaveBeenCalledWith('u1', expect.objectContaining({ name: 'Ana Maria' }));
+    });
+  });
+
+  it('usa o migrantId da rota CPC e não tenta atualizar o perfil Auth do utilizador atual', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    stableUser.uid = 'cpc1';
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm1@exemplo.com', name: 'Migrante 1', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm1', name: 'Migrante 1', email: 'm1@exemplo.com', phone: null },
+      triage: null,
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    mockUpdateDocument.mockResolvedValueOnce(undefined);
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm1@exemplo.com', name: 'Migrante 1', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm1', name: 'Migrante 1 Atualizado', email: 'm1@exemplo.com', phone: null },
+      triage: null,
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/migrantes/m1/perfil']}>
+        <Routes>
+          <Route path="/dashboard/cpc/migrantes/:migrantId/perfil" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+    expect(mockFetchMigrantProfile).toHaveBeenCalledWith('m1');
+
+    await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+    await user.clear(screen.getByLabelText('Nome'));
+    await user.type(screen.getByLabelText('Nome'), 'Migrante 1 Atualizado');
+    await user.click(screen.getByRole('button', { name: 'Guardar alterações' }));
+
+    await waitFor(() => {
+      expect(mockUpdateDocument).toHaveBeenCalledWith('profiles', 'm1', expect.objectContaining({ name: 'Migrante 1 Atualizado' }));
+      expect(mockUpdateUserProfile).not.toHaveBeenCalled();
+      expect(mockRefreshProfile).not.toHaveBeenCalled();
     });
   });
 

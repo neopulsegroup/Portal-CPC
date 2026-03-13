@@ -5,6 +5,8 @@
 - Toda task deve ser marcada como concluída (- [x]) somente quando finalizada e validada (build/test/lint quando aplicável).
 - A task "Migração completa do sistema" deve permanecer visível em "Tarefas Pendentes" e marcada como não realizada até execução futura.
 
+## Tarefas em Progresso
+
 ## Tarefas Implementadas
 - [x] Remoção completa de dependências do Supabase no runtime (imports/uso do client) e limpeza de integrações Supabase no código.
 - [x] Refatoração para Firestore nas páginas do Migrante (sessões, ofertas de emprego e detalhe, visualizador de módulos e progresso).
@@ -22,6 +24,8 @@
 - [x] Remoção dos campos "Localização atual" e "Data de chegada" e do email duplicado ao lado do botão "Guardar alterações" no card "Perfil" (dashboard/migrante/perfil).
 - [x] Reestruturação do layout da "Visão geral" do dashboard CPC (dashboard/cpc) com novo grid, KPIs, cards e widgets, mantendo responsividade e padrão visual do projeto.
 - [x] Padronização do layout da página CPC "Equipa" para corresponder à estrutura/padrões de UI/UX de CPC "Migrantes" (filtros, lista, estados e ações), mantendo a funcionalidade de gestão de utilizadores.
+- [x] Aplicação de overlay "Em breve" (opacidade + blur) nas secções "Capacidade Atual" e "Equipa em serviço" no dashboard CPC (Visão geral), com texto do pill em `text-white/90` (opacidade 0.9) para melhor equivalência visual com a referência e mantendo contraste WCAG 2.1 AA (>= 4.5:1) em cenário conservador.
+- [x] CPC: "Ver perfil" em dashboard/cpc/migrantes redireciona para página interna de perfil do migrante com layout idêntico a dashboard/migrante/perfil (reutilização do mesmo layout/componentes, dados do migrante alvo, preservação de ações/formulários/indicadores, rota dedicada em /dashboard/cpc e navegação sem quebras; validado com lint/typecheck/test/build).
 
 ## Requisitos CPC (Checklist)
 

@@ -356,7 +356,7 @@ export default function MigrantsAdminPage() {
                   </div>
                 </div>
                 <div className="flex flex-col items-stretch gap-2">
-                  <Link to={`/dashboard/cpc/candidatos/${r.user_id}`} className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> Ver perfil</Link>
+                  <Link to={`/dashboard/cpc/migrantes/${r.user_id}/perfil`} className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> Ver perfil</Link>
                   <Button variant="outline" className="inline-flex items-center justify-center gap-2 w-full" onClick={() => setSelectedTriage(r)}>
                     <ClipboardList className="h-4 w-4" /> Triagem Inicial
                   </Button>

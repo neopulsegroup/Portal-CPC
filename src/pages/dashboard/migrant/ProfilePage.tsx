@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { getDownloadURL, ref as makeStorageRef, uploadBytes } from 'firebase/sto
 
 export default function ProfilePage() {
   const { user, refreshProfile } = useAuth();
+  const { migrantId } = useParams<{ migrantId?: string }>();
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -52,19 +53,24 @@ export default function ProfilePage() {
     contactPreference: 'email',
   });
 
+  const targetUserId = migrantId || user?.uid || null;
+  const isViewingOtherUser = !!(migrantId && user?.uid && migrantId !== user.uid);
+  const sessionsUrl = isViewingOtherUser ? '/dashboard/cpc/agenda' : '/dashboard/migrante/sessoes';
+  const triageUrl = isViewingOtherUser ? '/dashboard/cpc/migrantes' : '/triagem';
+  const trailsUrl = isViewingOtherUser ? '/dashboard/cpc/trilhas' : '/dashboard/migrante/trilhas';
+
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      if (!user) return;
+      if (!targetUserId) return;
       setLoading(true);
       setError(null);
       try {
-        const res = await fetchMigrantProfile(user.uid);
+        const res = await fetchMigrantProfile(targetUserId);
         if (cancelled) return;
-        const userKey = (user as unknown as { id?: string }).id || user.uid;
+        const userKey = targetUserId;
         const extrasRaw =
           localStorage.getItem(`profileExtras:${userKey}`) ||
-          localStorage.getItem(`profileExtras:${user.uid}`) ||
           localStorage.getItem(`profileExtras:${String(userKey)}`);
         const extras = (() => {
           if (!extrasRaw) return null;
@@ -105,7 +111,7 @@ export default function ProfilePage() {
             (!p.contactPreference && extras.contactPreference);
 
           if (shouldMigrate) {
-            void updateDocument('profiles', user.uid, {
+            void updateDocument('profiles', targetUserId, {
               birthDate: merged?.birthDate || null,
               nationality: merged?.nationality || null,
               resumeUrl: merged?.resumeUrl || null,
@@ -150,7 +156,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [targetUserId]);
 
   const sessionsSorted = useMemo(() => {
     return (data?.sessions || []).slice().sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
@@ -279,10 +285,10 @@ export default function ProfilePage() {
   }, [progressSorted]);
 
   async function save() {
-    if (!user) return;
+    if (!user || !targetUserId) return;
     setSaving(true);
     try {
-      await updateDocument('profiles', user.uid, {
+      await updateDocument('profiles', targetUserId, {
         name: edit.name,
         resumeUrl: edit.resumeUrl || null,
         professionalTitle: edit.professionalTitle || null,
@@ -293,10 +299,12 @@ export default function ProfilePage() {
         contactPreference: edit.contactPreference || null,
       });
 
-      await updateUserProfile(user.uid, { name: edit.name });
+      if (targetUserId === user.uid) {
+        await updateUserProfile(user.uid, { name: edit.name });
+        await refreshProfile();
+      }
 
-      await refreshProfile();
-      const res = await fetchMigrantProfile(user.uid);
+      const res = await fetchMigrantProfile(targetUserId);
       setData(res);
     } catch {
       setError('Não foi possível guardar as alterações do perfil.');
@@ -310,7 +318,7 @@ export default function ProfilePage() {
     const isAllowedByExt = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt);
     const isAllowedByMime = file.type ? PHOTO_ALLOWED_MIME.has(file.type) : false;
 
-    if (!user) {
+    if (!user || !targetUserId) {
       toast({ title: 'Sessão expirada', description: 'Inicie sessão novamente e tente outra vez.', variant: 'destructive' });
       return;
     }
@@ -333,7 +341,7 @@ export default function ProfilePage() {
     let stage: 'upload' | 'url' | 'db' = 'upload';
     try {
       const safeName = file.name.replace(/[^\w.+-]+/g, '-').slice(0, 80) || 'foto';
-      const path = `profile_photos/${user.uid}/${Date.now()}-${safeName}`;
+      const path = `profile_photos/${targetUserId}/${Date.now()}-${safeName}`;
       const ref = makeStorageRef(storage, path);
 
       stage = 'upload';
@@ -343,14 +351,14 @@ export default function ProfilePage() {
       const url = await getDownloadURL(ref);
 
       stage = 'db';
-      await updateDocument('profiles', user.uid, { photoUrl: url });
+      await updateDocument('profiles', targetUserId, { photoUrl: url });
 
       setData((prev) => {
         if (!prev) return prev;
         if (!prev.profile) return prev;
         return { ...prev, profile: { ...prev.profile, photoUrl: url } };
       });
-      await refreshProfile();
+      if (targetUserId === user.uid) await refreshProfile();
       toast({ title: 'Foto atualizada', description: 'A sua foto de perfil foi atualizada com sucesso.' });
     } catch (err: unknown) {
       const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
@@ -407,16 +415,16 @@ export default function ProfilePage() {
   }
 
   async function removeProfilePhoto() {
-    if (!user) return;
+    if (!user || !targetUserId) return;
     setUploadingPhoto(true);
     try {
-      await updateDocument('profiles', user.uid, { photoUrl: null });
+      await updateDocument('profiles', targetUserId, { photoUrl: null });
       setData((prev) => {
         if (!prev) return prev;
         if (!prev.profile) return prev;
         return { ...prev, profile: { ...prev.profile, photoUrl: null } };
       });
-      await refreshProfile();
+      if (targetUserId === user.uid) await refreshProfile();
       toast({ title: 'Foto removida' });
     } catch (err: unknown) {
       const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
@@ -680,7 +688,7 @@ export default function ProfilePage() {
               <Calendar className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Marcações</h2>
             </div>
-            <Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">
+            <Link to={sessionsUrl} className="text-sm text-primary hover:underline">
               Ver todas
             </Link>
           </div>
@@ -717,7 +725,7 @@ export default function ProfilePage() {
         <div className="cpc-card p-6 lg:col-span-2">
           <div className="flex items-start justify-between">
             <h2 className="text-lg font-semibold">Status Migratório &amp; Integração</h2>
-            <Link to="/triagem" className="text-sm text-primary hover:underline">
+            <Link to={triageUrl} className="text-sm text-primary hover:underline">
               Atualizar
             </Link>
           </div>
@@ -782,7 +790,7 @@ export default function ProfilePage() {
               <BookOpen className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Trilhas de Sucesso</h2>
             </div>
-            <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline">
+            <Link to={trailsUrl} className="text-sm text-primary hover:underline">
               Ver todas
             </Link>
           </div>
@@ -790,7 +798,7 @@ export default function ProfilePage() {
           <div className="mt-5 space-y-4">
             {featuredTrail ? (
               <Link
-                to={`/dashboard/migrante/trilhas/${featuredTrail.trail_id}`}
+                to={isViewingOtherUser ? trailsUrl : `/dashboard/migrante/trilhas/${featuredTrail.trail_id}`}
                 className="block rounded-xl border bg-muted/20 px-4 py-4 hover:bg-muted/30 transition-colors"
               >
                 <p className="text-[11px] tracking-wider text-primary uppercase font-semibold">Em curso</p>
@@ -809,7 +817,7 @@ export default function ProfilePage() {
             )}
 
             <Link
-              to="/dashboard/migrante/trilhas"
+              to={trailsUrl}
               className="block rounded-xl border border-dashed px-4 py-3 text-center text-sm text-muted-foreground hover:bg-muted/30 transition-colors"
             >
               + Iniciar nova trilha
