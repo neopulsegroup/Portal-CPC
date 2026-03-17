@@ -18,6 +18,31 @@ vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ profile: { name: 'Ana', role: 'admin' } }),
 }));
 
+vi.mock('@/contexts/LanguageContext', () => ({
+  useLanguage: () => ({
+    language: 'pt',
+    t: {
+      get: (key: string, params?: Record<string, string | number>) => {
+        const dict: Record<string, string> = {
+          'cpc.menu.title': 'Menu CPC',
+          'cpc.menu.user_fallback': 'Utilizador',
+          'cpc.menu.overview': 'Visão geral',
+          'cpc.menu.migrants': 'Migrantes',
+          'cpc.menu.agenda': 'Agenda',
+          'cpc.menu.applications': 'Candidaturas',
+          'cpc.menu.offers': 'Ofertas',
+          'cpc.menu.trails': 'Trilhas',
+          'cpc.menu.team': 'Equipa',
+          'cpcTranslations.title': 'Traduções',
+        };
+        const template = dict[key] ?? key;
+        if (!params) return template;
+        return template.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? `{${k}}`));
+      },
+    },
+  }),
+}));
+
 vi.mock('@/integrations/firebase/auth', () => ({
   registerUser: vi.fn().mockResolvedValue(undefined),
 }));
@@ -73,4 +98,3 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
     expect(screen.getByRole('link', { name: 'Trilhas' }).className).toContain('bg-primary');
   });
 });
-

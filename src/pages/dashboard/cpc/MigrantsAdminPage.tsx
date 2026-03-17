@@ -88,30 +88,6 @@ function normalizeUrgencies(values?: string[] | null): Array<'juridico' | 'psico
   return Array.from(set);
 }
 
-function legalLabel(value?: string | null): string {
-  const normalized = normalizeLegalStatus(value);
-  if (normalized === 'regular') return 'Regular';
-  if (normalized === 'irregular') return 'Irregular';
-  if (normalized === 'pendente') return 'Pendente';
-  return '—';
-}
-
-function workLabel(value?: string | null): string {
-  const normalized = normalizeWorkStatus(value);
-  if (normalized === 'empregado') return 'Empregado';
-  if (normalized === 'desempregado') return 'Desempregado';
-  if (normalized === 'informal') return 'Informal';
-  return '—';
-}
-
-function languageLabel(value?: string | null): string {
-  const normalized = normalizeLanguageLevel(value);
-  if (normalized === 'iniciante') return 'Iniciante';
-  if (normalized === 'intermediario') return 'Intermediário';
-  if (normalized === 'avancado') return 'Avançado';
-  return '—';
-}
-
 export default function MigrantsAdminPage() {
   const { t } = useLanguage();
   const { profile } = useAuth();
@@ -147,8 +123,8 @@ export default function MigrantsAdminPage() {
     const path = `triage.options.${questionId}.${option}`;
     const translated = t.get(path);
     if (translated !== path) return translated;
-    if (option === 'yes') return 'Sim';
-    if (option === 'no') return 'Não';
+    if (option === 'yes') return t.get('common.yes');
+    if (option === 'no') return t.get('common.no');
     return option;
   }
 
@@ -158,7 +134,7 @@ export default function MigrantsAdminPage() {
         .map((item) => (typeof item === 'string' ? optionLabel(questionId, item) : String(item)))
         .join(', ');
     }
-    if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+    if (typeof value === 'boolean') return value ? t.get('common.yes') : t.get('common.no');
     if (value === null || value === undefined || value === '') return '—';
     if (typeof value === 'string') {
       const datePt = isoDateToPt(value);
@@ -214,6 +190,30 @@ export default function MigrantsAdminPage() {
     return { value: valid ? normalized : '—', valid };
   }
 
+  function legalLabel(value?: string | null): string {
+    const normalized = normalizeLegalStatus(value);
+    if (normalized === 'regular') return t.get('cpc.migrantsAdmin.legal.regular');
+    if (normalized === 'irregular') return t.get('cpc.migrantsAdmin.legal.irregular');
+    if (normalized === 'pendente') return t.get('cpc.migrantsAdmin.legal.pending');
+    return '—';
+  }
+
+  function workLabel(value?: string | null): string {
+    const normalized = normalizeWorkStatus(value);
+    if (normalized === 'empregado') return t.get('cpc.migrantsAdmin.work.employed');
+    if (normalized === 'desempregado') return t.get('cpc.migrantsAdmin.work.unemployed');
+    if (normalized === 'informal') return t.get('cpc.migrantsAdmin.work.informal');
+    return '—';
+  }
+
+  function languageLabel(value?: string | null): string {
+    const normalized = normalizeLanguageLevel(value);
+    if (normalized === 'iniciante') return t.get('cpc.migrantsAdmin.language.beginner');
+    if (normalized === 'intermediario') return t.get('cpc.migrantsAdmin.language.intermediate');
+    if (normalized === 'avancado') return t.get('cpc.migrantsAdmin.language.advanced');
+    return '—';
+  }
+
   function exportRowValue(row: MigrantRow, key: 'birth_date' | 'nationality' | 'arrival_date'): string {
     const fromAnswers = row.triage_answers?.[key] ?? row.triage_answers?.[key === 'arrival_date' ? 'arrival_date_pt' : key];
     if (typeof fromAnswers === 'string') return getStringFromCell(fromAnswers);
@@ -225,8 +225,8 @@ export default function MigrantsAdminPage() {
   async function handleExport(format: 'csv' | 'xlsx') {
     if (!profile || !['admin', 'manager', 'coordinator', 'mediator', 'lawyer', 'psychologist', 'trainer'].includes(profile.role)) {
       toast({
-        title: 'Sem permissão',
-        description: 'O seu utilizador não tem permissões para exportar a lista de migrantes.',
+        title: t.get('cpc.migrantsAdmin.export.no_permission.title'),
+        description: t.get('cpc.migrantsAdmin.export.no_permission.description'),
         variant: 'destructive',
       });
       return;
@@ -242,29 +242,29 @@ export default function MigrantsAdminPage() {
         xlsxModuleRef.current = module;
       } catch {
         toast({
-          title: 'Erro na exportação',
-          description: 'Não foi possível preparar o exportador XLSX. Tente novamente.',
+          title: t.get('cpc.migrantsAdmin.export.error_title'),
+          description: t.get('cpc.migrantsAdmin.export.xlsx_prepare_error'),
           variant: 'destructive',
         });
       } finally {
         setExporting(null);
       }
       toast({
-        title: 'Exportação XLSX pronta',
-        description: 'Clique novamente em “XLSX” para gerar o ficheiro.',
+        title: t.get('cpc.migrantsAdmin.export.xlsx_ready.title'),
+        description: t.get('cpc.migrantsAdmin.export.xlsx_ready.description'),
       });
       return;
     }
 
     if (filtered.length === 0) {
-      toast({ title: 'Sem resultados', description: 'Não existem migrantes para exportar com os filtros atuais.' });
+      toast({ title: t.get('cpc.migrantsAdmin.export.no_results.title'), description: t.get('cpc.migrantsAdmin.export.no_results.description') });
       return;
     }
 
     if (filtered.length > 10000) {
       toast({
-        title: 'Limite excedido',
-        description: 'A exportação suporta até 10.000 registos. Refine os filtros para reduzir a lista.',
+        title: t.get('cpc.migrantsAdmin.export.limit_exceeded.title'),
+        description: t.get('cpc.migrantsAdmin.export.limit_exceeded.description'),
         variant: 'destructive',
       });
       return;
@@ -272,7 +272,14 @@ export default function MigrantsAdminPage() {
 
     setExporting(format);
     try {
-      const header = ['Nome', 'Email', 'Data de nascimento', 'Nacionalidade', 'Status migratório', 'Data de entrada'];
+      const header = [
+        t.get('cpc.migrantsAdmin.export.columns.name'),
+        t.get('cpc.migrantsAdmin.export.columns.email'),
+        t.get('cpc.migrantsAdmin.export.columns.birth_date'),
+        t.get('cpc.migrantsAdmin.export.columns.nationality'),
+        t.get('cpc.migrantsAdmin.export.columns.legal_status'),
+        t.get('cpc.migrantsAdmin.export.columns.arrival_date'),
+      ];
       const data: string[][] = new Array(filtered.length + 1);
       data[0] = header;
       let invalidEmailCount = 0;
@@ -309,28 +316,30 @@ export default function MigrantsAdminPage() {
       } else {
         const XLSX = xlsxModuleRef.current;
         if (!XLSX) {
-          throw new Error('Módulo XLSX não está disponível.');
+          throw new Error(t.get('cpc.migrantsAdmin.export.xlsx_missing_module'));
         }
         const worksheet = XLSX.utils.aoa_to_sheet(data);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Migrantes');
+        XLSX.utils.book_append_sheet(workbook, worksheet, t.get('cpc.migrantsAdmin.title'));
         const out = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
         downloadBlob(
           new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
           `${baseName}.xlsx`,
         );
       }
-
-      toast({ title: 'Exportação concluída', description: `${filtered.length} registos exportados com sucesso.` });
+      toast({
+        title: t.get('cpc.migrantsAdmin.export.done.title'),
+        description: t.get('cpc.migrantsAdmin.export.done.description', { count: filtered.length }),
+      });
       if (invalidEmailCount > 0) {
         toast({
-          title: 'Aviso',
-          description: `${invalidEmailCount} email(s) inválido(s) foram exportados como —.`,
+          title: t.get('cpc.migrantsAdmin.export.warning.title'),
+          description: t.get('cpc.migrantsAdmin.export.warning.description', { count: invalidEmailCount }),
         });
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Erro ao exportar a lista de migrantes.';
-      toast({ title: 'Erro na exportação', description: message, variant: 'destructive' });
+      const message = error instanceof Error ? error.message : t.get('cpc.migrantsAdmin.export.generic_error');
+      toast({ title: t.get('cpc.migrantsAdmin.export.error_title'), description: message, variant: 'destructive' });
     } finally {
       setExporting(null);
     }
@@ -397,7 +406,7 @@ export default function MigrantsAdminPage() {
 
         const result: Array<MigrantRow> = profileList.map(p => ({
           user_id: p.user_id,
-          name: profileMap[p.user_id]?.name || p.name || p.email || 'Migrante',
+          name: profileMap[p.user_id]?.name || p.name || p.email || t.get('cpc.migrantsAdmin.fallback_migrant'),
           email: profileMap[p.user_id]?.email || p.email || '—',
           nif: p.nif || null,
           birth_date: profileMap[p.user_id]?.birthDate || null,
@@ -453,24 +462,24 @@ export default function MigrantsAdminPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><Users className="h-7 w-7 text-primary" /> Migrantes</h1>
-          <p className="text-muted-foreground mt-1">Lista completa com filtros e acesso ao perfil</p>
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><Users className="h-7 w-7 text-primary" /> {t.get('cpc.migrantsAdmin.title')}</h1>
+          <p className="text-muted-foreground mt-1">{t.get('cpc.migrantsAdmin.subtitle')}</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="gap-2" disabled={exporting !== null}>
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Exportar Lista
+              {t.get('cpc.migrantsAdmin.export.button')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem disabled={exporting !== null} onSelect={() => void handleExport('csv')}>
               <FileText className="h-4 w-4 mr-2" />
-              CSV
+              {t.get('cpc.migrantsAdmin.export.formats.csv')}
             </DropdownMenuItem>
             <DropdownMenuItem disabled={exporting !== null} onSelect={() => void handleExport('xlsx')}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              XLSX
+              {t.get('cpc.migrantsAdmin.export.formats.xlsx')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -479,57 +488,57 @@ export default function MigrantsAdminPage() {
       <div className="cpc-card p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
-            <Label>Pesquisa</Label>
+            <Label>{t.get('cpc.migrantsAdmin.filters.search.label')}</Label>
             <div className="flex items-center gap-2 mt-1">
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nome" />
-              <Button variant="outline" className="gap-2"><Filter className="h-4 w-4" /> Filtrar</Button>
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.get('cpc.migrantsAdmin.filters.search.placeholder')} />
+              <Button variant="outline" className="gap-2"><Filter className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.filters.search.action')}</Button>
             </div>
           </div>
           <div>
-            <Label>Situação legal</Label>
+            <Label>{t.get('cpc.migrantsAdmin.filters.legal.label')}</Label>
             <Select value={legalFilter} onValueChange={(v) => setLegalFilter(v as typeof legalFilter)}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="regular">Regular</SelectItem>
-                <SelectItem value="irregular">Irregular</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.legal.all')}</SelectItem>
+                <SelectItem value="regular">{t.get('cpc.migrantsAdmin.legal.regular')}</SelectItem>
+                <SelectItem value="irregular">{t.get('cpc.migrantsAdmin.legal.irregular')}</SelectItem>
+                <SelectItem value="pendente">{t.get('cpc.migrantsAdmin.legal.pending')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Situação laboral</Label>
+            <Label>{t.get('cpc.migrantsAdmin.filters.work.label')}</Label>
             <Select value={workFilter} onValueChange={(v) => setWorkFilter(v as typeof workFilter)}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="empregado">Empregado</SelectItem>
-                <SelectItem value="desempregado">Desempregado</SelectItem>
-                <SelectItem value="informal">Informal</SelectItem>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.work.all')}</SelectItem>
+                <SelectItem value="empregado">{t.get('cpc.migrantsAdmin.work.employed')}</SelectItem>
+                <SelectItem value="desempregado">{t.get('cpc.migrantsAdmin.work.unemployed')}</SelectItem>
+                <SelectItem value="informal">{t.get('cpc.migrantsAdmin.work.informal')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Nível de língua</Label>
+            <Label>{t.get('cpc.migrantsAdmin.filters.language.label')}</Label>
             <Select value={langFilter} onValueChange={(v) => setLangFilter(v as typeof langFilter)}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="iniciante">Iniciante</SelectItem>
-                <SelectItem value="intermediario">Intermediário</SelectItem>
-                <SelectItem value="avancado">Avançado</SelectItem>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.language.all')}</SelectItem>
+                <SelectItem value="iniciante">{t.get('cpc.migrantsAdmin.language.beginner')}</SelectItem>
+                <SelectItem value="intermediario">{t.get('cpc.migrantsAdmin.language.intermediate')}</SelectItem>
+                <SelectItem value="avancado">{t.get('cpc.migrantsAdmin.language.advanced')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label>Urgências</Label>
+            <Label>{t.get('cpc.migrantsAdmin.filters.urgencies.label')}</Label>
             <Select value={urgencyFilter} onValueChange={(v) => setUrgencyFilter(v as typeof urgencyFilter)}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="juridico">Jurídico</SelectItem>
-                <SelectItem value="psicologico">Psicológico</SelectItem>
-                <SelectItem value="habitacional">Habitacional</SelectItem>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.urgencies.all')}</SelectItem>
+                <SelectItem value="juridico">{t.get('cpc.migrantsAdmin.urgencies.legal')}</SelectItem>
+                <SelectItem value="psicologico">{t.get('cpc.migrantsAdmin.urgencies.psychological')}</SelectItem>
+                <SelectItem value="habitacional">{t.get('cpc.migrantsAdmin.urgencies.housing')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -539,8 +548,8 @@ export default function MigrantsAdminPage() {
       {filtered.length === 0 ? (
         <div className="cpc-card p-12 text-center">
           <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="font-semibold mb-2">Sem migrantes encontrados</h3>
-          <p className="text-muted-foreground">Ajuste os filtros ou a pesquisa.</p>
+          <h3 className="font-semibold mb-2">{t.get('cpc.migrantsAdmin.empty.title')}</h3>
+          <p className="text-muted-foreground">{t.get('cpc.migrantsAdmin.empty.subtitle')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -551,7 +560,7 @@ export default function MigrantsAdminPage() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold">{r.name}</h3>
                     {r.blocked ? (
-                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">Bloqueado</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">{t.get('cpc.migrantsAdmin.badges.blocked')}</span>
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">{r.email}</p>
@@ -559,18 +568,18 @@ export default function MigrantsAdminPage() {
                     <span className="flex items-center gap-1"><CheckCircle className="h-4 w-4" /> {legalLabel(r.legal_status)}</span>
                     <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {workLabel(r.work_status)}</span>
                     <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {languageLabel(r.language_level)}</span>
-                    <span className="flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> {(r.urgencies || []).length} urgências</span>
-                    <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {r.upcoming_sessions || 0} sessões futuras</span>
-                    <span className="flex items-center gap-1"><CheckCircle className="h-4 w-4" /> {r.trails_progress_avg || 0}% progresso médio</span>
+                    <span className="flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.stats.urgencies', { count: (r.urgencies || []).length })}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.stats.upcoming_sessions', { count: r.upcoming_sessions || 0 })}</span>
+                    <span className="flex items-center gap-1"><CheckCircle className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.stats.avg_progress', { count: r.trails_progress_avg || 0 })}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-stretch gap-2">
-                  <Link to={`/dashboard/cpc/migrantes/${r.user_id}/perfil`} className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> Ver perfil</Link>
+                  <Link to={`/dashboard/cpc/migrantes/${r.user_id}/perfil`} className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted"><Eye className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.actions.view_profile')}</Link>
                   <Button variant="outline" className="inline-flex items-center justify-center gap-2 w-full" onClick={() => setSelectedTriage(r)}>
-                    <ClipboardList className="h-4 w-4" /> Triagem Inicial
+                    <ClipboardList className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.actions.triage')}
                   </Button>
                   <Button variant="outline" className="inline-flex items-center justify-center gap-2 w-full" onClick={() => toggleBlock(r.user_id)}>
-                    <Ban className="h-4 w-4" /> {r.blocked ? 'Ativar' : 'Bloquear'}
+                    <Ban className="h-4 w-4" /> {r.blocked ? t.get('cpc.migrantsAdmin.actions.activate') : t.get('cpc.migrantsAdmin.actions.block')}
                   </Button>
                 </div>
               </div>
@@ -582,7 +591,7 @@ export default function MigrantsAdminPage() {
       <Dialog open={!!selectedTriage} onOpenChange={(open) => { if (!open) setSelectedTriage(null); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Triagem Inicial — {selectedTriage?.name || 'Migrante'}</DialogTitle>
+            <DialogTitle>{t.get('cpc.migrantsAdmin.triageDialog.title', { name: selectedTriage?.name || t.get('cpc.migrantsAdmin.fallback_migrant') })}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto pr-1">
             {(selectedTriage?.triage_answers && Object.keys(selectedTriage.triage_answers).length > 0) ? (
@@ -596,7 +605,7 @@ export default function MigrantsAdminPage() {
               </div>
             ) : (
               <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
-                Este migrante ainda não possui respostas registradas da triagem inicial.
+                {t.get('cpc.migrantsAdmin.triageDialog.empty')}
               </div>
             )}
           </div>

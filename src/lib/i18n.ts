@@ -341,6 +341,321 @@ export const translations = {
       date: 'Data',
       time: 'Hora',
     },
+    cpc: {
+      menu: {
+        title: 'Menu CPC',
+        user_fallback: 'Utilizador',
+        overview: 'Visão geral',
+        migrants: 'Migrantes',
+        agenda: 'Agenda',
+        applications: 'Candidaturas',
+        offers: 'Ofertas',
+        trails: 'Trilhas',
+        team: 'Equipa',
+      },
+      dashboard: {
+        welcome: 'Bem-vindo(a)',
+        today_summary: 'Hoje, {date}',
+      },
+      kpi: {
+        migrants: 'MIGRANTES',
+        sessions: 'SESSÕES',
+        applications: 'CANDIDATURAS',
+        offers_active: 'OFERTAS',
+        offers_pending: 'AGUARDANDO',
+        pending: 'PENDENTES',
+        change: {
+          stable: 'Estável',
+          new: 'Novo',
+        },
+      },
+      relative: {
+        minutes: 'há {count} min',
+        hours: 'há {count} h',
+        days: 'há {count} d',
+      },
+      actions: {
+        view_all: 'Ver todas',
+        actions: 'Ações',
+        back: 'Voltar',
+      },
+      recentMigrants: {
+        title: 'Migrantes recentes',
+        empty: 'Sem migrantes recentes',
+        status: {
+          pending_docs: 'Documentos pendentes',
+          in_review: 'Em análise',
+          complete: 'Completo',
+        },
+      },
+      sessions: {
+        title: 'Sessões',
+        view_agenda: 'Ver agenda',
+        empty: 'Sem sessões marcadas',
+        empty_subtitle: 'Crie uma nova sessão para organizar a agenda.',
+        new_session: 'Nova sessão',
+        status: {
+          completed: 'Concluída',
+          cancelled: 'Cancelada',
+          in_progress: 'Em curso',
+          scheduled: 'Agendada',
+        },
+      },
+      quickActions: {
+        title: 'Ações rápidas',
+        subtitle: 'Atalhos para as tarefas mais frequentes.',
+        new_migrant: 'Novo migrante',
+        new_migrant_subtitle: 'Registar e acompanhar um novo caso.',
+        agenda: 'Agenda',
+        agenda_subtitle: 'Ver e gerir sessões da equipa.',
+        manage_trails: 'Trilhas',
+        manage_trails_subtitle: 'Criar e editar trilhas formativas.',
+        create_offer: 'Ofertas',
+        create_offer_subtitle: 'Gerir ofertas de emprego pendentes.',
+      },
+      capacity: {
+        center: 'Centro CPC',
+        title: 'Capacidade da equipa',
+      },
+      soon: 'Em breve',
+      teamOnDuty: {
+        title: 'Equipa de serviço',
+        today: 'Hoje',
+        tickets: '{count} tickets',
+      },
+      team: {
+        title: 'Equipa',
+        subtitle: 'Gestão da equipa com filtros, perfis e estado de acesso',
+        user_fallback: 'Utilizador',
+        roles: {
+          admin: 'Admin',
+          manager: 'Gestor',
+          coordinator: 'Coordenador',
+          mediator: 'Mediador',
+          lawyer: 'Jurista',
+          psychologist: 'Psicólogo',
+          trainer: 'Formador',
+        },
+        actions: {
+          add: 'Adicionar novo',
+          filter: 'Filtrar',
+          edit: 'Editar',
+          deactivate: 'Desativar',
+          reactivate: 'Reativar',
+          create_user: 'Criar utilizador',
+          save_changes: 'Guardar alterações',
+          saving: 'A guardar...',
+        },
+        search: {
+          label: 'Pesquisa',
+          placeholder: 'Nome ou email',
+        },
+        role: {
+          label: 'Perfil',
+          all: 'Todos',
+        },
+        status: {
+          label: 'Estado',
+          all: 'Todos',
+          active: 'Ativos',
+          inactive: 'Desativados',
+          active_label: 'Ativo',
+          inactive_label: 'Desativado',
+        },
+        sort: {
+          label: 'Ordenar',
+          name: 'Nome',
+          role: 'Perfil',
+          status: 'Estado',
+        },
+        summary: {
+          label: 'Resumo',
+          users: '{count} utilizadores',
+        },
+        empty: {
+          title: 'Sem utilizadores encontrados',
+          subtitle: 'Ajuste os filtros ou a pesquisa.',
+        },
+        dialogs: {
+          add_title: 'Adicionar novo utilizador',
+          edit_title: 'Editar utilizador',
+        },
+        fields: {
+          name: 'Nome',
+          email: 'Email',
+          password: 'Password',
+          profile: 'Perfil',
+          name_placeholder: 'Nome completo',
+          email_placeholder: 'email@dominio.com',
+          password_placeholder: 'Mínimo 6 caracteres',
+        },
+        errors: {
+          required_fields: 'Preencha nome, email e password.',
+          name_required: 'Nome é obrigatório.',
+          create_failed: 'Erro ao criar utilizador.',
+          update_failed: 'Erro ao atualizar utilizador.',
+          update_state_failed: 'Erro ao atualizar estado do utilizador.',
+        },
+      },
+      migrantsAdmin: {
+        title: 'Migrantes',
+        subtitle: 'Lista completa com filtros e acesso ao perfil',
+        fallback_migrant: 'Migrante',
+        legal: {
+          regular: 'Regular',
+          irregular: 'Irregular',
+          pending: 'Pendente',
+        },
+        work: {
+          employed: 'Empregado',
+          unemployed: 'Desempregado',
+          informal: 'Informal',
+        },
+        language: {
+          beginner: 'Iniciante',
+          intermediate: 'Intermediário',
+          advanced: 'Avançado',
+        },
+        urgencies: {
+          legal: 'Jurídico',
+          psychological: 'Psicológico',
+          housing: 'Habitacional',
+        },
+        filters: {
+          search: {
+            label: 'Pesquisa',
+            placeholder: 'Nome',
+            action: 'Filtrar',
+          },
+          legal: {
+            label: 'Situação legal',
+            all: 'Todas',
+          },
+          work: {
+            label: 'Situação laboral',
+            all: 'Todas',
+          },
+          language: {
+            label: 'Nível de língua',
+            all: 'Todos',
+          },
+          urgencies: {
+            label: 'Urgências',
+            all: 'Todas',
+          },
+        },
+        empty: {
+          title: 'Sem migrantes encontrados',
+          subtitle: 'Ajuste os filtros ou a pesquisa.',
+        },
+        badges: {
+          blocked: 'Bloqueado',
+        },
+        stats: {
+          urgencies: '{count} urgências',
+          upcoming_sessions: '{count} sessões futuras',
+          avg_progress: '{count}% progresso médio',
+        },
+        actions: {
+          view_profile: 'Ver perfil',
+          triage: 'Triagem Inicial',
+          block: 'Bloquear',
+          activate: 'Ativar',
+        },
+        triageDialog: {
+          title: 'Triagem Inicial — {name}',
+          empty: 'Este migrante ainda não possui respostas registradas da triagem inicial.',
+        },
+        export: {
+          button: 'Exportar Lista',
+          formats: {
+            csv: 'CSV',
+            xlsx: 'XLSX',
+          },
+          columns: {
+            name: 'Nome',
+            email: 'Email',
+            birth_date: 'Data de nascimento',
+            nationality: 'Nacionalidade',
+            legal_status: 'Status migratório',
+            arrival_date: 'Data de entrada',
+          },
+          no_permission: {
+            title: 'Sem permissão',
+            description: 'O seu utilizador não tem permissões para exportar a lista de migrantes.',
+          },
+          xlsx_ready: {
+            title: 'Exportação XLSX pronta',
+            description: 'Clique novamente em “XLSX” para gerar o ficheiro.',
+          },
+          xlsx_missing_module: 'O módulo XLSX não está disponível.',
+          xlsx_prepare_error: 'Não foi possível preparar o exportador XLSX. Tente novamente.',
+          no_results: {
+            title: 'Sem resultados',
+            description: 'Não existem migrantes para exportar com os filtros atuais.',
+          },
+          limit_exceeded: {
+            title: 'Limite excedido',
+            description: 'A exportação suporta até 10.000 registos. Refine os filtros para reduzir a lista.',
+          },
+          done: {
+            title: 'Exportação concluída',
+            description: '{count} registos exportados com sucesso.',
+          },
+          warning: {
+            title: 'Aviso',
+            description: '{count} email(s) inválido(s) foram exportados como —.',
+          },
+          error_title: 'Erro na exportação',
+          generic_error: 'Erro ao exportar a lista de migrantes.',
+        },
+      },
+      pages: {
+        applications: {
+          title: 'Candidaturas enviadas',
+          empty: 'Sem candidaturas no período',
+        },
+        offers: {
+          title: 'Ofertas aguardando aprovação',
+          empty: 'Sem ofertas pendentes',
+          status_pending: 'Em aprovação',
+        },
+      },
+    },
+    cpcTranslations: {
+      title: 'Traduções',
+      subtitle: 'Gerir traduções (PT/EN/ES), validar completude e publicar uma nova versão com cache.',
+      no_permission: 'Não tem permissões para gerir traduções.',
+      actions: {
+        validate: 'Validar',
+        publish: 'Publicar ({count})',
+      },
+      search: {
+        label: 'Pesquisar por chave',
+        placeholder: 'Ex.: dashboard.overview',
+      },
+      settings: {
+        enabled: 'Overrides remotos ativos',
+        version: 'Versão: {version}',
+      },
+      runtimeMissing: {
+        title: 'Chaves em falta (runtime)',
+        clear: 'Limpar registo',
+        cleared: 'Registo limpo.',
+      },
+      table: {
+        key: 'Chave',
+      },
+      validation: {
+        title: 'Validação de traduções',
+        hint: 'Conteúdos em falta devem ser preenchidos (por código ou via overrides) antes de publicar.',
+        incomplete_draft: '{count} chaves no rascunho estão incompletas (preencha PT/EN/ES).',
+      },
+      publish: {
+        nothing_to_publish: 'Não há alterações para publicar.',
+        success: 'Traduções publicadas. Versão {version}.',
+      },
+    },
   },
   en: {
     nav: {
@@ -682,6 +997,321 @@ export const translations = {
       date: 'Date',
       time: 'Time',
     },
+    cpc: {
+      menu: {
+        title: 'CPC Menu',
+        user_fallback: 'User',
+        overview: 'Overview',
+        migrants: 'Migrants',
+        agenda: 'Agenda',
+        applications: 'Applications',
+        offers: 'Offers',
+        trails: 'Trails',
+        team: 'Team',
+      },
+      dashboard: {
+        welcome: 'Welcome',
+        today_summary: 'Today, {date}',
+      },
+      kpi: {
+        migrants: 'MIGRANTS',
+        sessions: 'SESSIONS',
+        applications: 'APPLICATIONS',
+        offers_active: 'OFFERS',
+        offers_pending: 'PENDING',
+        pending: 'PENDING',
+        change: {
+          stable: 'Stable',
+          new: 'New',
+        },
+      },
+      relative: {
+        minutes: '{count} min ago',
+        hours: '{count} h ago',
+        days: '{count} d ago',
+      },
+      actions: {
+        view_all: 'View all',
+        actions: 'Actions',
+        back: 'Back',
+      },
+      recentMigrants: {
+        title: 'Recent migrants',
+        empty: 'No recent migrants',
+        status: {
+          pending_docs: 'Pending docs',
+          in_review: 'In review',
+          complete: 'Complete',
+        },
+      },
+      sessions: {
+        title: 'Sessions',
+        view_agenda: 'View agenda',
+        empty: 'No scheduled sessions',
+        empty_subtitle: 'Create a new session to organize the agenda.',
+        new_session: 'New session',
+        status: {
+          completed: 'Completed',
+          cancelled: 'Cancelled',
+          in_progress: 'In progress',
+          scheduled: 'Scheduled',
+        },
+      },
+      quickActions: {
+        title: 'Quick actions',
+        subtitle: 'Shortcuts to the most common tasks.',
+        new_migrant: 'New migrant',
+        new_migrant_subtitle: 'Register and track a new case.',
+        agenda: 'Agenda',
+        agenda_subtitle: 'View and manage team sessions.',
+        manage_trails: 'Trails',
+        manage_trails_subtitle: 'Create and edit training trails.',
+        create_offer: 'Offers',
+        create_offer_subtitle: 'Manage pending job offers.',
+      },
+      capacity: {
+        center: 'CPC Center',
+        title: 'Team capacity',
+      },
+      soon: 'Coming soon',
+      teamOnDuty: {
+        title: 'Team on duty',
+        today: 'Today',
+        tickets: '{count} tickets',
+      },
+      team: {
+        title: 'Team',
+        subtitle: 'Team management with filters, roles and access status',
+        user_fallback: 'User',
+        roles: {
+          admin: 'Admin',
+          manager: 'Manager',
+          coordinator: 'Coordinator',
+          mediator: 'Mediator',
+          lawyer: 'Lawyer',
+          psychologist: 'Psychologist',
+          trainer: 'Trainer',
+        },
+        actions: {
+          add: 'Add new',
+          filter: 'Filter',
+          edit: 'Edit',
+          deactivate: 'Deactivate',
+          reactivate: 'Reactivate',
+          create_user: 'Create user',
+          save_changes: 'Save changes',
+          saving: 'Saving...',
+        },
+        search: {
+          label: 'Search',
+          placeholder: 'Name or email',
+        },
+        role: {
+          label: 'Role',
+          all: 'All',
+        },
+        status: {
+          label: 'Status',
+          all: 'All',
+          active: 'Active',
+          inactive: 'Inactive',
+          active_label: 'Active',
+          inactive_label: 'Inactive',
+        },
+        sort: {
+          label: 'Sort',
+          name: 'Name',
+          role: 'Role',
+          status: 'Status',
+        },
+        summary: {
+          label: 'Summary',
+          users: '{count} users',
+        },
+        empty: {
+          title: 'No users found',
+          subtitle: 'Adjust the filters or the search.',
+        },
+        dialogs: {
+          add_title: 'Add new user',
+          edit_title: 'Edit user',
+        },
+        fields: {
+          name: 'Name',
+          email: 'Email',
+          password: 'Password',
+          profile: 'Role',
+          name_placeholder: 'Full name',
+          email_placeholder: 'email@domain.com',
+          password_placeholder: 'Minimum 6 characters',
+        },
+        errors: {
+          required_fields: 'Fill in name, email and password.',
+          name_required: 'Name is required.',
+          create_failed: 'Error creating user.',
+          update_failed: 'Error updating user.',
+          update_state_failed: 'Error updating user status.',
+        },
+      },
+      migrantsAdmin: {
+        title: 'Migrants',
+        subtitle: 'Full list with filters and profile access',
+        fallback_migrant: 'Migrant',
+        legal: {
+          regular: 'Regular',
+          irregular: 'Irregular',
+          pending: 'Pending',
+        },
+        work: {
+          employed: 'Employed',
+          unemployed: 'Unemployed',
+          informal: 'Informal',
+        },
+        language: {
+          beginner: 'Beginner',
+          intermediate: 'Intermediate',
+          advanced: 'Advanced',
+        },
+        urgencies: {
+          legal: 'Legal',
+          psychological: 'Psychological',
+          housing: 'Housing',
+        },
+        filters: {
+          search: {
+            label: 'Search',
+            placeholder: 'Name',
+            action: 'Filter',
+          },
+          legal: {
+            label: 'Legal status',
+            all: 'All',
+          },
+          work: {
+            label: 'Work status',
+            all: 'All',
+          },
+          language: {
+            label: 'Language level',
+            all: 'All',
+          },
+          urgencies: {
+            label: 'Urgencies',
+            all: 'All',
+          },
+        },
+        empty: {
+          title: 'No migrants found',
+          subtitle: 'Adjust the filters or the search.',
+        },
+        badges: {
+          blocked: 'Blocked',
+        },
+        stats: {
+          urgencies: '{count} urgencies',
+          upcoming_sessions: '{count} upcoming sessions',
+          avg_progress: '{count}% average progress',
+        },
+        actions: {
+          view_profile: 'View profile',
+          triage: 'Initial triage',
+          block: 'Block',
+          activate: 'Activate',
+        },
+        triageDialog: {
+          title: 'Initial triage — {name}',
+          empty: 'This migrant has no recorded answers for the initial triage yet.',
+        },
+        export: {
+          button: 'Export list',
+          formats: {
+            csv: 'CSV',
+            xlsx: 'XLSX',
+          },
+          columns: {
+            name: 'Name',
+            email: 'Email',
+            birth_date: 'Birth date',
+            nationality: 'Nationality',
+            legal_status: 'Migration status',
+            arrival_date: 'Arrival date',
+          },
+          no_permission: {
+            title: 'No permission',
+            description: 'Your user does not have permission to export the migrant list.',
+          },
+          xlsx_ready: {
+            title: 'XLSX export ready',
+            description: 'Click “XLSX” again to generate the file.',
+          },
+          xlsx_missing_module: 'The XLSX module is not available.',
+          xlsx_prepare_error: 'Could not prepare the XLSX exporter. Please try again.',
+          no_results: {
+            title: 'No results',
+            description: 'There are no migrants to export with the current filters.',
+          },
+          limit_exceeded: {
+            title: 'Limit exceeded',
+            description: 'Export supports up to 10,000 records. Refine the filters to reduce the list.',
+          },
+          done: {
+            title: 'Export completed',
+            description: '{count} records exported successfully.',
+          },
+          warning: {
+            title: 'Warning',
+            description: '{count} invalid email(s) were exported as —.',
+          },
+          error_title: 'Export error',
+          generic_error: 'Error exporting migrant list.',
+        },
+      },
+      pages: {
+        applications: {
+          title: 'Submitted applications',
+          empty: 'No applications in this period',
+        },
+        offers: {
+          title: 'Offers pending approval',
+          empty: 'No pending offers',
+          status_pending: 'Pending approval',
+        },
+      },
+    },
+    cpcTranslations: {
+      title: 'Translations',
+      subtitle: 'Manage translations (PT/EN/ES), validate completeness and publish a new cached version.',
+      no_permission: 'You do not have permission to manage translations.',
+      actions: {
+        validate: 'Validate',
+        publish: 'Publish ({count})',
+      },
+      search: {
+        label: 'Search by key',
+        placeholder: 'E.g.: dashboard.overview',
+      },
+      settings: {
+        enabled: 'Remote overrides enabled',
+        version: 'Version: {version}',
+      },
+      runtimeMissing: {
+        title: 'Missing keys (runtime)',
+        clear: 'Clear log',
+        cleared: 'Log cleared.',
+      },
+      table: {
+        key: 'Key',
+      },
+      validation: {
+        title: 'Translation validation',
+        hint: 'Missing content should be filled (in code or via overrides) before publishing.',
+        incomplete_draft: '{count} draft keys are incomplete (fill PT/EN/ES).',
+      },
+      publish: {
+        nothing_to_publish: 'There are no changes to publish.',
+        success: 'Translations published. Version {version}.',
+      },
+    },
   },
   es: {
     nav: {
@@ -693,6 +1323,17 @@ export const translations = {
       register: 'Registrar',
       dashboard: 'Panel',
       logout: 'Salir',
+    },
+    about: {
+      title: 'Sobre el Portal CPC',
+      subtitle: 'Conozca nuestra misión y los valores que nos impulsan.',
+      mission: 'Nuestra Misión',
+      missionText:
+        'Facilitar la integración socioprofesional de las personas migrantes en Portugal, creando puentes sostenibles entre talento y oportunidad.',
+      missionQuote:
+        'CPC nació de la necesidad de crear puentes entre las personas migrantes y el mercado laboral portugués, ofreciendo un recorrido completo de capacitación, apoyo e integración.',
+      values: 'Nuestros Valores',
+      areas: 'Áreas de Actuación',
     },
     howItWorks: {
       title: 'Cómo Funciona',
@@ -1014,7 +1655,355 @@ export const translations = {
       date: 'Fecha',
       time: 'Hora',
     },
+    cpc: {
+      menu: {
+        title: 'Menú CPC',
+        user_fallback: 'Usuario',
+        overview: 'Visión general',
+        migrants: 'Migrantes',
+        agenda: 'Agenda',
+        applications: 'Candidaturas',
+        offers: 'Ofertas',
+        trails: 'Trayectorias',
+        team: 'Equipo',
+      },
+      dashboard: {
+        welcome: 'Bienvenido(a)',
+        today_summary: 'Hoy, {date}',
+      },
+      kpi: {
+        migrants: 'MIGRANTES',
+        sessions: 'SESIONES',
+        applications: 'CANDIDATURAS',
+        offers_active: 'OFERTAS',
+        offers_pending: 'PENDIENTES',
+        pending: 'PENDIENTES',
+        change: {
+          stable: 'Estable',
+          new: 'Nuevo',
+        },
+      },
+      relative: {
+        minutes: 'hace {count} min',
+        hours: 'hace {count} h',
+        days: 'hace {count} d',
+      },
+      actions: {
+        view_all: 'Ver todas',
+        actions: 'Acciones',
+        back: 'Volver',
+      },
+      recentMigrants: {
+        title: 'Migrantes recientes',
+        empty: 'Sin migrantes recientes',
+        status: {
+          pending_docs: 'Documentos pendientes',
+          in_review: 'En revisión',
+          complete: 'Completo',
+        },
+      },
+      sessions: {
+        title: 'Sesiones',
+        view_agenda: 'Ver agenda',
+        empty: 'Sin sesiones programadas',
+        empty_subtitle: 'Cree una nueva sesión para organizar la agenda.',
+        new_session: 'Nueva sesión',
+        status: {
+          completed: 'Completada',
+          cancelled: 'Cancelada',
+          in_progress: 'En curso',
+          scheduled: 'Programada',
+        },
+      },
+      quickActions: {
+        title: 'Acciones rápidas',
+        subtitle: 'Atajos para las tareas más frecuentes.',
+        new_migrant: 'Nuevo migrante',
+        new_migrant_subtitle: 'Registrar y seguir un nuevo caso.',
+        agenda: 'Agenda',
+        agenda_subtitle: 'Ver y gestionar sesiones del equipo.',
+        manage_trails: 'Trayectorias',
+        manage_trails_subtitle: 'Crear y editar trayectorias formativas.',
+        create_offer: 'Ofertas',
+        create_offer_subtitle: 'Gestionar ofertas de empleo pendientes.',
+      },
+      capacity: {
+        center: 'Centro CPC',
+        title: 'Capacidad del equipo',
+      },
+      soon: 'Próximamente',
+      teamOnDuty: {
+        title: 'Equipo de guardia',
+        today: 'Hoy',
+        tickets: '{count} tickets',
+      },
+      team: {
+        title: 'Equipo',
+        subtitle: 'Gestión del equipo con filtros, roles y estado de acceso',
+        user_fallback: 'Usuario',
+        roles: {
+          admin: 'Admin',
+          manager: 'Gestor',
+          coordinator: 'Coordinador',
+          mediator: 'Mediador',
+          lawyer: 'Jurista',
+          psychologist: 'Psicólogo',
+          trainer: 'Formador',
+        },
+        actions: {
+          add: 'Añadir nuevo',
+          filter: 'Filtrar',
+          edit: 'Editar',
+          deactivate: 'Desactivar',
+          reactivate: 'Reactivar',
+          create_user: 'Crear usuario',
+          save_changes: 'Guardar cambios',
+          saving: 'Guardando...',
+        },
+        search: {
+          label: 'Búsqueda',
+          placeholder: 'Nombre o email',
+        },
+        role: {
+          label: 'Rol',
+          all: 'Todos',
+        },
+        status: {
+          label: 'Estado',
+          all: 'Todos',
+          active: 'Activos',
+          inactive: 'Desactivados',
+          active_label: 'Activo',
+          inactive_label: 'Desactivado',
+        },
+        sort: {
+          label: 'Ordenar',
+          name: 'Nombre',
+          role: 'Rol',
+          status: 'Estado',
+        },
+        summary: {
+          label: 'Resumen',
+          users: '{count} usuarios',
+        },
+        empty: {
+          title: 'No se encontraron usuarios',
+          subtitle: 'Ajuste los filtros o la búsqueda.',
+        },
+        dialogs: {
+          add_title: 'Añadir nuevo usuario',
+          edit_title: 'Editar usuario',
+        },
+        fields: {
+          name: 'Nombre',
+          email: 'Email',
+          password: 'Contraseña',
+          profile: 'Rol',
+          name_placeholder: 'Nombre completo',
+          email_placeholder: 'email@dominio.com',
+          password_placeholder: 'Mínimo 6 caracteres',
+        },
+        errors: {
+          required_fields: 'Complete nombre, email y contraseña.',
+          name_required: 'El nombre es obligatorio.',
+          create_failed: 'Error al crear usuario.',
+          update_failed: 'Error al actualizar usuario.',
+          update_state_failed: 'Error al actualizar el estado del usuario.',
+        },
+      },
+      migrantsAdmin: {
+        title: 'Migrantes',
+        subtitle: 'Lista completa con filtros y acceso al perfil',
+        fallback_migrant: 'Migrante',
+        legal: {
+          regular: 'Regular',
+          irregular: 'Irregular',
+          pending: 'Pendiente',
+        },
+        work: {
+          employed: 'Empleado',
+          unemployed: 'Desempleado',
+          informal: 'Informal',
+        },
+        language: {
+          beginner: 'Principiante',
+          intermediate: 'Intermedio',
+          advanced: 'Avanzado',
+        },
+        urgencies: {
+          legal: 'Jurídico',
+          psychological: 'Psicológico',
+          housing: 'Vivienda',
+        },
+        filters: {
+          search: {
+            label: 'Búsqueda',
+            placeholder: 'Nombre',
+            action: 'Filtrar',
+          },
+          legal: {
+            label: 'Situación legal',
+            all: 'Todas',
+          },
+          work: {
+            label: 'Situación laboral',
+            all: 'Todas',
+          },
+          language: {
+            label: 'Nivel de idioma',
+            all: 'Todos',
+          },
+          urgencies: {
+            label: 'Urgencias',
+            all: 'Todas',
+          },
+        },
+        empty: {
+          title: 'No se encontraron migrantes',
+          subtitle: 'Ajuste los filtros o la búsqueda.',
+        },
+        badges: {
+          blocked: 'Bloqueado',
+        },
+        stats: {
+          urgencies: '{count} urgencias',
+          upcoming_sessions: '{count} sesiones futuras',
+          avg_progress: '{count}% progreso medio',
+        },
+        actions: {
+          view_profile: 'Ver perfil',
+          triage: 'Triaje inicial',
+          block: 'Bloquear',
+          activate: 'Activar',
+        },
+        triageDialog: {
+          title: 'Triaje inicial — {name}',
+          empty: 'Este migrante aún no tiene respuestas registradas del triaje inicial.',
+        },
+        export: {
+          button: 'Exportar lista',
+          formats: {
+            csv: 'CSV',
+            xlsx: 'XLSX',
+          },
+          columns: {
+            name: 'Nombre',
+            email: 'Email',
+            birth_date: 'Fecha de nacimiento',
+            nationality: 'Nacionalidad',
+            legal_status: 'Estado migratorio',
+            arrival_date: 'Fecha de entrada',
+          },
+          no_permission: {
+            title: 'Sin permiso',
+            description: 'Su usuario no tiene permisos para exportar la lista de migrantes.',
+          },
+          xlsx_ready: {
+            title: 'Exportación XLSX lista',
+            description: 'Haga clic de nuevo en “XLSX” para generar el archivo.',
+          },
+          xlsx_missing_module: 'El módulo XLSX no está disponible.',
+          xlsx_prepare_error: 'No fue posible preparar el exportador XLSX. Inténtelo de nuevo.',
+          no_results: {
+            title: 'Sin resultados',
+            description: 'No hay migrantes para exportar con los filtros actuales.',
+          },
+          limit_exceeded: {
+            title: 'Límite excedido',
+            description: 'La exportación admite hasta 10.000 registros. Ajuste los filtros para reducir la lista.',
+          },
+          done: {
+            title: 'Exportación completada',
+            description: '{count} registros exportados con éxito.',
+          },
+          warning: {
+            title: 'Aviso',
+            description: '{count} email(s) inválido(s) se exportaron como —.',
+          },
+          error_title: 'Error en la exportación',
+          generic_error: 'Error al exportar la lista de migrantes.',
+        },
+      },
+      pages: {
+        applications: {
+          title: 'Candidaturas enviadas',
+          empty: 'No hay candidaturas en este período',
+        },
+        offers: {
+          title: 'Ofertas pendientes de aprobación',
+          empty: 'Sin ofertas pendientes',
+          status_pending: 'En aprobación',
+        },
+      },
+    },
+    cpcTranslations: {
+      title: 'Traducciones',
+      subtitle: 'Gestionar traducciones (PT/EN/ES), validar completitud y publicar una nueva versión con caché.',
+      no_permission: 'No tiene permisos para gestionar traducciones.',
+      actions: {
+        validate: 'Validar',
+        publish: 'Publicar ({count})',
+      },
+      search: {
+        label: 'Buscar por clave',
+        placeholder: 'Ej.: dashboard.overview',
+      },
+      settings: {
+        enabled: 'Overrides remotos activos',
+        version: 'Versión: {version}',
+      },
+      runtimeMissing: {
+        title: 'Claves faltantes (runtime)',
+        clear: 'Limpiar registro',
+        cleared: 'Registro limpiado.',
+      },
+      table: {
+        key: 'Clave',
+      },
+      validation: {
+        title: 'Validación de traducciones',
+        hint: 'El contenido faltante debe completarse (en código o via overrides) antes de publicar.',
+        incomplete_draft: '{count} claves del borrador están incompletas (complete PT/EN/ES).',
+      },
+      publish: {
+        nothing_to_publish: 'No hay cambios para publicar.',
+        success: 'Traducciones publicadas. Versión {version}.',
+      },
+    },
   },
 };
 
 export type Translations = typeof translations.pt;
+
+export function interpolateTranslation(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const value = params[key];
+    return value === undefined || value === null ? `{${key}}` : String(value);
+  });
+}
+
+export function getTranslationStringAtPath(lang: Language, path: string): string | undefined {
+  const keys = path.split('.');
+  let current: unknown = translations[lang];
+  for (const key of keys) {
+    if (current && typeof current === 'object' && !Array.isArray(current) && key in current) {
+      current = (current as Record<string, unknown>)[key];
+      continue;
+    }
+    return undefined;
+  }
+  return typeof current === 'string' ? current : undefined;
+}
+
+export function flattenTranslationStringKeys(value: unknown, prefix = ''): string[] {
+  if (typeof value === 'string') return prefix ? [prefix] : [];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const next = prefix ? `${prefix}.${k}` : k;
+    out.push(...flattenTranslationStringKeys(v, next));
+  }
+  return out;
+}
