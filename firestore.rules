@@ -13,37 +13,162 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function userRoleRaw() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function userRole() {
+      return userRoleRaw() in ['Admin', 'ADMIN'] ? 'admin'
+        : userRoleRaw() in ['Manager', 'MANAGER'] ? 'manager'
+        : userRoleRaw() in ['Coordinator', 'COORDINATOR'] ? 'coordinator'
+        : userRoleRaw() in ['Mediator', 'MEDIATOR'] ? 'mediator'
+        : userRoleRaw() in ['Lawyer', 'LAWYER'] ? 'lawyer'
+        : userRoleRaw() in ['Psychologist', 'PSYCHOLOGIST'] ? 'psychologist'
+        : userRoleRaw() in ['Trainer', 'TRAINER'] ? 'trainer'
+        : userRoleRaw();
+    }
+
     // Helper function to check if user has a specific role
     function hasRole(role) {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+      return userRole() == role;
+    }
+
+    function isCpcStaff() {
+      return userRole() in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'trainer'];
+    }
+
+    function canManageCpcTeam() {
+      return userRole() in ['admin', 'manager', 'coordinator'];
+    }
+
+    function isCompany() {
+      return userRole() == 'company';
+    }
+
+    function isMigrant() {
+      return userRole() == 'migrant';
+    }
+
+    function jobOffer(jobId) {
+      return get(/databases/$(database)/documents/job_offers/$(jobId));
     }
 
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || hasRole('admin');
-      allow delete: if false; // Prevent accidental deletion
+      allow update: if hasRole('admin') || (
+        isOwner(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.active == resource.data.active &&
+        request.resource.data.disabledAt == resource.data.disabledAt
+      );
+      allow delete: if canManageCpcTeam() && resource.data.role == 'migrant';
     }
     
     // Profiles collection
     match /profiles/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) || hasRole('admin');
+      allow delete: if canManageCpcTeam();
     }
     
     // Triage collection
     match /triage/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isCpcStaff();
+      allow write: if isOwner(userId);
+      allow delete: if canManageCpcTeam();
+    }
+
+    match /i18n/{docId} {
+      allow read: if true;
+      allow write: if canManageCpcTeam();
+    }
+
+    match /i18n_overrides/{docId} {
+      allow read: if true;
+      allow write: if canManageCpcTeam();
     }
     
     // Companies collection
     match /companies/{companyId} {
       allow read: if true; // Public read for job listings
       allow write: if isAuthenticated(); // Refine this later
+    }
+
+    // Job offers
+    match /job_offers/{jobId} {
+      allow read: if isAuthenticated() &&
+        (
+          resource.data.status == 'active' ||
+          isCpcStaff() ||
+          (isCompany() && resource.data.company_id == request.auth.uid)
+        );
+      allow create: if isCompany() &&
+        request.resource.data.company_id == request.auth.uid;
+      allow update: if isCpcStaff() ||
+        (isCompany() && resource.data.company_id == request.auth.uid);
+      allow delete: if isCpcStaff();
+    }
+
+    // Job applications
+    match /job_applications/{applicationId} {
+      allow read: if isCpcStaff() ||
+        (isAuthenticated() && resource.data.applicant_id == request.auth.uid) ||
+        (
+          isCompany() &&
+          jobOffer(resource.data.job_id).exists() &&
+          jobOffer(resource.data.job_id).data.company_id == request.auth.uid
+        );
+      allow create: if isAuthenticated() &&
+        request.resource.data.applicant_id == request.auth.uid &&
+        jobOffer(request.resource.data.job_id).exists();
+      allow update: if isCpcStaff() ||
+        (
+          isCompany() &&
+          jobOffer(resource.data.job_id).exists() &&
+          jobOffer(resource.data.job_id).data.company_id == request.auth.uid
+        );
+      allow delete: if isCpcStaff();
+    }
+
+    // Trails and modules (content)
+    match /trails/{trailId} {
+      allow read: if isAuthenticated();
+      allow write: if isCpcStaff();
+    }
+
+    match /trail_modules/{moduleId} {
+      allow read: if isAuthenticated();
+      allow write: if isCpcStaff();
+    }
+
+    // Trail progress
+    match /user_trail_progress/{progressId} {
+      allow read: if isCpcStaff() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+      allow create: if isCpcStaff() || (isAuthenticated() && request.resource.data.user_id == request.auth.uid);
+      allow update: if isCpcStaff() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+      allow delete: if isCpcStaff();
+    }
+
+    // Sessions
+    match /sessions/{sessionId} {
+      allow read: if isCpcStaff() ||
+        (
+          isAuthenticated() &&
+          (
+            resource.data.migrant_id == request.auth.uid ||
+            resource.data.professional_id == request.auth.uid
+          )
+        );
+      allow create: if isCpcStaff() ||
+        (isAuthenticated() && request.resource.data.migrant_id == request.auth.uid);
+      allow update: if isCpcStaff() ||
+        (isAuthenticated() && resource.data.migrant_id == request.auth.uid);
+      allow delete: if isCpcStaff();
     }
     
     // Default deny

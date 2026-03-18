@@ -17,6 +17,9 @@ Formato validado automaticamente.
 | UI-002 | [x] UI • Remoção completa do dark mode (ícones, CSS, dependências, referências) | done | P1 | Renato | 2026-03-16 | 100 | 2026-03-16 | src/components/layout/Header.tsx; src/index.css; tailwind.config.ts; src/components/ui/sonner.tsx |
 | UI-003 | [x] UI • Atualizar emails nas políticas (Privacidade/Cookies) | done | P3 | Renato | 2026-03-17 | 100 | 2026-03-17 | src/pages/Privacy.tsx; src/pages/Cookies.tsx |
 | UI-004 | [x] CPC • Migrantes: exportação da lista (CSV/XLSX) com filtros e permissões (Email no lugar de CPF) | done | P2 | Renato | 2026-03-17 | 100 | 2026-03-17 | src/pages/dashboard/cpc/MigrantsAdminPage.tsx |
+| CPC-105 | [x] CPC • Migrantes: exclusão persistida (regras Firestore + validação pós-delete + mensagem de permissão) | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | firestore.rules; src/pages/dashboard/cpc/MigrantsAdminPage.tsx; src/lib/i18n.ts |
+| CPC-106 | [x] CPC • Equipa: somente Admin pode gerir/editar utilizadores (UI + regra de segurança) | done | P1 | Renato | 2026-03-18 | 100 | 2026-03-18 | src/pages/dashboard/CPCDashboard.tsx; firestore.rules; src/lib/i18n.ts |
+| CPC-107 | [x] CPC • i18n runtime: permitir leitura de i18n/settings e i18n_overrides via Firestore Rules | done | P1 | Renato | 2026-03-18 | 100 | 2026-03-18 | firestore.rules; src/contexts/LanguageContext.tsx |
 
 ### Convenções do Registro
 - `Status`: `todo` | `in_progress` | `blocked` | `done`

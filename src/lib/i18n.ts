@@ -495,6 +495,7 @@ export const translations = {
           create_failed: 'Erro ao criar utilizador.',
           update_failed: 'Erro ao atualizar utilizador.',
           update_state_failed: 'Erro ao atualizar estado do utilizador.',
+          no_permission: 'Sem permissão para gerir utilizadores. Apenas Admin.',
         },
       },
       migrantsAdmin: {
@@ -587,6 +588,8 @@ export const translations = {
           error: {
             title: 'Erro na exclusão',
             generic: 'Não foi possível excluir o cadastro do migrante.',
+            not_persisted: 'A exclusão não foi persistida. Verifique as regras/permissões do Firestore para permitir delete.',
+            permission_denied: 'Permissão negada no Firestore. Verifique as regras e publique (deploy) as alterações.',
           },
         },
         triageDialog: {
@@ -1178,6 +1181,7 @@ export const translations = {
           create_failed: 'Error creating user.',
           update_failed: 'Error updating user.',
           update_state_failed: 'Error updating user status.',
+          no_permission: 'No permission to manage users. Admin only.',
         },
       },
       migrantsAdmin: {
@@ -1270,6 +1274,8 @@ export const translations = {
           error: {
             title: 'Deletion failed',
             generic: 'Could not delete the migrant record.',
+            not_persisted: 'Deletion was not persisted. Check Firestore rules/permissions to allow delete.',
+            permission_denied: 'Permission denied in Firestore. Check the rules and deploy your changes.',
           },
         },
         triageDialog: {
@@ -1863,6 +1869,7 @@ export const translations = {
           create_failed: 'Error al crear usuario.',
           update_failed: 'Error al actualizar usuario.',
           update_state_failed: 'Error al actualizar el estado del usuario.',
+          no_permission: 'Sin permiso para gestionar usuarios. Solo Admin.',
         },
       },
       migrantsAdmin: {
@@ -1955,6 +1962,8 @@ export const translations = {
           error: {
             title: 'Error al eliminar',
             generic: 'No fue posible eliminar el registro del migrante.',
+            not_persisted: 'La eliminación no se persistió. Verifique las reglas/permisos de Firestore para permitir delete.',
+            permission_denied: 'Permiso denegado en Firestore. Verifique las reglas y publique (deploy) los cambios.',
           },
         },
         triageDialog: {

@@ -192,6 +192,7 @@ export default function CPCDashboard() {
     const [editRole, setEditRole] = useState<CpcTeamRole>('mediator');
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const [formError, setFormError] = useState('');
+    const isAdmin = profile?.role === 'admin';
 
     function getRoleLabel(roleValue: CpcTeamRole): string {
       return t.get(`cpc.team.roles.${roleValue}` as never);
@@ -222,6 +223,10 @@ export default function CPCDashboard() {
     }, []);
 
     async function handleCreateUser() {
+      if (!isAdmin) {
+        setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
       if (!name.trim() || !email.trim() || !password.trim()) {
         setFormError(t.get('cpc.team.errors.required_fields'));
         return;
@@ -245,6 +250,10 @@ export default function CPCDashboard() {
     }
 
     function openEdit(user: { id: string; name: string; role: CpcTeamRole }) {
+      if (!isAdmin) {
+        setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
       setEditTarget(user);
       setEditName(user.name);
       setEditRole(user.role);
@@ -253,6 +262,10 @@ export default function CPCDashboard() {
 
     async function handleSaveEdit() {
       if (!editTarget) return;
+      if (!isAdmin) {
+        setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
       if (!editName.trim()) {
         setFormError(t.get('cpc.team.errors.name_required'));
         return;
@@ -277,6 +290,10 @@ export default function CPCDashboard() {
     }
 
     async function toggleActive(user: { id: string; active: boolean }) {
+      if (!isAdmin) {
+        setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
       setActionLoadingId(user.id);
       setFormError('');
       try {
@@ -320,7 +337,17 @@ export default function CPCDashboard() {
             </h1>
               <p className="text-muted-foreground mt-1">{t.get('cpc.team.subtitle')}</p>
           </div>
-          <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-2">
+          <Button
+            onClick={() => {
+              if (!isAdmin) {
+                setFormError(t.get('cpc.team.errors.no_permission'));
+                return;
+              }
+              setOpen(true);
+            }}
+            className="inline-flex items-center gap-2"
+            disabled={!isAdmin}
+          >
             <Plus className="h-4 w-4" />
               {t.get('cpc.team.actions.add')}
           </Button>
@@ -436,6 +463,7 @@ export default function CPCDashboard() {
                       variant="outline"
                       className="inline-flex items-center justify-center gap-2 w-full"
                       onClick={() => openEdit(r)}
+                      disabled={!isAdmin}
                     >
                       <Pencil className="h-4 w-4" /> {t.get('cpc.team.actions.edit')}
                     </Button>
@@ -443,7 +471,7 @@ export default function CPCDashboard() {
                       variant="outline"
                       className="inline-flex items-center justify-center gap-2 w-full"
                       onClick={() => toggleActive(r)}
-                      disabled={actionLoadingId === r.id}
+                      disabled={!isAdmin || actionLoadingId === r.id}
                     >
                       {r.active ? <UserX className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
                       {r.active ? t.get('cpc.team.actions.deactivate') : t.get('cpc.team.actions.reactivate')}
@@ -455,7 +483,16 @@ export default function CPCDashboard() {
           </div>
         )}
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            if (next && !isAdmin) {
+              setFormError(t.get('cpc.team.errors.no_permission'));
+              return;
+            }
+            setOpen(next);
+          }}
+        >
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t.get('cpc.team.dialogs.add_title')}</DialogTitle>
@@ -496,7 +533,16 @@ export default function CPCDashboard() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <Dialog
+          open={editOpen}
+          onOpenChange={(next) => {
+            if (next && !isAdmin) {
+              setFormError(t.get('cpc.team.errors.no_permission'));
+              return;
+            }
+            setEditOpen(next);
+          }}
+        >
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{t.get('cpc.team.dialogs.edit_title')}</DialogTitle>

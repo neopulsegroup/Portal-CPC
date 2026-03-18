@@ -488,10 +488,15 @@ export default function MigrantsAdminPage() {
       ]);
 
       await Promise.all([
-        deleteDocument('triage', uid).catch(() => {}),
-        deleteDocument('profiles', uid).catch(() => {}),
-        deleteDocument('users', uid).catch(() => {}),
+        deleteDocument('triage', uid),
+        deleteDocument('profiles', uid),
+        deleteDocument('users', uid),
       ]);
+
+      const stillExists = await getDocument<{ id: string }>('users', uid);
+      if (stillExists) {
+        throw new Error(t.get('cpc.migrantsAdmin.delete.error.not_persisted'));
+      }
 
       const blockedRaw = localStorage.getItem('blockedMigrants');
       if (blockedRaw) {
@@ -509,7 +514,10 @@ export default function MigrantsAdminPage() {
       });
       setDeleteTarget(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t.get('cpc.migrantsAdmin.delete.error.generic');
+      const rawMessage = error instanceof Error ? error.message : '';
+      const message = rawMessage.includes('Missing or insufficient permissions')
+        ? t.get('cpc.migrantsAdmin.delete.error.permission_denied')
+        : rawMessage || t.get('cpc.migrantsAdmin.delete.error.generic');
       toast({
         title: t.get('cpc.migrantsAdmin.delete.error.title'),
         description: message,
