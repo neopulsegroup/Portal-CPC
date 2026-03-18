@@ -61,6 +61,61 @@ export const translations = {
         { q: 'Em que línguas posso receber apoio?', a: 'Oferecemos apoio em português, inglês, e outras línguas através de mediadores culturais.' },
       ],
     },
+    helpCenter: {
+      title: 'Como podemos ajudar?',
+      searchPlaceholder: 'Pesquise por temas, palavras-chave ou dúvidas...',
+      frequentTopicsLabel: 'Temas frequentes:',
+      frequentTopics: ['Agendamentos', 'Visto de Trabalho', 'AIMA'],
+      categories: {
+        migrants: {
+          title: 'Para Migrantes',
+          items: ['Trilhas de Integração', 'Agendamentos', 'Procura de Emprego'],
+        },
+        companies: {
+          title: 'Para Empresas',
+          items: ['Gestão de Vagas', 'Filtragem de Candidatos', 'Compliance Legal'],
+        },
+        support: {
+          title: 'Suporte Técnico',
+          items: ['Problemas de Login', 'Acessos e Permissões', 'Recuperação de Conta'],
+        },
+        legal: {
+          title: 'Questões Legais',
+          items: ['Vistos e Residência', 'AIMA e Documentação', 'Direitos do Trabalhador'],
+        },
+      },
+      popular: {
+        title: 'Artigos Populares',
+        subtitle: 'As respostas mais procuradas pela nossa comunidade num só lugar.',
+        viewAll: 'Ver todos os artigos',
+        articles: {
+          profileUpdate: 'Como atualizar o meu perfil?',
+          freeForMigrants: 'A plataforma é gratuita para migrantes?',
+          validateApplication: 'Como validar uma candidatura?',
+        },
+      },
+      noResults: 'Nenhum artigo encontrado para a sua pesquisa.',
+      cta: {
+        title: 'Ainda precisa de ajuda?',
+        subtitle: 'A nossa equipa de suporte está disponível para esclarecer todas as suas dúvidas em tempo real. Escolha o canal da sua preferência.',
+        chat: 'Contactar via Chat',
+        whatsapp: 'WhatsApp Suporte',
+      },
+    },
+    comingSoon: {
+      title: 'Estamos a construir algo novo para si',
+      subtitle: 'Esta funcionalidade está em fase de desenvolvimento para garantir a melhor experiência de integração socioprofissional',
+      features: {
+        findTalent: 'Encontrar Talento',
+        findWork: 'Encontrar Trabalho',
+        training: 'Catálogo de Formação',
+        terms: 'Termos de Serviço',
+      },
+      actions: {
+        backHome: 'Voltar ao Início',
+        contact: 'Contactar Suporte',
+      },
+    },
     hero: {
       title: 'Unindo Talento',
       titleHighlight: 'Sem Fronteiras',
@@ -754,6 +809,61 @@ export const translations = {
         { q: 'Do I need documents to register?', a: 'No documents are required to create an account. Documentation will be requested as needed during the process.' },
         { q: 'In what languages can I receive support?', a: 'We offer support in Portuguese, English, and other languages through cultural mediators.' },
       ],
+    },
+    helpCenter: {
+      title: 'How can we help?',
+      searchPlaceholder: 'Search by topics, keywords or questions...',
+      frequentTopicsLabel: 'Popular topics:',
+      frequentTopics: ['Appointments', 'Work Visa', 'AIMA'],
+      categories: {
+        migrants: {
+          title: 'For Migrants',
+          items: ['Integration Trails', 'Appointments', 'Job Search'],
+        },
+        companies: {
+          title: 'For Companies',
+          items: ['Job Management', 'Candidate Screening', 'Legal Compliance'],
+        },
+        support: {
+          title: 'Technical Support',
+          items: ['Login Issues', 'Access & Permissions', 'Account Recovery'],
+        },
+        legal: {
+          title: 'Legal Questions',
+          items: ['Visas & Residency', 'AIMA & Documentation', 'Worker Rights'],
+        },
+      },
+      popular: {
+        title: 'Popular Articles',
+        subtitle: 'The most searched answers by our community in one place.',
+        viewAll: 'View all articles',
+        articles: {
+          profileUpdate: 'How do I update my profile?',
+          freeForMigrants: 'Is the platform free for migrants?',
+          validateApplication: 'How do I validate an application?',
+        },
+      },
+      noResults: 'No articles found for your search.',
+      cta: {
+        title: 'Still need help?',
+        subtitle: 'Our support team is available to answer your questions in real time. Choose your preferred channel.',
+        chat: 'Contact via Chat',
+        whatsapp: 'WhatsApp Support',
+      },
+    },
+    comingSoon: {
+      title: 'We are building something new for you',
+      subtitle: 'This feature is under development to ensure the best socio-professional integration experience',
+      features: {
+        findTalent: 'Find Talent',
+        findWork: 'Find Work',
+        training: 'Training Catalog',
+        terms: 'Terms of Service',
+      },
+      actions: {
+        backHome: 'Back to Home',
+        contact: 'Contact Support',
+      },
     },
     hero: {
       title: 'Uniting Talent',
@@ -1450,6 +1560,61 @@ export const translations = {
         { q: '¿Necesito documentos para registrarme?', a: 'No es necesario presentar documentos para crear una cuenta. La documentación será solicitada según sea necesario durante el proceso.' },
         { q: '¿En qué idiomas puedo recibir apoyo?', a: 'Ofrecemos apoyo en portugués, inglés y otros idiomas a través de mediadores culturales.' },
       ],
+    },
+    helpCenter: {
+      title: '¿Cómo podemos ayudar?',
+      searchPlaceholder: 'Busque por temas, palabras clave o dudas...',
+      frequentTopicsLabel: 'Temas frecuentes:',
+      frequentTopics: ['Citas', 'Visa de trabajo', 'AIMA'],
+      categories: {
+        migrants: {
+          title: 'Para Migrantes',
+          items: ['Rutas de Integración', 'Citas', 'Búsqueda de Empleo'],
+        },
+        companies: {
+          title: 'Para Empresas',
+          items: ['Gestión de Vacantes', 'Filtrado de Candidatos', 'Cumplimiento Legal'],
+        },
+        support: {
+          title: 'Soporte Técnico',
+          items: ['Problemas de Inicio de Sesión', 'Accesos y Permisos', 'Recuperación de Cuenta'],
+        },
+        legal: {
+          title: 'Cuestiones Legales',
+          items: ['Visas y Residencia', 'AIMA y Documentación', 'Derechos Laborales'],
+        },
+      },
+      popular: {
+        title: 'Artículos Populares',
+        subtitle: 'Las respuestas más buscadas por nuestra comunidad en un solo lugar.',
+        viewAll: 'Ver todos los artículos',
+        articles: {
+          profileUpdate: '¿Cómo actualizar mi perfil?',
+          freeForMigrants: '¿La plataforma es gratuita para migrantes?',
+          validateApplication: '¿Cómo validar una candidatura?',
+        },
+      },
+      noResults: 'No se encontraron artículos para su búsqueda.',
+      cta: {
+        title: '¿Aún necesita ayuda?',
+        subtitle: 'Nuestro equipo de soporte está disponible para aclarar sus dudas en tiempo real. Elija su canal preferido.',
+        chat: 'Contactar por Chat',
+        whatsapp: 'Soporte WhatsApp',
+      },
+    },
+    comingSoon: {
+      title: 'Estamos construyendo algo nuevo para usted',
+      subtitle: 'Esta funcionalidad está en fase de desarrollo para garantizar la mejor experiencia de integración socioprofesional',
+      features: {
+        findTalent: 'Encontrar Talento',
+        findWork: 'Encontrar Trabajo',
+        training: 'Catálogo de Formación',
+        terms: 'Términos de Servicio',
+      },
+      actions: {
+        backHome: 'Volver al Inicio',
+        contact: 'Contactar Soporte',
+      },
     },
     hero: {
       title: 'Uniendo Talento',

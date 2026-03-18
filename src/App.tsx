@@ -21,6 +21,8 @@ import NotFound from "./pages/NotFound";
 import CreateTestUsersDev from "./pages/dev/CreateTestUsers";
 import Cookies from "./pages/Cookies";
 import Privacy from "./pages/Privacy";
+import HelpCenter from "./pages/HelpCenter";
+import ComingSoon from "./pages/ComingSoon";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +107,8 @@ function AppRoutes() {
       <Route path="/contacto" element={<Contact />} />
       <Route path="/entrar" element={<Auth />} />
       <Route path="/registar" element={<Auth />} />
-      <Route path="/ajuda" element={<NotFound />} />
+      <Route path="/ajuda" element={<HelpCenter />} />
+      <Route path="/em-breve" element={<ComingSoon />} />
       <Route path="/termos" element={<NotFound />} />
       <Route path="/privacidade" element={<Privacy />} />
       <Route path="/cookies" element={<Cookies />} />

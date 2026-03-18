@@ -30,17 +30,17 @@ export function Footer() {
             <h4 className="font-bold text-foreground mb-6 uppercase text-xs tracking-wider">{t.footer.column1}</h4>
             <ul className="space-y-3">
               <li>
-                <Link to="/registar?role=company" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/em-breve?feature=find_talent" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   {t.footer.findTalent}
                 </Link>
               </li>
               <li>
-                <Link to="/registar?role=migrant" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/em-breve?feature=find_work" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   {t.footer.findWork}
                 </Link>
               </li>
               <li>
-                <Link to="/trails" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/em-breve?feature=training" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   {t.footer.training}
                 </Link>
               </li>
@@ -57,7 +57,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/termos" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/em-breve?feature=terms" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                   {t.footer.terms}
                 </Link>
               </li>

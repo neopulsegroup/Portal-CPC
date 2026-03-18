@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { addDocument, countDocuments, getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
 import { registerUser } from '@/integrations/firebase/auth';
 import {
@@ -222,6 +222,23 @@ export default function CPCDashboard() {
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const [formError, setFormError] = useState('');
     const isAdmin = profile?.role === 'admin';
+    const hasLoggedUnauthorizedAccess = useRef(false);
+
+    async function logUnauthorizedAttempt(context: string, targetId?: string) {
+      const actorId = user?.uid;
+      if (!actorId) return;
+      try {
+        await addDocument('audit_logs', {
+          action: 'unauthorized_attempt',
+          actor_id: actorId,
+          target_id: targetId ?? null,
+          context,
+          createdAt: serverTimestamp(),
+        });
+      } catch {
+        return;
+      }
+    }
 
     function getRoleLabel(roleValue: CpcTeamRole): string {
       return t.get(`cpc.team.roles.${roleValue}` as never);
@@ -256,8 +273,17 @@ export default function CPCDashboard() {
       loadTeam();
     }, []);
 
+    useEffect(() => {
+      if (isAdmin) return;
+      if (!user?.uid) return;
+      if (hasLoggedUnauthorizedAccess.current) return;
+      hasLoggedUnauthorizedAccess.current = true;
+      logUnauthorizedAttempt('cpc.team.page_access');
+    }, [isAdmin, user?.uid]);
+
     async function handleCreateUser() {
       if (!isAdmin) {
+        await logUnauthorizedAttempt('cpc.team.create');
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
       }
@@ -285,6 +311,7 @@ export default function CPCDashboard() {
 
     function openEdit(user: { id: string; name: string; role: CpcTeamRole }) {
       if (!isAdmin) {
+        logUnauthorizedAttempt('cpc.team.edit.open', user.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
       }
@@ -297,6 +324,7 @@ export default function CPCDashboard() {
     async function handleSaveEdit() {
       if (!editTarget) return;
       if (!isAdmin) {
+        await logUnauthorizedAttempt('cpc.team.edit.save', editTarget.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
       }
@@ -325,6 +353,7 @@ export default function CPCDashboard() {
 
     async function toggleActive(teamUser: { id: string; active: boolean }) {
       if (!isAdmin) {
+        await logUnauthorizedAttempt('cpc.team.toggle_active', teamUser.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
       }
@@ -379,21 +408,16 @@ export default function CPCDashboard() {
                 <UserCog className="h-7 w-7 text-primary" /> {t.get('cpc.team.title')}
             </h1>
               <p className="text-muted-foreground mt-1">{t.get('cpc.team.subtitle')}</p>
+              {!isAdmin ? (
+                <p className="text-sm mt-2 text-amber-700">{t.get('cpc.team.errors.no_permission')}</p>
+              ) : null}
           </div>
-          <Button
-            onClick={() => {
-              if (!isAdmin) {
-                setFormError(t.get('cpc.team.errors.no_permission'));
-                return;
-              }
-              setOpen(true);
-            }}
-            className="inline-flex items-center gap-2"
-            disabled={!isAdmin}
-          >
-            <Plus className="h-4 w-4" />
+          {isAdmin ? (
+            <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-2">
+              <Plus className="h-4 w-4" />
               {t.get('cpc.team.actions.add')}
-          </Button>
+            </Button>
+          ) : null}
         </div>
 
         <div className="cpc-card p-6 mb-6">
@@ -502,23 +526,26 @@ export default function CPCDashboard() {
                   </div>
 
                   <div className="flex flex-col items-stretch gap-2 w-full lg:w-56">
-                    <Button
-                      variant="outline"
-                      className="inline-flex items-center justify-center gap-2 w-full"
-                      onClick={() => openEdit(r)}
-                      disabled={!isAdmin}
-                    >
-                      <Pencil className="h-4 w-4" /> {t.get('cpc.team.actions.edit')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="inline-flex items-center justify-center gap-2 w-full"
-                      onClick={() => toggleActive(r)}
-                      disabled={!isAdmin || actionLoadingId === r.id}
-                    >
-                      {r.active ? <UserX className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
-                      {r.active ? t.get('cpc.team.actions.deactivate') : t.get('cpc.team.actions.reactivate')}
-                    </Button>
+                    {isAdmin ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="inline-flex items-center justify-center gap-2 w-full"
+                          onClick={() => openEdit(r)}
+                        >
+                          <Pencil className="h-4 w-4" /> {t.get('cpc.team.actions.edit')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="inline-flex items-center justify-center gap-2 w-full"
+                          onClick={() => toggleActive(r)}
+                          disabled={actionLoadingId === r.id}
+                        >
+                          {r.active ? <UserX className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
+                          {r.active ? t.get('cpc.team.actions.deactivate') : t.get('cpc.team.actions.reactivate')}
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -530,6 +557,7 @@ export default function CPCDashboard() {
           open={open}
           onOpenChange={(next) => {
             if (next && !isAdmin) {
+              logUnauthorizedAttempt('cpc.team.create.open');
               setFormError(t.get('cpc.team.errors.no_permission'));
               return;
             }
@@ -580,6 +608,7 @@ export default function CPCDashboard() {
           open={editOpen}
           onOpenChange={(next) => {
             if (next && !isAdmin) {
+              logUnauthorizedAttempt('cpc.team.edit.open');
               setFormError(t.get('cpc.team.errors.no_permission'));
               return;
             }
