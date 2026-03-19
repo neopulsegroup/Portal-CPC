@@ -37,7 +37,7 @@ vi.mock('./company/CandidateProfilePage', () => ({
 }));
 
 describe('CompanyDashboard - navegação e estrutura', () => {
-  it('renderiza sidebar e marca item ativo ao navegar', async () => {
+  it('renderiza sidebar, seções extra e marca item ativo ao navegar', async () => {
     render(
       <MemoryRouter initialEntries={['/dashboard/empresa/ofertas']}>
         <Routes>
@@ -48,6 +48,8 @@ describe('CompanyDashboard - navegação e estrutura', () => {
 
     expect(screen.getByText('Menu Empresa')).toBeInTheDocument();
     expect(screen.getByText('Acme')).toBeInTheDocument();
+    expect(screen.getByText('Definições')).toBeInTheDocument();
+    expect(screen.getByText('Mensagens', { selector: 'p' })).toBeInTheDocument();
 
     expect(screen.getByText('Minhas ofertas')).toBeInTheDocument();
     const offersLink = screen.getByRole('link', { name: 'Ofertas' });
@@ -61,6 +63,13 @@ describe('CompanyDashboard - navegação e estrutura', () => {
     });
     expect(screen.getByRole('link', { name: 'Nova Oferta' }).className).toContain('bg-primary');
     expect(screen.getByRole('link', { name: 'Ofertas' }).className).not.toContain('bg-primary');
+
+    await user.click(screen.getByRole('link', { name: 'Perfil' }));
+    expect(await screen.findByRole('heading', { name: 'Perfil da Empresa' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Perfil' }).className).toContain('bg-primary');
+
+    await user.click(screen.getByRole('link', { name: 'Mensagens' }));
+    expect(await screen.findByRole('heading', { name: 'Conversas' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mensagens' }).className).toContain('bg-primary');
   });
 });
-

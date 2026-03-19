@@ -12,6 +12,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { addDocument, countDocuments, getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
 import { registerUser } from '@/integrations/firebase/auth';
 import {
+  Building2,
   Users,
   Calendar,
   BookOpen,
@@ -35,6 +36,7 @@ import {
   RotateCcw,
   Wrench,
   Languages,
+  MessagesSquare,
 } from 'lucide-react';
 
 type FirebaseUserDoc = {
@@ -1054,7 +1056,7 @@ export default function CPCDashboard() {
     return 'bg-muted text-muted-foreground';
   };
 
-  const sidebarItems = [
+  const sidebarItemsMain = [
     { to: '/dashboard/cpc', label: t.get('cpc.menu.overview'), icon: TrendingUp },
     { to: '/dashboard/cpc/migrantes', label: t.get('cpc.menu.migrants'), icon: Users },
     { to: '/dashboard/cpc/agenda', label: t.get('cpc.menu.agenda'), icon: Calendar },
@@ -1064,6 +1066,9 @@ export default function CPCDashboard() {
     { to: '/dashboard/cpc/equipa', label: t.get('cpc.menu.team'), icon: UserCog },
     { to: '/dashboard/cpc/traducoes', label: t.get('cpcTranslations.title'), icon: Languages },
   ];
+
+  const sidebarItemsProfile = [{ to: '/dashboard/cpc/perfil', label: t.get('cpc.menu.profile'), icon: Building2 }];
+  const sidebarItemsMessages = [{ to: '/dashboard/cpc/mensagens', label: t.get('cpc.menu.messages'), icon: MessagesSquare }];
   const isHome = location.pathname === '/dashboard/cpc' || location.pathname === '/dashboard/cpc/';
 
   return (
@@ -1077,7 +1082,7 @@ export default function CPCDashboard() {
                 <p className="font-semibold">{cpcDisplayName}</p>
               </div>
               <nav className="space-y-1">
-                {sidebarItems.map((item) => (
+                {sidebarItemsMain.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
@@ -1090,6 +1095,42 @@ export default function CPCDashboard() {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
+
+                <div className="pt-4 mt-4 border-t">
+                  <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">Definições</p>
+                  <div className="mt-2 space-y-1">
+                    {sidebarItemsProfile.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                        }
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-4 border-t">
+                  <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">Mensagens</p>
+                  <div className="mt-2 space-y-1">
+                    {sidebarItemsMessages.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                        }
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               </nav>
             </aside>
 
@@ -1320,6 +1361,8 @@ export default function CPCDashboard() {
                 <Route path="trilhas" element={<TrailsAdminPage />} />
                 <Route path="trilhas/:trailId" element={<TrailEditorPage />} />
                 <Route path="equipa" element={<EquipaPage />} />
+                <Route path="perfil" element={<CPCProfilePage />} />
+                <Route path="mensagens" element={<CPCMessagesPage />} />
                 <Route path="traducoes" element={<TranslationsAdminPage />} />
               </Routes>
             </div>
@@ -1336,3 +1379,5 @@ import MigrantProfilePage from './migrant/ProfilePage';
 import TrailsAdminPage from './cpc/TrailsAdminPage';
 import TrailEditorPage from './cpc/TrailEditorPage';
 import TranslationsAdminPage from './cpc/TranslationsAdminPage';
+import CPCProfilePage from './cpc/ProfilePage';
+import CPCMessagesPage from './cpc/MessagesPage';

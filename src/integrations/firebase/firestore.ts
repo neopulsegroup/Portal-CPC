@@ -7,6 +7,7 @@ import {
     setDoc,
     updateDoc,
     deleteDoc,
+    onSnapshot,
     query,
     where,
     orderBy,
@@ -233,6 +234,51 @@ export async function queryDocuments<T>(
         });
         throw error;
     }
+}
+
+export function subscribeQuery<T>(args: {
+    collectionName: string;
+    filters: { field: string; operator: WhereFilterOp; value: unknown }[];
+    orderByField?: string | { field: string; direction?: 'asc' | 'desc' };
+    limitCount?: number;
+    onNext: (docs: T[]) => void;
+    onError?: (error: unknown) => void;
+}): () => void {
+    const { collectionName, filters, orderByField, limitCount, onNext, onError } = args;
+    let q = query(collection(db, collectionName));
+
+    filters.forEach((filter) => {
+        q = query(q, where(filter.field, filter.operator, filter.value));
+    });
+
+    if (orderByField) {
+        if (typeof orderByField === 'string') {
+            q = query(q, orderBy(orderByField));
+        } else {
+            q = query(q, orderBy(orderByField.field, orderByField.direction || 'asc'));
+        }
+    }
+
+    if (limitCount) {
+        q = query(q, limit(limitCount));
+    }
+
+    return onSnapshot(
+        q,
+        (snap) => {
+            const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
+            onNext(docs);
+        },
+        (error) => {
+            console.error(`Error subscribing ${collectionName}:`, {
+                code: getFirestoreErrorCode(error),
+                uid: auth.currentUser?.uid ?? null,
+                hasAuth: !!auth.currentUser,
+                error,
+            });
+            onError?.(error);
+        }
+    );
 }
 
 /**

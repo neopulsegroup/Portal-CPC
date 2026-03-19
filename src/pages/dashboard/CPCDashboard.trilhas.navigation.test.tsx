@@ -40,6 +40,8 @@ vi.mock('@/contexts/LanguageContext', () => ({
           'cpc.menu.offers': 'Ofertas',
           'cpc.menu.trails': 'Trilhas',
           'cpc.menu.team': 'Equipa',
+          'cpc.menu.profile': 'Perfil',
+          'cpc.menu.messages': 'Mensagens',
           'cpcTranslations.title': 'Traduções',
           'cpc.dashboard.welcome': 'Bem-vindo(a)',
           'cpc.team.title': 'Equipa',
@@ -210,6 +212,51 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
       expect(screen.getByRole('link', { name: 'Equipa' }).className).toContain('bg-primary');
     });
     expect(screen.getByRole('link', { name: 'Trilhas' }).className).not.toContain('bg-primary');
+  });
+
+  it('mantém "Perfil" e "Mensagens" no final do menu (ordem estável em diferentes larguras)', async () => {
+    const setWidth = (value: number) => {
+      Object.defineProperty(window, 'innerWidth', { value, writable: true, configurable: true });
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    setWidth(375);
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/dashboard/cpc']}>
+        <Routes>
+          <Route path="/dashboard/cpc/*" element={<CPCDashboard />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Definições')).toBeInTheDocument();
+    expect(screen.getAllByText('Mensagens').length).toBeGreaterThan(0);
+
+    const nav = screen.getByRole('navigation');
+    const links = Array.from(nav.querySelectorAll('a'))
+      .map((a) => a.textContent?.trim() ?? '')
+      .filter(Boolean);
+    expect(links.at(-2)).toBe('Perfil');
+    expect(links.at(-1)).toBe('Mensagens');
+
+    unmount();
+
+    setWidth(1280);
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc']}>
+        <Routes>
+          <Route path="/dashboard/cpc/*" element={<CPCDashboard />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Definições')).toBeInTheDocument();
+    const nav2 = screen.getByRole('navigation');
+    const links2 = Array.from(nav2.querySelectorAll('a'))
+      .map((a) => a.textContent?.trim() ?? '')
+      .filter(Boolean);
+    expect(links2.at(-2)).toBe('Perfil');
+    expect(links2.at(-1)).toBe('Mensagens');
   });
 
   it('mantém "Trilhas" como ativo ao abrir o editor /trilhas/:trailId', async () => {

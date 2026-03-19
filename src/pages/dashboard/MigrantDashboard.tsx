@@ -10,6 +10,7 @@ import {
   Calendar,
   BookOpen,
   Briefcase,
+  Building2,
   User,
   TrendingUp,
   ChevronRight,
@@ -21,6 +22,7 @@ import {
   AlertCircle,
   MessageCircle,
   MessageSquare,
+  MessagesSquare,
   FileText,
   Settings,
   ClipboardList,
@@ -45,6 +47,7 @@ import JobsPage from './migrant/JobsPage';
 import JobDetailPage from './migrant/JobDetailPage';
 import ProfilePage from './migrant/ProfilePage';
 import SessionsPage from './migrant/SessionsPage';
+import MigrantMessagesPage from './migrant/MessagesPage';
 
 function MigrantHome() {
   const { t } = useLanguage();
@@ -536,13 +539,16 @@ export default function MigrantDashboard() {
   const location = useLocation();
   const { profile } = useAuth();
   const isHome = location.pathname === '/dashboard/migrante' || location.pathname === '/dashboard/migrante/';
-  const sidebarItems = [
+  const sidebarItemsMain = [
     { to: '/dashboard/migrante', label: 'Visão geral', icon: TrendingUp },
-    { to: '/dashboard/migrante/perfil', label: 'Perfil', icon: User },
     { to: '/dashboard/migrante/sessoes', label: 'Sessões', icon: Calendar },
     { to: '/dashboard/migrante/emprego', label: 'Emprego', icon: Briefcase },
     { to: '/dashboard/migrante/trilhas', label: 'Trilhas', icon: BookOpen },
   ];
+  const role = (profile?.role ?? '').toString().toLowerCase();
+  const isMigrant = role === 'migrant' || role === 'migrante' || role.length === 0;
+  const sidebarItemsProfile = [{ to: '/dashboard/migrante/perfil', label: 'Perfil', icon: Building2 }];
+  const sidebarItemsMessages = [{ to: '/dashboard/migrante/mensagens', label: 'Mensagens', icon: MessagesSquare }];
 
   return (
     <Layout>
@@ -556,9 +562,14 @@ export default function MigrantDashboard() {
                 <p className="font-semibold">{profile?.name || 'Utilizador'}</p>
               </div>
 
-              {/* Navegação: mesma hierarquia tipográfica e estados hover/active do CPC */}
+              {/* Documentação:
+                - Estrutura e estilos do menu replicam o padrão visual/funcional dos dashboards /empresa e /cpc.
+                - Os itens principais ficam no topo, e "Definições" + "Mensagens" ficam no final do menu com separadores (border-t),
+                  mantendo tipografia, espaçamento, hover/active e responsividade consistentes entre módulos.
+                - Visibilidade: "Perfil" e "Mensagens" são exibidos apenas para utilizadores com perfil migrante.
+              */}
               <nav className="space-y-1">
-                {sidebarItems.map((item) => (
+                {sidebarItemsMain.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
@@ -571,6 +582,46 @@ export default function MigrantDashboard() {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
+
+                {isMigrant ? (
+                  <>
+                    <div className="pt-4 mt-4 border-t">
+                      <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">Definições</p>
+                      <div className="mt-2 space-y-1">
+                        {sidebarItemsProfile.map((item) => (
+                          <NavLink
+                            key={item.to}
+                            to={item.to}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                            }
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-4 border-t">
+                      <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">Mensagens</p>
+                      <div className="mt-2 space-y-1">
+                        {sidebarItemsMessages.map((item) => (
+                          <NavLink
+                            key={item.to}
+                            to={item.to}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                            }
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
               </nav>
             </aside>
 
@@ -595,6 +646,7 @@ export default function MigrantDashboard() {
                 <Route path="emprego" element={<JobsPage />} />
                 <Route path="emprego/:jobId" element={<JobDetailPage />} />
                 <Route path="perfil" element={<ProfilePage />} />
+                <Route path="mensagens" element={<MigrantMessagesPage />} />
               </Routes>
             </div>
           </div>

@@ -414,6 +414,8 @@ export const translations = {
         offers: 'Ofertas',
         trails: 'Trilhas',
         team: 'Equipa',
+        profile: 'Perfil',
+        messages: 'Mensagens',
       },
       dashboard: {
         welcome: 'Bem-vindo(a)',
@@ -1163,6 +1165,8 @@ export const translations = {
         offers: 'Offers',
         trails: 'Trails',
         team: 'Team',
+        profile: 'Profile',
+        messages: 'Messages',
       },
       dashboard: {
         welcome: 'Welcome',
@@ -1914,6 +1918,8 @@ export const translations = {
         offers: 'Ofertas',
         trails: 'Trayectorias',
         team: 'Equipo',
+        profile: 'Perfil',
+        messages: 'Mensajes',
       },
       dashboard: {
         welcome: 'Bienvenido(a)',
