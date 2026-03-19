@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { addDocument, countDocuments, deleteDocument, queryDocuments, setDocument, updateDocument } from '@/integrations/firebase/firestore';
+import { addDocument, countDocuments, deleteDocument, getDocument, queryDocuments, setDocument, updateDocument } from '@/integrations/firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
@@ -160,6 +160,7 @@ export default function CandidatesPage() {
   }, [language]);
 
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [companyResolveError, setCompanyResolveError] = useState<string | null>(null);
   const [offers, setOffers] = useState<JobOfferLite[]>([]);
 
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -204,7 +205,7 @@ export default function CandidatesPage() {
 
   useEffect(() => {
     void bootstrap();
-  }, [user]);
+  }, [user, profile?.role, profileData?.name]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -226,6 +227,7 @@ export default function CandidatesPage() {
   async function bootstrap() {
     if (!user) return;
     setLoadingInitial(true);
+    setCompanyResolveError(null);
     try {
       const company = await queryDocuments<{ id: string }>(
         'companies',
@@ -236,6 +238,29 @@ export default function CandidatesPage() {
 
       if (company[0]?.id) {
         setCompanyId(company[0].id);
+        return;
+      }
+
+      const directCompany = await getDocument<{ id: string; user_id?: string; company_name?: string; verified?: boolean }>(
+        'companies',
+        user.uid
+      );
+      if (directCompany) {
+        const patch: Record<string, unknown> = {};
+        if (directCompany.user_id !== user.uid) patch.user_id = user.uid;
+        if (typeof directCompany.company_name !== 'string' || !directCompany.company_name.trim()) {
+          patch.company_name =
+            (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+            (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+            (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+            user.email ??
+            'Empresa';
+        }
+        if (typeof directCompany.verified !== 'boolean') patch.verified = false;
+        if (Object.keys(patch).length > 0) {
+          await setDocument('companies', user.uid, patch, true);
+        }
+        setCompanyId(directCompany.id);
         return;
       }
 
@@ -266,6 +291,54 @@ export default function CandidatesPage() {
     } catch (error) {
       console.error('Error loading company:', error);
       setCompanyId(null);
+      const code = error && typeof error === 'object' && 'code' in error && typeof (error as { code?: unknown }).code === 'string'
+        ? String((error as { code?: unknown }).code)
+        : null;
+      const message = error instanceof Error ? error.message : t.get('company.candidates.companyNotFound');
+      setCompanyResolveError(code ? `${message} (${code})` : message);
+    } finally {
+      setLoadingInitial(false);
+    }
+  }
+
+  async function ensureCompanyProfile() {
+    if (!user) return;
+    setLoadingInitial(true);
+    setCompanyResolveError(null);
+    try {
+      const baseName =
+        (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+        (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+        (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+        user.email ??
+        'Empresa';
+
+      await setDocument(
+        'companies',
+        user.uid,
+        {
+          user_id: user.uid,
+          company_name: baseName,
+          verified: false,
+          createdAt: new Date().toISOString(),
+        },
+        true
+      );
+      setCompanyId(user.uid);
+      toast({ title: 'Perfil de empresa criado' });
+    } catch (error) {
+      console.error('Error creating company profile:', error);
+      const code = error && typeof error === 'object' && 'code' in error && typeof (error as { code?: unknown }).code === 'string'
+        ? String((error as { code?: unknown }).code)
+        : null;
+      const message = error instanceof Error ? error.message : 'Erro ao criar perfil de empresa';
+      const desc = code ? `${message} (${code})` : message;
+      setCompanyResolveError(desc);
+      toast({
+        title: 'Não foi possível criar o perfil de empresa',
+        description: desc,
+        variant: 'destructive',
+      });
     } finally {
       setLoadingInitial(false);
     }
@@ -551,8 +624,14 @@ export default function CandidatesPage() {
 
   if (!companyId) {
     return (
-      <div className="cpc-card p-10 text-center text-sm text-muted-foreground">
-        {t.get('company.candidates.companyNotFound')}
+      <div className="cpc-card p-10 text-center text-sm text-muted-foreground space-y-4">
+        <div>{t.get('company.candidates.companyNotFound')}</div>
+        {companyResolveError ? <div className="text-xs text-destructive">{companyResolveError}</div> : null}
+        <div className="flex justify-center">
+          <Button onClick={ensureCompanyProfile} disabled={!user || loadingInitial}>
+            Criar perfil de empresa
+          </Button>
+        </div>
       </div>
     );
   }

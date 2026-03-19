@@ -88,6 +88,20 @@ export async function registerUser(
             updatedAt: serverTimestamp(),
         });
 
+        if (role === 'company') {
+            await setDoc(
+                doc(db, 'companies', user.uid),
+                {
+                    user_id: user.uid,
+                    company_name: name,
+                    verified: false,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+            );
+        }
+
         return { user, profile: userProfile };
     } catch (error: unknown) {
         console.error('Error registering user:', error);

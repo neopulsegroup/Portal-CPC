@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { addDocument, getDocument, queryDocuments, updateDocument } from '@/integrations/firebase/firestore';
+import { addDocument, getDocument, queryDocuments, setDocument, updateDocument } from '@/integrations/firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 
 export default function CreateJobPage() {
-  const { user } = useAuth();
+  const { user, profile, profileData } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t } = useLanguage();
@@ -42,15 +42,44 @@ export default function CreateJobPage() {
   async function fetchCompany() {
     if (!user) return;
 
-    const data = await queryDocuments<{ id: string }>(
-      'companies',
-      [{ field: 'user_id', operator: '==', value: user.uid }],
-      undefined,
-      1
-    );
+    try {
+      const data = await queryDocuments<{ id: string }>(
+        'companies',
+        [{ field: 'user_id', operator: '==', value: user.uid }],
+        undefined,
+        1
+      );
 
-    if (data[0]?.id) {
-      setCompanyId(data[0].id);
+      if (data[0]?.id) {
+        setCompanyId(data[0].id);
+        return;
+      }
+
+      const direct = await getDocument<{ id: string; user_id?: string }>('companies', user.uid);
+      if (direct) {
+        if (direct.user_id !== user.uid) await setDocument('companies', user.uid, { user_id: user.uid }, true);
+        setCompanyId(direct.id);
+        return;
+      }
+
+      if (profile?.role === 'company') {
+        const baseName =
+          (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+          (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+          (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+          user.email ??
+          'Empresa';
+
+        await setDocument(
+          'companies',
+          user.uid,
+          { user_id: user.uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
+          true
+        );
+        setCompanyId(user.uid);
+      }
+    } catch (error) {
+      console.error('Error fetching company:', error);
     }
   }
 

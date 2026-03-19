@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { countDocuments, queryDocuments, updateDocument } from '@/integrations/firebase/firestore';
+import { countDocuments, getDocument, queryDocuments, setDocument, updateDocument } from '@/integrations/firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ const PAGE_SIZE = 8;
 type OfferFilterOp = '==' | 'in' | '>=' | '<=';
 
 export default function MyJobsPage() {
-  const { user } = useAuth();
+  const { user, profile, profileData } = useAuth();
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -78,7 +78,50 @@ export default function MyJobsPage() {
         undefined,
         1
       );
-      setCompanyId(company[0]?.id ?? null);
+      if (company[0]?.id) {
+        setCompanyId(company[0].id);
+        return;
+      }
+
+      const direct = await getDocument<{ id: string; user_id?: string; company_name?: string; verified?: boolean }>(
+        'companies',
+        user.uid
+      );
+      if (direct) {
+        const patch: Record<string, unknown> = {};
+        if (direct.user_id !== user.uid) patch.user_id = user.uid;
+        if (typeof direct.company_name !== 'string' || !direct.company_name.trim()) {
+          patch.company_name =
+            (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+            (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+            (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+            user.email ??
+            'Empresa';
+        }
+        if (typeof direct.verified !== 'boolean') patch.verified = false;
+        if (Object.keys(patch).length > 0) await setDocument('companies', user.uid, patch, true);
+        setCompanyId(direct.id);
+        return;
+      }
+
+      if (profile?.role === 'company') {
+        const baseName =
+          (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+          (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+          (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+          user.email ??
+          'Empresa';
+        await setDocument(
+          'companies',
+          user.uid,
+          { user_id: user.uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
+          true
+        );
+        setCompanyId(user.uid);
+        return;
+      }
+
+      setCompanyId(null);
     } catch (error) {
       console.error('Error fetching company:', error);
       setCompanyId(null);
