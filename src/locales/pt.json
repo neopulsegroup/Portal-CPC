@@ -1225,6 +1225,164 @@
         "scheduled": "Agendada"
       }
     },
+    "agenda": {
+      "header": {
+        "today": "Hoje",
+        "filterBy": "Filtrar por",
+        "week": "Semana",
+        "month": "Mês",
+        "newSession": "Nova sessão"
+      },
+      "weekdays": {
+        "mon": "SEG",
+        "tue": "TER",
+        "wed": "QUA",
+        "thu": "QUI",
+        "fri": "SEX",
+        "sat": "SÁB",
+        "sun": "DOM"
+      },
+      "events": {
+        "legal-consult": { "title": "Consulta Jurídica", "subtitle": "M. Al-Fayed (ID ...)" },
+        "initial-assessment": { "title": "Avaliação Inicial", "subtitle": "S. Kovacs (ID ...)" },
+        "family-mediation": { "title": "Mediação Familiar", "subtitle": "Família H. (Caso...)" },
+        "workplace-conflict": { "title": "Conflito Laboral", "subtitle": "Caso #9912" },
+        "follow-up": { "title": "Acompanhamento", "subtitle": "L. Dubois (ID: 4...)" }
+      },
+      "popover": {
+        "title": "Acompanhamento de Trauma",
+        "person": "Lucas Dubois",
+        "personMetaPrefix": "ID: 4100",
+        "personMetaStatus": "Estado: Ativo",
+        "dateTime": "Qua, 25 Out • 13:00 - 14:00",
+        "specialist": "Especialista: Dr. A. Rossi",
+        "notes": "Utente reportou melhoria do sono. Foco nos fatores de stress de integração hoje."
+      },
+      "actions": {
+        "reschedule": "Reagendar",
+        "cancel": "Cancelar",
+        "decline": "Recusar",
+        "approve": "Aprovar",
+        "assignSlot": "Atribuir horário"
+      },
+      "eventModal": {
+        "close": "Fechar"
+      },
+      "sessionRecord": {
+        "open": "Ver nota de sessão",
+        "breadcrumbs": {
+          "home": "Início",
+          "migrants": "Migrantes",
+          "record": "Registo de Sessão"
+        },
+        "header": {
+          "title": "Registo de Sessão",
+          "dateTime": "24 de fevereiro, 2024 • 14:30",
+          "tech": "Técnico: Sarah J.",
+          "saveDraft": "Guardar rascunho"
+        },
+        "profile": {
+          "name": "Mateo Silva",
+          "initials": "MS",
+          "idLabel": "ID:",
+          "idValue": "#94821",
+          "statusActive": "Ativo"
+        },
+        "needs": {
+          "title": "Necessidades identificadas",
+          "languageSupport": "Apoio de Língua",
+          "cvWorkshop": "Workshop de CV",
+          "housing": "Habitação"
+        },
+        "screening": {
+          "title": "Resumo de triagem",
+          "p1": "Admissão inicial realizada em 15 de jan de 2024. Mateo demonstra elevada motivação para emprego no setor da construção, especificamente carpintaria.",
+          "primaryChallengeLabel": "Desafio principal:",
+          "primaryChallengeText": "Nível atual de língua (A2) é insuficiente para requisitos de entrada em formação vocacional (necessário B1).",
+          "p2": "Situação habitacional estável mas temporária. Solicitou apoio jurídico sobre reagrupamento familiar."
+        },
+        "activity": {
+          "title": "Atividade recente",
+          "item1": {
+            "date": "10 fev, 2024",
+            "title": "Participação em Workshop de CV",
+            "status": "Concluído"
+          },
+          "item2": {
+            "date": "28 jan, 2024",
+            "title": "Avaliação de Língua",
+            "meta": "Pontuação: A2"
+          }
+        },
+        "notes": {
+          "title": "Notas da sessão",
+          "placeholder": "Registe detalhes da conversa, objetivos definidos e observações aqui...",
+          "lastAutosaved": "Último auto-guardar {relative}",
+          "justNow": "agora mesmo",
+          "urgent": "Marcar sessão como urgente",
+          "toolbar": {
+            "bold": "Negrito",
+            "italic": "Itálico",
+            "bullets": "Lista",
+            "ordered": "Lista numerada"
+          }
+        },
+        "outcomes": {
+          "title": "Resultados e próximos passos",
+          "recommendTrack": "Recomendar trilha formativa",
+          "immediateNextStep": "Próximo passo imediato",
+          "selectTrackPlaceholder": "Selecione uma trilha...",
+          "selectNextPlaceholder": "Selecione o próximo passo...",
+          "track": {
+            "language": "Português (B1)",
+            "career": "Empregabilidade & CV",
+            "legal": "Apoio jurídico"
+          },
+          "next": {
+            "schedule": "Agendar próxima sessão",
+            "docs": "Solicitar documentos",
+            "referral": "Encaminhar para serviço"
+          },
+          "finalize": "Finalizar e guardar"
+        }
+      },
+      "pending": {
+        "title": "Pedidos Pendentes",
+        "viewAll": "Ver todos os pedidos"
+      },
+      "status": {
+        "approved": "Aprovado",
+        "declined": "Recusado",
+        "assigned": "Horário atribuído"
+      },
+      "requests": {
+        "r1": {
+          "category": "JURÍDICO",
+          "title": "Consulta de Recurso de Residência",
+          "person": "Ahmed K.",
+          "team": "Pedido Balcão",
+          "when": "Seg, 30 Out • 10:00",
+          "timeAgo": "há 2h"
+        },
+        "r2": {
+          "category": "PSICOLOGIA",
+          "title": "Aconselhamento de Emergência",
+          "person": "Nia J.",
+          "team": "Pedido Assistente Social",
+          "when": "Data por definir",
+          "timeAgo": "há 5h",
+          "urgent": "Urgente: ASAP"
+        },
+        "r3": {
+          "category": "MEDIAÇÃO",
+          "title": "Resolução de Conflito",
+          "person": "Marcus T.",
+          "team": "Pedido Habitação",
+          "when": "Qua, 1 Nov • 14:00",
+          "timeAgo": "há 1d"
+        }
+      }
+    },
     "quickActions": {
       "title": "Ações rápidas",
       "subtitle": "Atalhos para as tarefas mais frequentes.",

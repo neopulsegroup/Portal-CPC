@@ -26,6 +26,7 @@ Formato validado automaticamente.
 | CPC-111 | [x] CPC • Hotfix final de ACL: compatibilidade com roles legadas (cpc/staff/equipa) + leitura owner em triage/progress sem bloqueio | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | firestore.rules |
 | CPC-112 | [x] CPC • ACL: compatibilidade com schema legado (role em profile/perfil/type) para restaurar isCpcStaff e leituras em massa | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | firestore.rules |
 | CPC-113 | [x] CPC • Diagnóstico/estabilidade Firestore: suporte a App Check (reCAPTCHA v3 via env) + retry para erros transitórios + logs com code | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | src/integrations/firebase/client.ts; src/integrations/firebase/firestore.ts |
+| CPC-114 | [x] CPC • Agenda: modal de agendamento full overlay (z-index máximo + backdrop + clique fora) + visualização de nota de sessão | done | P1 | Renato | 2026-03-20 | 100 | 2026-03-20 | src/pages/dashboard/cpc/TeamAgendaPage.tsx; src/components/ui/dialog.tsx; src/pages/dashboard/cpc/TeamAgendaPage.test.tsx; src/locales/pt.json; src/locales/en.json; src/locales/es.json |
 
 ### Convenções do Registro
 - `Status`: `todo` | `in_progress` | `blocked` | `done`
@@ -88,7 +89,7 @@ Formato validado automaticamente.
 ### 3) Agendamentos e Atendimento
 - [x] Migrante: marcar sessões (mediador/jurista/psicóloga) e ver sessões marcadas.
 - [x] Equipa CPC: criar, reagendar e cancelar sessões; filtrar por área e por profissional (atribuição básica).
-- [ ] Equipa CPC: registar notas básicas das sessões.
+- [ ] Equipa CPC: registar notas básicas das sessões (UI pronta; persistência/fluxo de gravação pendentes).
 - [ ] Lembretes automáticos de sessão (email/notificações).
 
 ### 4) Trilhas Formativas
