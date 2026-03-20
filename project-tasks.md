@@ -27,6 +27,7 @@ Formato validado automaticamente.
 | CPC-112 | [x] CPC • ACL: compatibilidade com schema legado (role em profile/perfil/type) para restaurar isCpcStaff e leituras em massa | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | firestore.rules |
 | CPC-113 | [x] CPC • Diagnóstico/estabilidade Firestore: suporte a App Check (reCAPTCHA v3 via env) + retry para erros transitórios + logs com code | done | P0 | Renato | 2026-03-18 | 100 | 2026-03-18 | src/integrations/firebase/client.ts; src/integrations/firebase/firestore.ts |
 | CPC-114 | [x] CPC • Agenda: modal de agendamento full overlay (z-index máximo + backdrop + clique fora) + visualização de nota de sessão | done | P1 | Renato | 2026-03-20 | 100 | 2026-03-20 | src/pages/dashboard/cpc/TeamAgendaPage.tsx; src/components/ui/dialog.tsx; src/pages/dashboard/cpc/TeamAgendaPage.test.tsx; src/locales/pt.json; src/locales/en.json; src/locales/es.json |
+| MIG-101 | [x] Migrante • Sessões: página idêntica à referência (lista/calendário, próximos/histórico, especialistas) + wizard de marcação (4 etapas) + ações (reagendar/cancelar/entrar em vídeo) + testes | done | P1 | Renato | 2026-03-20 | 100 | 2026-03-20 | src/pages/dashboard/migrant/SessionsPage.tsx; src/pages/dashboard/migrant/SessionsPage.wizard.test.tsx; src/pages/dashboard/migrant/SessionsPage.ui.test.tsx |
 
 ### Convenções do Registro
 - `Status`: `todo` | `in_progress` | `blocked` | `done`
