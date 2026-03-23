@@ -1289,7 +1289,7 @@ export default function CPCDashboard() {
                         </div>
                       </div>
 
-                      <div className="cpc-card overflow-hidden relative">
+                      <div className="cpc-card relative">
                         <div className="relative h-44 bg-gradient-to-br from-emerald-100 via-emerald-50 to-slate-50">
                           <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold shadow-sm">
                             <MapPin className="h-4 w-4 text-emerald-700" />
@@ -1305,15 +1305,9 @@ export default function CPCDashboard() {
                             <Progress value={82} />
                           </div>
                         </div>
-                        <div className="absolute inset-0 bg-background/45 backdrop-blur-sm flex items-center justify-center z-10 cursor-not-allowed">
-                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/80 text-white/90 px-5 py-2 text-xs font-semibold shadow-md">
-                            <Wrench className="h-4 w-4" />
-                            {t.get('cpc.soon')}
-                          </div>
-                        </div>
                       </div>
 
-                      <div className="cpc-card p-6 relative overflow-hidden">
+                      <div className="cpc-card p-6 relative">
                         <div className="flex items-center justify-between">
                           <h2 className="text-lg font-semibold">{t.get('cpc.teamOnDuty.title')}</h2>
                           <span className="text-xs font-semibold text-muted-foreground">{t.get('cpc.teamOnDuty.today')}</span>
@@ -1341,12 +1335,6 @@ export default function CPCDashboard() {
                               </div>
                             </div>
                           ))}
-                        </div>
-                        <div className="absolute inset-0 bg-background/45 backdrop-blur-sm flex items-center justify-center z-10 cursor-not-allowed">
-                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/80 text-white/90 px-5 py-2 text-xs font-semibold shadow-md">
-                            <Wrench className="h-4 w-4" />
-                            {t.get('cpc.soon')}
-                          </div>
                         </div>
                       </div>
                     </div>

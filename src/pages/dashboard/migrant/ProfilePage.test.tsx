@@ -12,6 +12,7 @@ const mockUpdateUserProfile = vi.fn();
 const mockRefreshProfile = vi.fn();
 const mockToast = vi.fn();
 const stableUser = { uid: 'u1' };
+const stableAuthProfile = { role: 'migrant' as const };
 
 vi.mock('@/api/migrantProfile', () => ({
   fetchMigrantProfile: (...args: unknown[]) => mockFetchMigrantProfile(...args),
@@ -45,7 +46,7 @@ vi.mock('firebase/storage', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: stableUser, refreshProfile: mockRefreshProfile }),
+  useAuth: () => ({ user: stableUser, profile: stableAuthProfile, refreshProfile: mockRefreshProfile }),
 }));
 
 vi.mock('@/contexts/LanguageContext', () => ({
@@ -83,6 +84,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     stableUser.uid = 'u1';
+    (stableAuthProfile as { role: string }).role = 'migrant';
   });
 
   it('mostra loading e depois renderiza dados vindos da base de dados', async () => {
@@ -391,6 +393,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
     localStorage.clear();
     const user = userEvent.setup();
     stableUser.uid = 'cpc1';
+    (stableAuthProfile as { role: string }).role = 'admin';
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null as unknown as Window);
@@ -439,6 +442,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
     localStorage.clear();
     const user = userEvent.setup();
     stableUser.uid = 'cpc1';
+    (stableAuthProfile as { role: string }).role = 'admin';
 
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null as unknown as Window);
@@ -520,6 +524,122 @@ describe('ProfilePage (dashboard/migrante)', () => {
       expect(mockGetDownloadURL).toHaveBeenCalled();
       expect(mockUpdateDocument).toHaveBeenCalledWith('profiles', 'u1', expect.objectContaining({ photoUrl: 'https://exemplo.com/foto.png' }));
     });
+  });
+
+  it('exporta triagem em PDF no perfil CPC quando existem respostas', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    stableUser.uid = 'cpc1';
+    (stableAuthProfile as { role: string }).role = 'admin';
+
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null as unknown as Window);
+    const originalCreateObjectURL = (URL as unknown as { createObjectURL?: (b: Blob) => string }).createObjectURL;
+    const originalRevokeObjectURL = (URL as unknown as { revokeObjectURL?: (s: string) => void }).revokeObjectURL;
+    (URL as unknown as { createObjectURL: (b: Blob) => string }).createObjectURL = vi.fn(() => 'blob:mock');
+    (URL as unknown as { revokeObjectURL: (s: string) => void }).revokeObjectURL = vi.fn(() => {});
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) }) as unknown as Response) as unknown as typeof fetch;
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm3@exemplo.com', name: 'Migrante 3', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm3', name: 'Migrante 3', email: 'm3@exemplo.com', phone: null, currentLocation: 'Rua C' },
+      triage: {
+        id: 'm3',
+        userId: 'm3',
+        completed: true,
+        completedAt: '2026-01-02T10:11:12.000Z',
+        answers: { phone: '+351900000000', legal_status: 'regularized', languages: ['portuguese', 'english'] },
+        legal_status: 'regularized',
+        work_status: null,
+        language_level: null,
+        interests: null,
+        urgencies: null,
+      },
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/migrantes/m3/perfil']}>
+        <Routes>
+          <Route path="/dashboard/cpc/migrantes/:migrantId/perfil" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+    await user.click(screen.getByRole('button', { name: 'Exportar Triagem' }));
+
+    await waitFor(() => {
+      expect(clickSpy).toHaveBeenCalled();
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Triagem exportada' }));
+    });
+
+    globalThis.fetch = originalFetch;
+    (URL as unknown as { createObjectURL?: (b: Blob) => string }).createObjectURL = originalCreateObjectURL;
+    (URL as unknown as { revokeObjectURL?: (s: string) => void }).revokeObjectURL = originalRevokeObjectURL;
+    openSpy.mockRestore();
+    clickSpy.mockRestore();
+  });
+
+  it('mostra erro ao tentar exportar triagem sem respostas', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    stableUser.uid = 'cpc1';
+    (stableAuthProfile as { role: string }).role = 'admin';
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm4@exemplo.com', name: 'Migrante 4', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm4', name: 'Migrante 4', email: 'm4@exemplo.com', phone: null, currentLocation: 'Rua D' },
+      triage: { id: 'm4', userId: 'm4', answers: {}, legal_status: null, work_status: null, language_level: null, interests: null, urgencies: null },
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/migrantes/m4/perfil']}>
+        <Routes>
+          <Route path="/dashboard/cpc/migrantes/:migrantId/perfil" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+
+    await user.click(screen.getByRole('button', { name: 'Exportar Triagem' }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Sem dados de triagem', variant: 'destructive' }));
+    });
+  });
+
+  it('não exibe o botão de exportar triagem para utilizadores sem permissão', async () => {
+    localStorage.clear();
+    stableUser.uid = 'cpc1';
+    (stableAuthProfile as { role: string }).role = 'migrant';
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm5@exemplo.com', name: 'Migrante 5', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm5', name: 'Migrante 5', email: 'm5@exemplo.com', phone: null, currentLocation: 'Rua E' },
+      triage: { id: 'm5', userId: 'm5', answers: { phone: '+351900000000' }, legal_status: null, work_status: null, language_level: null, interests: null, urgencies: null },
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/migrantes/m5/perfil']}>
+        <Routes>
+          <Route path="/dashboard/cpc/migrantes/:migrantId/perfil" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+    expect(screen.queryByRole('button', { name: 'Exportar Triagem' })).toBeNull();
   });
 
   it('rejeita ficheiros com formato inválido', async () => {

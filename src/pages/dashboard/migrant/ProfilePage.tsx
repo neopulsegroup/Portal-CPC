@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, BookOpen, Clock, User, FileText, Camera, Download, Loader2 } from 'lucide-react';
+import { Calendar, BookOpen, Clock, User, FileText, Camera, Download, Loader2, ClipboardList } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,7 @@ import { getDownloadURL, ref as makeStorageRef, uploadBytes } from 'firebase/sto
 import logo from '@/assets/logo.png';
 
 export default function ProfilePage() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile: authProfile, refreshProfile } = useAuth();
   const { migrantId } = useParams<{ migrantId?: string }>();
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
@@ -31,6 +31,7 @@ export default function ProfilePage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [exportingFicha, setExportingFicha] = useState(false);
+  const [exportingTriagem, setExportingTriagem] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
   const PHOTO_ALLOWED_MIME = useMemo(() => new Set(['image/jpeg', 'image/png', 'image/gif']), []);
@@ -70,6 +71,14 @@ export default function ProfilePage() {
   const sessionsUrl = isViewingOtherUser ? '/dashboard/cpc/agenda' : '/dashboard/migrante/sessoes';
   const triageUrl = isViewingOtherUser ? '/dashboard/cpc/migrantes' : '/triagem';
   const trailsUrl = isViewingOtherUser ? '/dashboard/cpc/trilhas' : '/dashboard/migrante/trilhas';
+  const canExportCpcData = useMemo(() => {
+    const role = authProfile?.role;
+    return (
+      isViewingOtherUser &&
+      typeof role === 'string' &&
+      ['admin', 'manager', 'coordinator', 'mediator', 'lawyer', 'psychologist', 'trainer'].includes(role)
+    );
+  }, [authProfile?.role, isViewingOtherUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -680,6 +689,256 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleExportTriagem() {
+    if (!targetUserId || exportingTriagem) return;
+    if (!canExportCpcData) {
+      toast({ title: 'Sem permissão', description: 'A sua conta não tem permissões para exportar a triagem deste perfil.', variant: 'destructive' });
+      return;
+    }
+
+    const profile = data?.profile || null;
+    const triageDoc = data?.triage || null;
+    const answersRaw = triageDoc?.answers && typeof triageDoc.answers === 'object' ? (triageDoc.answers as Record<string, unknown>) : null;
+    const hasAnyAnswer = !!answersRaw && Object.values(answersRaw).some((v) => {
+      if (v === null || v === undefined) return false;
+      if (typeof v === 'string') return v.trim().length > 0;
+      if (typeof v === 'number') return true;
+      if (typeof v === 'boolean') return true;
+      if (Array.isArray(v)) return v.some((x) => typeof x === 'string' ? x.trim().length > 0 : x !== null && x !== undefined);
+      return true;
+    });
+
+    if (!profile || (!profile.name && !profile.email)) {
+      toast({ title: 'Dados insuficientes', description: 'Não existem dados suficientes do perfil para exportar a triagem.', variant: 'destructive' });
+      return;
+    }
+
+    if (!triageDoc || !hasAnyAnswer) {
+      toast({ title: 'Sem dados de triagem', description: 'Não existem respostas de triagem associadas a este perfil.', variant: 'destructive' });
+      return;
+    }
+
+    setExportingTriagem(true);
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+
+      const now = new Date();
+      const nowIso = now.toISOString().slice(0, 10);
+      const fileDate = nowIso;
+      const safeName = (profile.name || profile.email || 'Migrante')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s-]+/g, '')
+        .trim()
+        .replace(/\s+/g, '_')
+        .slice(0, 60) || 'Migrante';
+      const fileName = `Triagem_Migrante_${safeName}_${fileDate}.pdf`;
+
+      const completedAt = typeof triageDoc.completedAt === 'string' ? triageDoc.completedAt : null;
+      const completedAtLabel = (() => {
+        if (!completedAt) return null;
+        const d = new Date(completedAt);
+        if (Number.isNaN(d.getTime())) return completedAt;
+        return d.toLocaleString('pt-PT');
+      })();
+
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const logoBytes = await fetch(logo).then((r) => r.arrayBuffer());
+      const logoImage = await pdfDoc.embedPng(logoBytes);
+
+      const pageSize: [number, number] = [595.28, 841.89];
+      const marginX = 48;
+      const marginTop = 72;
+      const marginBottom = 56;
+      const lineGap = 4;
+      const headerHeight = 56;
+
+      const newPage = () => {
+        const page = pdfDoc.addPage(pageSize);
+        const { width, height } = page.getSize();
+        const logoMaxH = 28;
+        const logoScale = logoMaxH / logoImage.height;
+        const logoW = logoImage.width * logoScale;
+        const logoH = logoImage.height * logoScale;
+        page.drawImage(logoImage, { x: marginX, y: height - 40 - logoH, width: logoW, height: logoH });
+        page.drawText('Triagem do Migrante', { x: marginX + logoW + 12, y: height - 44, size: 14, font: fontBold, color: rgb(0.07, 0.07, 0.07) });
+        return page;
+      };
+
+      const wrapText = (text: string, maxWidth: number, size: number, useBold: boolean) => {
+        const f = useBold ? fontBold : font;
+        const words = String(text || '').split(/\s+/g).filter(Boolean);
+        if (words.length === 0) return ['—'];
+        const lines: string[] = [];
+        let current = '';
+        words.forEach((w) => {
+          const next = current ? `${current} ${w}` : w;
+          const width = f.widthOfTextAtSize(next, size);
+          if (width <= maxWidth) {
+            current = next;
+            return;
+          }
+          if (current) lines.push(current);
+          current = w;
+        });
+        if (current) lines.push(current);
+        return lines.length ? lines : ['—'];
+      };
+
+      let page = newPage();
+      let cursorY = page.getSize().height - marginTop - headerHeight;
+      const maxTextWidth = page.getSize().width - marginX * 2;
+
+      const ensureSpace = (neededHeight: number) => {
+        if (cursorY - neededHeight >= marginBottom) return;
+        page = newPage();
+        cursorY = page.getSize().height - marginTop - headerHeight;
+      };
+
+      const drawTitle = (text: string) => {
+        const size = 12;
+        ensureSpace(size + 10);
+        page.drawText(text, { x: marginX, y: cursorY, size, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+        cursorY -= size + 10;
+      };
+
+      const drawKeyValue = (label: string, value: string) => {
+        const labelSize = 10;
+        const valueSize = 10;
+        const labelWidth = 170;
+        const valueX = marginX + labelWidth;
+        const lines = wrapText(value || '—', maxTextWidth - labelWidth, valueSize, false);
+        const blockHeight = lines.length * (valueSize + lineGap) + 2;
+        ensureSpace(blockHeight + 6);
+        page.drawText(label, { x: marginX, y: cursorY, size: labelSize, font: fontBold, color: rgb(0.2, 0.2, 0.2) });
+        lines.forEach((line, idx) => {
+          page.drawText(line, { x: valueX, y: cursorY - idx * (valueSize + lineGap), size: valueSize, font, color: rgb(0.1, 0.1, 0.1) });
+        });
+        cursorY -= blockHeight + 6;
+      };
+
+      const drawQuestionAnswer = (question: string, answer: string, meta?: string | null) => {
+        const qSize = 10;
+        const aSize = 10;
+        const metaSize = 9;
+        const qLines = wrapText(question || '—', maxTextWidth, qSize, true);
+        const aLines = wrapText(answer || '—', maxTextWidth, aSize, false);
+        const metaLines = meta ? wrapText(meta, maxTextWidth, metaSize, false) : [];
+        const blockHeight =
+          qLines.length * (qSize + lineGap) +
+          2 +
+          aLines.length * (aSize + lineGap) +
+          2 +
+          (metaLines.length ? metaLines.length * (metaSize + lineGap) + 4 : 0) +
+          8;
+        ensureSpace(blockHeight);
+
+        qLines.forEach((line, idx) => {
+          page.drawText(line, { x: marginX, y: cursorY - idx * (qSize + lineGap), size: qSize, font: fontBold, color: rgb(0.12, 0.12, 0.12) });
+        });
+        cursorY -= qLines.length * (qSize + lineGap) + 2;
+
+        aLines.forEach((line, idx) => {
+          page.drawText(line, { x: marginX, y: cursorY - idx * (aSize + lineGap), size: aSize, font, color: rgb(0.08, 0.08, 0.08) });
+        });
+        cursorY -= aLines.length * (aSize + lineGap) + 2;
+
+        if (metaLines.length) {
+          metaLines.forEach((line, idx) => {
+            page.drawText(line, { x: marginX, y: cursorY - idx * (metaSize + lineGap), size: metaSize, font, color: rgb(0.4, 0.4, 0.4) });
+          });
+          cursorY -= metaLines.length * (metaSize + lineGap) + 2;
+        }
+
+        cursorY -= 6;
+      };
+
+      const makeQuestionLabel = (id: string) => {
+        const key = `triage.questions.${id}`;
+        const label = t.get(key);
+        return label === key ? id : label;
+      };
+
+      const translateOptionForQuestion = (questionId: string, value: string) => {
+        const key = `triage.options.${questionId}.${value}`;
+        const label = t.get(key);
+        return label === key ? value : label;
+      };
+
+      const formatAnswer = (questionId: string, value: unknown) => {
+        if (value === null || value === undefined) return '—';
+        if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
+        if (typeof value === 'number') return String(value);
+        if (typeof value === 'string') {
+          const v = value.trim();
+          if (!v) return '—';
+          return translateOptionForQuestion(questionId, v);
+        }
+        if (Array.isArray(value)) {
+          const items = value
+            .map((v) => typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : typeof v === 'boolean' ? (v ? 'Sim' : 'Não') : '')
+            .filter((v) => v.length > 0)
+            .map((v) => translateOptionForQuestion(questionId, v));
+          return items.length ? items.join(', ') : '—';
+        }
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+      };
+
+      drawTitle('Identificação');
+      drawKeyValue('Nome completo', profile.name || '—');
+      drawKeyValue('E-mail', profile.email || '—');
+      drawKeyValue('ID do perfil', targetUserId);
+      drawKeyValue('Estado da triagem', triageDoc.completed ? 'Concluída' : 'Em curso');
+      if (completedAtLabel) drawKeyValue('Data/hora de submissão', completedAtLabel);
+
+      drawTitle('Respostas');
+      const meta = completedAtLabel ? `Respondido em ${completedAtLabel}` : null;
+      const entries = Object.entries(answersRaw)
+        .map(([id, v]) => ({ id, question: makeQuestionLabel(id), value: v }))
+        .sort((a, b) => a.question.localeCompare(b.question, 'pt'));
+
+      entries.forEach((it) => {
+        drawQuestionAnswer(it.question, formatAnswer(it.id, it.value), meta);
+      });
+
+      const pages = pdfDoc.getPages();
+      const totalPages = pages.length;
+      pages.forEach((p, idx) => {
+        const { width } = p.getSize();
+        const label = `Gerado em ${now.toLocaleDateString('pt-PT')} · Página ${idx + 1} de ${totalPages}`;
+        p.drawText(label, { x: marginX, y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
+        p.drawText('CPC', { x: width - marginX - font.widthOfTextAtSize('CPC', 9), y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
+      });
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      try {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } catch {
+        void 0;
+      }
+
+      toast({ title: 'Triagem exportada', description: 'O PDF foi gerado e o download foi iniciado.' });
+    } catch (err) {
+      console.error('Erro ao exportar triagem:', err);
+      toast({ title: 'Erro ao exportar', description: 'Não foi possível gerar o PDF da triagem do migrante.', variant: 'destructive' });
+    } finally {
+      setExportingTriagem(false);
+    }
+  }
+
   async function uploadProfilePhoto(file: File) {
     const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
     const isAllowedByExt = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt);
@@ -951,10 +1210,18 @@ export default function ProfilePage() {
             ) : (
               <>
                 {isViewingOtherUser ? (
-                  <Button type="button" variant="outline" onClick={handleExportFicha} disabled={uploadingPhoto || exportingFicha}>
-                    {exportingFicha ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                    {exportingFicha ? 'A gerar…' : 'Exportar Ficha'}
-                  </Button>
+                  <>
+                    <Button type="button" variant="outline" onClick={handleExportFicha} disabled={uploadingPhoto || exportingFicha}>
+                      {exportingFicha ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                      {exportingFicha ? 'A gerar…' : 'Exportar Ficha'}
+                    </Button>
+                    {canExportCpcData ? (
+                      <Button type="button" variant="outline" onClick={handleExportTriagem} disabled={uploadingPhoto || exportingTriagem}>
+                        {exportingTriagem ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardList className="mr-2 h-4 w-4" />}
+                        {exportingTriagem ? 'A gerar…' : 'Exportar Triagem'}
+                      </Button>
+                    ) : null}
+                  </>
                 ) : null}
                 <Button type="button" onClick={() => { setPersonalInfoErrors({}); setEditMode(true); }} disabled={uploadingPhoto}>
                   Editar Perfil
