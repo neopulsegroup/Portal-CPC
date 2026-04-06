@@ -32,6 +32,7 @@ Formato validado automaticamente.
 | CPC-116 | [x] Trilhas • Progresso: gravar started_at em user_trail_progress (primeiro avanço) e adaptar estatísticas para considerar started_at no período | done | P1 | Renato | 2026-03-23 | 100 | 2026-03-23 | src/pages/dashboard/migrant/ModuleViewerPage.tsx; src/pages/dashboard/cpc/StatisticsPage.tsx |
 | CPC-117 | [x] CPC • Migrantes: botão "Exportar Ficha" no perfil com geração de PDF (ficha + progresso) e download padronizado | done | P1 | Renato | 2026-03-23 | 100 | 2026-03-23 | src/pages/dashboard/migrant/ProfilePage.tsx; src/pages/dashboard/migrant/ProfilePage.test.tsx; package.json |
 | CPC-118 | [x] CPC • Migrantes: botão "Exportar Triagem" no perfil com geração de PDF (respostas + timestamps) e download padronizado + permissões + erros + loading + testes | done | P1 | Renato | 2026-03-23 | 100 | 2026-03-23 | src/pages/dashboard/migrant/ProfilePage.tsx; src/pages/dashboard/migrant/ProfilePage.test.tsx |
+| CPC-119 | [x] CPC • Migrantes: remover botão \"Exportar PDF\" da visão CPC do perfil (manter apenas na visão do próprio migrante) | done | P3 | Renato | 2026-03-31 | 100 | 2026-03-31 | src/pages/dashboard/migrant/ProfilePage.tsx |
 
 ### Convenções do Registro
 - `Status`: `todo` | `in_progress` | `blocked` | `done`

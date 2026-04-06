@@ -1226,9 +1226,11 @@ export default function ProfilePage() {
                 <Button type="button" onClick={() => { setPersonalInfoErrors({}); setEditMode(true); }} disabled={uploadingPhoto}>
                   Editar Perfil
                 </Button>
-                <Button type="button" variant="outline" onClick={() => window.print()} disabled={uploadingPhoto}>
-                  Exportar PDF
-                </Button>
+                {!isViewingOtherUser ? (
+                  <Button type="button" variant="outline" onClick={() => window.print()} disabled={uploadingPhoto}>
+                    Exportar PDF
+                  </Button>
+                ) : null}
               </>
             )}
           </div>
