@@ -1241,6 +1241,8 @@
       "actions": {
         "new": "Nueva actividad",
         "save": "Guardar",
+        "publish": "Publicar",
+        "unpublish": "Volver a borrador",
         "edit": "Editar",
         "delete": "Eliminar",
         "back": "Volver",
@@ -1316,7 +1318,7 @@
       },
       "status": {
         "draft": "Borrador",
-        "scheduled": "Programada",
+        "scheduled": "Publicada",
         "completed": "Finalizada",
         "cancelled": "Cancelada"
       },
@@ -1379,6 +1381,18 @@
         "success": {
           "title": "Actividad guardada",
           "desc": "Los cambios se guardaron correctamente."
+        }
+      },
+      "publish": {
+        "success": {
+          "title": "Actividad publicada",
+          "desc": "El estado pasó a Publicada."
+        }
+      },
+      "unpublish": {
+        "success": {
+          "title": "Actividad en borrador",
+          "desc": "El estado pasó a Borrador."
         }
       },
       "errors": {

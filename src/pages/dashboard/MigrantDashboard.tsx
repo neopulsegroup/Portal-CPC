@@ -33,6 +33,7 @@ import {
   ListChecks,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { todayIsoAppCalendar } from '@/lib/appCalendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -218,7 +219,7 @@ function MigrantHome() {
   }, [user]);
 
   const upcomingSessions = useMemo(() => {
-    const now = new Date().toISOString().slice(0, 10);
+    const now = todayIsoAppCalendar();
     return sessions.filter(s => s.scheduled_date >= now).sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
   }, [sessions]);
 

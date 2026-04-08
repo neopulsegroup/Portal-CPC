@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { storage } from '@/integrations/firebase/client';
 import { getDownloadURL, ref as makeStorageRef, uploadBytes } from 'firebase/storage';
 import logo from '@/assets/logo.png';
+import { APP_TIME_ZONE, todayIsoAppCalendar } from '@/lib/appCalendar';
 
 export default function ProfilePage() {
   const { user, profile: authProfile, refreshProfile } = useAuth();
@@ -34,6 +35,8 @@ export default function ProfilePage() {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
   const PHOTO_ALLOWED_MIME = useMemo(() => new Set(['image/jpeg', 'image/png', 'image/gif']), []);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activities, setActivities] = useState<Array<{ id: string; title: string; date: string; status?: string | null }>>([]);
 
   const [edit, setEdit] = useState<{
     name: string;
@@ -211,6 +214,44 @@ export default function ProfilePage() {
     };
   }, [targetUserId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadActivities() {
+      if (!targetUserId) return;
+      if (!isViewingOtherUser) {
+        setActivities([]);
+        return;
+      }
+      setActivitiesLoading(true);
+      try {
+        const rows = await queryDocuments<{ id: string; title?: string; date?: string; status?: string | null }>(
+          'activities',
+          [{ field: 'participantMigrantIds', operator: 'array-contains', value: targetUserId }],
+          { field: 'date', direction: 'desc' },
+          20
+        );
+        if (cancelled) return;
+        setActivities(
+          (rows || []).map((r) => ({
+            id: r.id,
+            title: r.title || 'Atividade',
+            date: r.date || '',
+            status: r.status ?? null,
+          }))
+        );
+      } catch {
+        if (cancelled) return;
+        setActivities([]);
+      } finally {
+        if (!cancelled) setActivitiesLoading(false);
+      }
+    }
+    void loadActivities();
+    return () => {
+      cancelled = true;
+    };
+  }, [isViewingOtherUser, targetUserId]);
+
   const sessionsSorted = useMemo(() => {
     return (data?.sessions || []).slice().sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
   }, [data?.sessions]);
@@ -329,7 +370,7 @@ export default function ProfilePage() {
   }, [edit.contactPreference]);
 
   const upcomingSessions = useMemo(() => {
-    const now = new Date().toISOString().slice(0, 10);
+    const now = todayIsoAppCalendar();
     return sessionsSorted.filter((s) => s.scheduled_date >= now).slice(0, 3);
   }, [sessionsSorted]);
 
@@ -494,9 +535,8 @@ export default function ProfilePage() {
         ).catch(() => []),
       ]);
 
-      const now = new Date();
-      const nowIso = now.toISOString().slice(0, 10);
-      const fileDate = nowIso;
+      const fileDate = todayIsoAppCalendar();
+      const generatedAt = new Date();
       const safeName = (profile.name || profile.email || 'Migrante')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -706,7 +746,7 @@ export default function ProfilePage() {
       const totalPages = pages.length;
       pages.forEach((p, idx) => {
         const { width } = p.getSize();
-        const label = `Gerado em ${now.toLocaleDateString('pt-PT')} · Página ${idx + 1} de ${totalPages}`;
+        const label = `Gerado em ${generatedAt.toLocaleDateString('pt-PT', { timeZone: APP_TIME_ZONE })} · Página ${idx + 1} de ${totalPages}`;
         p.drawText(label, { x: marginX, y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
         p.drawText('CPC', { x: width - marginX - font.widthOfTextAtSize('CPC', 9), y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
       });
@@ -769,9 +809,8 @@ export default function ProfilePage() {
     try {
       const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
 
-      const now = new Date();
-      const nowIso = now.toISOString().slice(0, 10);
-      const fileDate = nowIso;
+      const fileDate = todayIsoAppCalendar();
+      const generatedAt = new Date();
       const safeName = (profile.name || profile.email || 'Migrante')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -956,7 +995,7 @@ export default function ProfilePage() {
       const totalPages = pages.length;
       pages.forEach((p, idx) => {
         const { width } = p.getSize();
-        const label = `Gerado em ${now.toLocaleDateString('pt-PT')} · Página ${idx + 1} de ${totalPages}`;
+        const label = `Gerado em ${generatedAt.toLocaleDateString('pt-PT', { timeZone: APP_TIME_ZONE })} · Página ${idx + 1} de ${totalPages}`;
         p.drawText(label, { x: marginX, y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
         p.drawText('CPC', { x: width - marginX - font.widthOfTextAtSize('CPC', 9), y: 28, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
       });
@@ -1585,6 +1624,57 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {isViewingOtherUser ? (
+          <div className="cpc-card p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Atividades</h2>
+              </div>
+              <Link to="/dashboard/cpc/atividades" className="text-sm text-primary hover:underline">
+                Ver todas
+              </Link>
+            </div>
+
+            <div className="mt-5 rounded-xl border bg-muted/30 p-6 min-h-[160px]">
+              {activitiesLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : activities.length ? (
+                <div className="space-y-3">
+                  {activities.slice(0, 5).map((a) => (
+                    <Link
+                      key={a.id}
+                      to={`/dashboard/cpc/atividades/${a.id}`}
+                      className="flex items-center justify-between rounded-lg bg-background/70 border px-4 py-3 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{a.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                          {a.status || '—'}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center flex flex-col items-center justify-center min-h-[120px]">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-background border flex items-center justify-center text-muted-foreground">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-sm text-muted-foreground">O migrante ainda não participou em nenhuma atividade.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

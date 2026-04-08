@@ -6,7 +6,9 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    // "::" (IPv6) can trigger network interface resolution errors in some environments.
+    // Binding to IPv4 loopback keeps local dev stable and predictable.
+    host: "127.0.0.1",
     port: 8090,
     strictPort: true,
   },

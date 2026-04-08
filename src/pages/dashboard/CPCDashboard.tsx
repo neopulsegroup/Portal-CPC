@@ -40,6 +40,14 @@ import {
   MessagesSquare,
   ClipboardList,
 } from 'lucide-react';
+import {
+  APP_TIME_ZONE,
+  addCalendarDaysIso,
+  getCalendarDateIsoInAppTimeZone,
+  monthStartEndIsoInAppTimeZone,
+  previousMonthStartEndFromTodayIso,
+  weekStartEndIsoMondayInAppCalendar,
+} from '@/lib/appCalendar';
 
 type FirebaseUserDoc = {
   id: string;
@@ -98,7 +106,7 @@ function parseUnknownDate(value: unknown): Date | null {
 
 function countDatesBetween(dates: Date[], startISO: string, endISO: string): number {
   return dates.filter((d) => {
-    const iso = d.toISOString().slice(0, 10);
+    const iso = getCalendarDateIsoInAppTimeZone(d);
     return iso >= startISO && iso <= endISO;
   }).length;
 }
@@ -175,10 +183,13 @@ export default function CPCDashboard() {
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const shortDateFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short' }),
+    () => new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', timeZone: APP_TIME_ZONE }),
     [locale]
   );
-  const longDateFormatter = useMemo(() => new Intl.DateTimeFormat(locale), [locale]);
+  const longDateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { timeZone: APP_TIME_ZONE }),
+    [locale]
+  );
 
   function formatSessionStatusLabel(status?: string | null): string {
     if (isCompletedSessionStatus(status)) return t.get('cpc.sessions.status.completed');
@@ -796,35 +807,23 @@ export default function CPCDashboard() {
       setLoading(true);
       try {
         const now = new Date();
-        const todayISO = now.toISOString().slice(0, 10);
-        const weekStart = new Date(now);
-        const day = weekStart.getDay();
-        const diffToMonday = day === 0 ? 6 : day - 1;
-        weekStart.setDate(weekStart.getDate() - diffToMonday);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekEnd.getDate() + 6);
+        const todayISO = getCalendarDateIsoInAppTimeZone(now);
+        const { weekStart: weekStartIso, weekEnd: weekEndIso } = weekStartEndIsoMondayInAppCalendar(todayISO);
 
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const { monthStart: monthStartIso, monthEnd: monthEndIso } = monthStartEndIsoInAppTimeZone(now);
 
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        const thirtyDaysAgo = new Date(now);
-        thirtyDaysAgo.setDate(now.getDate() - 30);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        const prevDay = new Date(now);
-        prevDay.setDate(now.getDate() - 1);
-        const prevWeekStart = new Date(weekStart);
-        prevWeekStart.setDate(weekStart.getDate() - 7);
-        const prevWeekEnd = new Date(weekEnd);
-        prevWeekEnd.setDate(weekEnd.getDate() - 7);
-        const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        const prevDayIso = addCalendarDaysIso(todayISO, -1);
+        const prevWeekStartIso = addCalendarDaysIso(weekStartIso, -7);
+        const prevWeekEndIso = addCalendarDaysIso(weekEndIso, -7);
+        const { monthStart: prevMonthStartIso, monthEnd: prevMonthEndIso } = previousMonthStartEndFromTodayIso(todayISO);
 
-        const periodStartISO = period === 'today' ? todayISO : period === 'week' ? weekStart.toISOString().slice(0, 10) : monthStart.toISOString().slice(0, 10);
-        const periodEndISO = period === 'today' ? todayISO : period === 'week' ? weekEnd.toISOString().slice(0, 10) : monthEnd.toISOString().slice(0, 10);
-        const prevStartISO = period === 'today' ? prevDay.toISOString().slice(0, 10) : period === 'week' ? prevWeekStart.toISOString().slice(0, 10) : prevMonthStart.toISOString().slice(0, 10);
-        const prevEndISO = period === 'today' ? prevDay.toISOString().slice(0, 10) : period === 'week' ? prevWeekEnd.toISOString().slice(0, 10) : prevMonthEnd.toISOString().slice(0, 10);
+        const periodStartISO = period === 'today' ? todayISO : period === 'week' ? weekStartIso : monthStartIso;
+        const periodEndISO = period === 'today' ? todayISO : period === 'week' ? weekEndIso : monthEndIso;
+        const prevStartISO = period === 'today' ? prevDayIso : period === 'week' ? prevWeekStartIso : prevMonthStartIso;
+        const prevEndISO = period === 'today' ? prevDayIso : period === 'week' ? prevWeekEndIso : prevMonthEndIso;
 
         const [firebaseMigrants, allSessionsRaw, companiesTotalCount, offersActiveCount, offersPendingCount, applicationsTotalCount, progressRaw, triageRaw, applicationsPeriodCountRaw, applicationsPrevCountRaw] = await Promise.all([
           queryDocuments<FirebaseUserDoc>('users', [{ field: 'role', operator: 'in', value: ['migrant', 'Migrant', 'MIGRANT'] }]),
@@ -860,7 +859,7 @@ export default function CPCDashboard() {
 
         const allSessions = (allSessionsRaw || []).filter((s) => !isCancelledSessionStatus(s.status));
         setSessionsTodayCount(allSessions.filter((s) => s.scheduled_date === todayISO).length);
-        setSessionsWeekCount(allSessions.filter((s) => s.scheduled_date >= weekStart.toISOString().slice(0, 10) && s.scheduled_date <= weekEnd.toISOString().slice(0, 10)).length);
+        setSessionsWeekCount(allSessions.filter((s) => s.scheduled_date >= weekStartIso && s.scheduled_date <= weekEndIso).length);
         setSessionsCompletedCount(allSessions.filter((s) => isCompletedSessionStatus(s.status)).length);
         setSessionsPeriodCount(allSessions.filter((s) => s.scheduled_date >= periodStartISO && s.scheduled_date <= periodEndISO).length);
         setSessionsPrevCount(allSessions.filter((s) => s.scheduled_date >= prevStartISO && s.scheduled_date <= prevEndISO).length);
@@ -1183,7 +1182,10 @@ export default function CPCDashboard() {
                         <div className="divide-y divide-border">
                           {recentMigrants.map((migrant) => (
                             <div key={migrant.id} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
-                              <Link to={`/dashboard/cpc/candidatos/${migrant.id}`} className="flex items-center gap-3 min-w-0 flex-1">
+                              <Link
+                                to={`/dashboard/cpc/migrantes/${migrant.id}/perfil`}
+                                className="flex items-center gap-3 min-w-0 flex-1"
+                              >
                                 <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold shrink-0">
                                   {(migrant.name || 'U').slice(0, 1).toUpperCase()}
                                 </div>

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { getCalendarDateIsoInTimeZone, todayIsoAppCalendar } from '@/lib/appCalendar';
 import BookingSessionWizardDialog, {
   BOOKING_SERVICES,
   BOOKING_SPECIALISTS,
@@ -123,12 +124,18 @@ export default function SessionsPage() {
 
   const daysWithSessions = useMemo(() => {
     const set = new Map<string, Date>();
-    filtered.forEach(s => {
+    filtered.forEach((s) => {
       try {
-        const d = new Date(s.scheduled_date);
-        const key = d.toISOString().slice(0,10);
-        if (!set.has(key)) set.set(key, d);
-      } catch { /* ignore */ }
+        const key = /^\d{4}-\d{2}-\d{2}$/.test(s.scheduled_date)
+          ? s.scheduled_date
+          : getCalendarDateIsoInTimeZone(new Date(s.scheduled_date));
+        if (!set.has(key)) {
+          const [y, m, d] = key.split('-').map(Number);
+          set.set(key, new Date(y, m - 1, d));
+        }
+      } catch {
+        /* ignore */
+      }
     });
     return Array.from(set.values());
   }, [filtered]);
@@ -138,12 +145,12 @@ export default function SessionsPage() {
   }, [filtered, selectedDate]);
 
   const upcomingSessions = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIsoAppCalendar();
     return filtered.filter(s => s.scheduled_date >= today);
   }, [filtered]);
 
   const pastSessions = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIsoAppCalendar();
     return filtered.filter(s => s.scheduled_date < today).reverse();
   }, [filtered]);
 

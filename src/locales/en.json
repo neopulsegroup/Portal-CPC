@@ -1241,6 +1241,8 @@
       "actions": {
         "new": "New activity",
         "save": "Save",
+        "publish": "Publish",
+        "unpublish": "Revert to draft",
         "edit": "Edit",
         "delete": "Delete",
         "back": "Back",
@@ -1316,7 +1318,7 @@
       },
       "status": {
         "draft": "Draft",
-        "scheduled": "Scheduled",
+        "scheduled": "Published",
         "completed": "Completed",
         "cancelled": "Cancelled"
       },
@@ -1379,6 +1381,18 @@
         "success": {
           "title": "Activity saved",
           "desc": "Changes were saved successfully."
+        }
+      },
+      "publish": {
+        "success": {
+          "title": "Activity published",
+          "desc": "Status set to Published."
+        }
+      },
+      "unpublish": {
+        "success": {
+          "title": "Activity in draft",
+          "desc": "Status set to Draft."
         }
       },
       "errors": {

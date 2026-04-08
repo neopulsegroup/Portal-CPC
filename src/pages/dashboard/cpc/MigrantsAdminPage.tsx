@@ -21,6 +21,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { Users, Filter, Eye, Ban, CheckCircle, AlertTriangle, Clock, ClipboardList, Download, FileSpreadsheet, FileText, Loader2, Trash2 } from 'lucide-react';
+import { todayIsoAppCalendar } from '@/lib/appCalendar';
 
 type TriageAnswers = Record<string, unknown>;
 
@@ -506,7 +507,7 @@ export default function MigrantsAdminPage() {
         });
 
         const sessionsMap: Record<string, number> = {};
-        const todayISO = new Date().toISOString().slice(0, 10);
+        const todayISO = todayIsoAppCalendar();
         sessionDocs.forEach((s) => {
           if (!s.migrant_id) return;
           if (!userIds.includes(s.migrant_id)) return;

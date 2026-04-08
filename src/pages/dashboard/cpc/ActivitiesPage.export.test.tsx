@@ -167,7 +167,7 @@ describe('ActivitiesPage - exportação', () => {
     expect(csvText).toContain('Workshop Integração');
     expect(csvText).toContain('Workshop');
     expect(csvText).toContain('Presencial');
-    expect(csvText).toContain('Agendada');
+    expect(csvText).toContain('Publicado');
     expect(csvText).toContain('2026-03-23');
     expect(csvText).toContain('10:00');
     expect(csvText).toContain('11:30');

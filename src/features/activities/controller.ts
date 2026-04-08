@@ -1,3 +1,4 @@
+import { addCalendarDaysIso, monthStartEndIsoInAppTimeZone, todayIsoAppCalendar } from '@/lib/appCalendar';
 import type { ActivityDoc, ActivityStatus, ActivityType, ActivityUpsertInput } from './model';
 import { normalizeText, validateActivity } from './model';
 import {
@@ -26,10 +27,7 @@ export type ActivitiesUiFilters = {
 
 export function toFiltersWithDatePreset(filters: ActivitiesUiFilters): ActivitiesListFilters {
   const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const monthStart = `${yyyy}-${mm}-01`;
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const { monthStart, monthEnd } = monthStartEndIsoInAppTimeZone(now);
 
   let startAtMin: string | null = null;
   let startAtMax: string | null = null;
@@ -37,8 +35,8 @@ export function toFiltersWithDatePreset(filters: ActivitiesUiFilters): Activitie
     startAtMin = `${monthStart}T00:00:00`;
     startAtMax = `${monthEnd}T23:59:59`;
   } else if (filters.datePreset === 'next_30_days') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().slice(0, 10);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30).toISOString().slice(0, 10);
+    const start = todayIsoAppCalendar();
+    const end = addCalendarDaysIso(start, 30);
     startAtMin = `${start}T00:00:00`;
     startAtMax = `${end}T23:59:59`;
   }
@@ -115,7 +113,7 @@ export async function loadActivityForEdit(activityId: string): Promise<ActivityD
 }
 
 export function validateActivityForUi(input: ActivityUpsertInput): { valid: boolean; errors: Record<string, string> } {
-  const errors = validateActivity(input);
+  const errors = validateActivity(input, todayIsoAppCalendar());
   const out: Record<string, string> = {};
   Object.entries(errors).forEach(([k, v]) => {
     if (typeof v === 'string' && v.trim()) out[k] = v;

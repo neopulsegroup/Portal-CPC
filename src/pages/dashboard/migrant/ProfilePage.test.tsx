@@ -84,6 +84,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchMigrantProfile.mockReset();
+    mockQueryDocuments.mockResolvedValue([]);
     stableUser.uid = 'u1';
     (stableAuthProfile as { role: string }).role = 'migrant';
   });
@@ -404,7 +405,9 @@ describe('ProfilePage (dashboard/migrante)', () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) }) as unknown as Response) as unknown as typeof fetch;
 
-    mockQueryDocuments.mockResolvedValueOnce([]);
+    // 1) carrega atividades do migrante (card "Atividades")
+    // 2) carrega atividades para a ficha exportada
+    mockQueryDocuments.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     mockFetchMigrantProfile.mockResolvedValueOnce({
       userProfile: { email: 'm1@exemplo.com', name: 'Migrante 1', role: 'migrant', createdAt: null, updatedAt: null },
       profile: { id: 'm1', name: 'Migrante 1', email: 'm1@exemplo.com', phone: null, currentLocation: 'Rua A' },
@@ -453,7 +456,9 @@ describe('ProfilePage (dashboard/migrante)', () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) }) as unknown as Response) as unknown as typeof fetch;
 
-    mockQueryDocuments.mockResolvedValueOnce([]);
+    // 1) carrega atividades do migrante (card "Atividades")
+    // 2) carrega atividades para a ficha exportada
+    mockQueryDocuments.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
     mockFetchMigrantProfile.mockResolvedValueOnce({
       userProfile: { email: 'm2@exemplo.com', name: 'Migrante 2', role: 'migrant', createdAt: null, updatedAt: null },
       profile: { id: 'm2', name: 'Migrante 2', email: 'm2@exemplo.com', phone: null, currentLocation: 'Rua B' },

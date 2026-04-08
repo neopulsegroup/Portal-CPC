@@ -75,7 +75,7 @@ export function toActivityFormatLabel(format: ActivityFormat): string {
 
 export function toActivityStatusLabel(status: ActivityStatus): string {
   if (status === 'rascunho') return 'Rascunho';
-  if (status === 'agendada') return 'Agendada';
+  if (status === 'agendada') return 'Publicado';
   if (status === 'concluida') return 'Concluída';
   return 'Cancelada';
 }
@@ -137,7 +137,7 @@ export function buildSearchTokens(args: {
 
 export type ActivityValidationErrors = Partial<Record<keyof ActivityUpsertInput, string>> & { timeRange?: string };
 
-export function validateActivity(input: ActivityUpsertInput): ActivityValidationErrors {
+export function validateActivity(input: ActivityUpsertInput, todayIsoCalendar: string): ActivityValidationErrors {
   const errors: ActivityValidationErrors = {};
   const title = input.title.trim();
   if (title.length < 3) errors.title = 'O nome deve ter pelo menos 3 caracteres.';
@@ -150,9 +150,7 @@ export function validateActivity(input: ActivityUpsertInput): ActivityValidation
   if (!isValidIsoDate(input.date)) {
     errors.date = 'Selecione uma data válida.';
   } else {
-    const today = new Date();
-    const todayIso = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0, 10);
-    if (input.date < todayIso) errors.date = 'Não é possível agendar em datas passadas.';
+    if (input.date < todayIsoCalendar) errors.date = 'Não é possível agendar em datas passadas.';
   }
 
   if (!isValidTime24h(input.startTime)) errors.startTime = 'Indique a hora de início (24h).';

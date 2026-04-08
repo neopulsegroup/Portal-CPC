@@ -18,6 +18,7 @@ import { Calendar, Loader2, Plus, X } from 'lucide-react';
 import type { ActivityDoc, ActivityFormat, ActivityStatus, ActivityType, ActivityUpsertInput } from '@/features/activities/model';
 import { ACTIVITY_FORMATS, ACTIVITY_STATUSES, ACTIVITY_TYPES, computeDurationMinutes, formatDuration, normalizeText, toActivityFormatLabel, toActivityStatusLabel, toActivityTypeLabel } from '@/features/activities/model';
 import { loadActivityForEdit, loadActivityOptions, saveActivity } from '@/features/activities/controller';
+import { todayIsoAppCalendar } from '@/lib/appCalendar';
 
 type FormValues = ActivityUpsertInput;
 
@@ -43,8 +44,7 @@ const formSchema = z
     if (!duration) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A hora de fim deve ser posterior à hora de início.', path: ['endTime'] });
     }
-    const now = new Date();
-    const todayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().slice(0, 10);
+    const todayIso = todayIsoAppCalendar();
     if (data.date < todayIso) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Não é possível agendar em datas passadas.', path: ['date'] });
     }
@@ -54,18 +54,13 @@ const formSchema = z
     }
   });
 
-function todayIso() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString().slice(0, 10);
-}
-
 function toDefaults(activity?: ActivityDoc | null): FormValues {
   return {
     title: activity?.title ?? '',
     activityType: (activity?.activityType ?? '') as ActivityType | '',
     format: (activity?.format ?? '') as ActivityFormat | '',
     status: (activity?.status ?? 'rascunho') as ActivityStatus | '',
-    date: activity?.date ?? todayIso(),
+    date: activity?.date ?? todayIsoAppCalendar(),
     startTime: activity?.startTime ?? '09:00',
     endTime: activity?.endTime ?? '10:00',
     location: activity?.location ?? '',
@@ -190,7 +185,9 @@ export default function ActivityEditorPage() {
     form.setValue('topics', next, { shouldValidate: true, shouldDirty: true });
   }
 
-  async function onSubmit(values: FormValues) {
+  type SaveToastKind = 'save' | 'publish' | 'unpublish';
+
+  async function persistActivity(values: FormValues, toastKind: SaveToastKind) {
     const actorId = user?.uid;
     if (!actorId) {
       toast({ title: t.get('common.error'), description: t.get('cpc.activities.errors.no_auth'), variant: 'destructive' });
@@ -199,7 +196,13 @@ export default function ActivityEditorPage() {
     setSaving(true);
     try {
       const result = await saveActivity({ activityId, input: values, actorId });
-      toast({ title: t.get('cpc.activities.save.success.title'), description: t.get('cpc.activities.save.success.desc') });
+      if (toastKind === 'publish') {
+        toast({ title: t.get('cpc.activities.publish.success.title'), description: t.get('cpc.activities.publish.success.desc') });
+      } else if (toastKind === 'unpublish') {
+        toast({ title: t.get('cpc.activities.unpublish.success.title'), description: t.get('cpc.activities.unpublish.success.desc') });
+      } else {
+        toast({ title: t.get('cpc.activities.save.success.title'), description: t.get('cpc.activities.save.success.desc') });
+      }
       navigate(`/dashboard/cpc/atividades/${result.id}`);
     } catch (error: unknown) {
       const rawMessage = error instanceof Error ? error.message : '';
@@ -210,6 +213,19 @@ export default function ActivityEditorPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function onSubmit(values: FormValues) {
+    await persistActivity(values, 'save');
+  }
+
+  function onPublishToggle() {
+    const current = form.getValues('status');
+    if (current !== 'rascunho' && current !== 'agendada') return;
+    const next: ActivityStatus = current === 'rascunho' ? 'agendada' : 'rascunho';
+    const toastKind: SaveToastKind = next === 'agendada' ? 'publish' : 'unpublish';
+    form.setValue('status', next, { shouldValidate: true, shouldDirty: true });
+    void form.handleSubmit((v) => persistActivity({ ...v, status: next }, toastKind))();
   }
 
   const topicsSuggestions = useMemo(() => ['Emprego', 'Saúde', 'Cultura', 'Educação', 'Habitação'], []);
@@ -229,10 +245,18 @@ export default function ActivityEditorPage() {
           <h1 className="text-2xl md:text-3xl font-bold">{activityId ? t.get('cpc.activities.edit.title') : t.get('cpc.activities.new.title')}</h1>
           <p className="text-muted-foreground mt-1">{t.get('cpc.activities.editor.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Link to="/dashboard/cpc/atividades">
-            <Button variant="ghost">{t.get('common.cancel')}</Button>
+            <Button variant="ghost" type="button">
+              {t.get('common.cancel')}
+            </Button>
           </Link>
+          {values.status === 'rascunho' || values.status === 'agendada' ? (
+            <Button type="button" variant="secondary" className="gap-2" disabled={saving} onClick={onPublishToggle}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {values.status === 'rascunho' ? t.get('cpc.activities.actions.publish') : t.get('cpc.activities.actions.unpublish')}
+            </Button>
+          ) : null}
           <Button type="submit" className="gap-2" disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {t.get('cpc.activities.actions.save')}
@@ -328,7 +352,7 @@ export default function ActivityEditorPage() {
                     <Calendar className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                     <Input
                       type="date"
-                      min={todayIso()}
+                      min={todayIsoAppCalendar()}
                       value={values.date}
                       onChange={(e) => form.setValue('date', e.target.value, { shouldValidate: true, shouldDirty: true })}
                       className="pl-9"
