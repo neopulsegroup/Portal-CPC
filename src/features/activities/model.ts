@@ -150,7 +150,8 @@ export function validateActivity(input: ActivityUpsertInput, todayIsoCalendar: s
   if (!isValidIsoDate(input.date)) {
     errors.date = 'Selecione uma data válida.';
   } else {
-    if (input.date < todayIsoCalendar) errors.date = 'Não é possível agendar em datas passadas.';
+    const allowPastDate = input.status === 'concluida' || input.status === 'cancelada';
+    if (!allowPastDate && input.date < todayIsoCalendar) errors.date = 'Não é possível agendar em datas passadas.';
   }
 
   if (!isValidTime24h(input.startTime)) errors.startTime = 'Indique a hora de início (24h).';

@@ -1243,6 +1243,8 @@
         "save": "Guardar",
         "publish": "Publicar",
         "unpublish": "Volver a borrador",
+        "mark_completed": "Marcar como completada",
+        "mark_cancelled": "Marcar como cancelada",
         "edit": "Editar",
         "delete": "Eliminar",
         "back": "Volver",
@@ -1303,6 +1305,7 @@
         "format": "Formato",
         "format_placeholder": "Selecciona un formato",
         "status": "Estado",
+        "status_placeholder": "Selecciona el estado",
         "preview": "Resumen",
         "date": "Fecha",
         "time": "Hora",
@@ -1353,7 +1356,8 @@
         "checklist": "Checklist",
         "checklist_title": "Título válido",
         "checklist_time": "Horario válido",
-        "checklist_participants": "Participantes seleccionados"
+        "checklist_participants": "Participantes seleccionados",
+        "status_quick_hint": "Atajos: guardan el estado al instante (sujetos a la validación del formulario)."
       },
       "details": {
         "not_found": "Actividad no encontrada.",
@@ -1393,6 +1397,18 @@
         "success": {
           "title": "Actividad en borrador",
           "desc": "El estado pasó a Borrador."
+        }
+      },
+      "completed": {
+        "success": {
+          "title": "Actividad completada",
+          "desc": "El estado pasó a Completada."
+        }
+      },
+      "cancelled_state": {
+        "success": {
+          "title": "Actividad cancelada",
+          "desc": "El estado pasó a Cancelada."
         }
       },
       "errors": {

@@ -1243,6 +1243,8 @@
         "save": "Guardar",
         "publish": "Publicar",
         "unpublish": "Voltar a rascunho",
+        "mark_completed": "Marcar como concluída",
+        "mark_cancelled": "Marcar como cancelada",
         "edit": "Editar",
         "delete": "Eliminar",
         "back": "Voltar",
@@ -1303,6 +1305,7 @@
         "format": "Formato",
         "format_placeholder": "Selecione um formato",
         "status": "Estado",
+        "status_placeholder": "Selecione o estado",
         "preview": "Resumo",
         "date": "Data",
         "time": "Hora",
@@ -1353,7 +1356,8 @@
         "checklist": "Checklist",
         "checklist_title": "Título válido",
         "checklist_time": "Horário válido",
-        "checklist_participants": "Participantes selecionados"
+        "checklist_participants": "Participantes selecionados",
+        "status_quick_hint": "Atalhos: gravam o estado de imediato (sujeitos à validação do formulário)."
       },
       "details": {
         "not_found": "Atividade não encontrada.",
@@ -1393,6 +1397,18 @@
         "success": {
           "title": "Atividade em rascunho",
           "desc": "O estado foi alterado para Rascunho."
+        }
+      },
+      "completed": {
+        "success": {
+          "title": "Atividade concluída",
+          "desc": "O estado foi alterado para Concluída."
+        }
+      },
+      "cancelled_state": {
+        "success": {
+          "title": "Atividade cancelada",
+          "desc": "O estado foi alterado para Cancelada."
         }
       },
       "errors": {

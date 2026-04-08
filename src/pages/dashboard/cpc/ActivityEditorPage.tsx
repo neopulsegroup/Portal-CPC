@@ -45,7 +45,8 @@ const formSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A hora de fim deve ser posterior à hora de início.', path: ['endTime'] });
     }
     const todayIso = todayIsoAppCalendar();
-    if (data.date < todayIso) {
+    const allowPastDate = data.status === 'concluida' || data.status === 'cancelada';
+    if (!allowPastDate && data.date < todayIso) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Não é possível agendar em datas passadas.', path: ['date'] });
     }
     const totalParticipants = data.participantMigrantIds.length + data.participantCompanyIds.length + data.participantConsultantIds.length;
@@ -77,6 +78,13 @@ function uniqueStrings(values: string[]): string[] {
   const set = new Set(values.map((v) => v.trim()).filter(Boolean));
   return Array.from(set);
 }
+
+const ACTIVITY_STATUS_I18N: Record<ActivityStatus, string> = {
+  rascunho: 'cpc.activities.status.draft',
+  agendada: 'cpc.activities.status.scheduled',
+  concluida: 'cpc.activities.status.completed',
+  cancelada: 'cpc.activities.status.cancelled',
+};
 
 export default function ActivityEditorPage() {
   const { t } = useLanguage();
@@ -185,7 +193,7 @@ export default function ActivityEditorPage() {
     form.setValue('topics', next, { shouldValidate: true, shouldDirty: true });
   }
 
-  type SaveToastKind = 'save' | 'publish' | 'unpublish';
+  type SaveToastKind = 'save' | 'publish' | 'unpublish' | 'completed' | 'cancelled';
 
   async function persistActivity(values: FormValues, toastKind: SaveToastKind) {
     const actorId = user?.uid;
@@ -200,6 +208,10 @@ export default function ActivityEditorPage() {
         toast({ title: t.get('cpc.activities.publish.success.title'), description: t.get('cpc.activities.publish.success.desc') });
       } else if (toastKind === 'unpublish') {
         toast({ title: t.get('cpc.activities.unpublish.success.title'), description: t.get('cpc.activities.unpublish.success.desc') });
+      } else if (toastKind === 'completed') {
+        toast({ title: t.get('cpc.activities.completed.success.title'), description: t.get('cpc.activities.completed.success.desc') });
+      } else if (toastKind === 'cancelled') {
+        toast({ title: t.get('cpc.activities.cancelled_state.success.title'), description: t.get('cpc.activities.cancelled_state.success.desc') });
       } else {
         toast({ title: t.get('cpc.activities.save.success.title'), description: t.get('cpc.activities.save.success.desc') });
       }
@@ -226,6 +238,18 @@ export default function ActivityEditorPage() {
     const toastKind: SaveToastKind = next === 'agendada' ? 'publish' : 'unpublish';
     form.setValue('status', next, { shouldValidate: true, shouldDirty: true });
     void form.handleSubmit((v) => persistActivity({ ...v, status: next }, toastKind))();
+  }
+
+  function onMarkCompleted() {
+    const next: ActivityStatus = 'concluida';
+    form.setValue('status', next, { shouldValidate: true, shouldDirty: true });
+    void form.handleSubmit((v) => persistActivity({ ...v, status: next }, 'completed'))();
+  }
+
+  function onMarkCancelled() {
+    const next: ActivityStatus = 'cancelada';
+    form.setValue('status', next, { shouldValidate: true, shouldDirty: true });
+    void form.handleSubmit((v) => persistActivity({ ...v, status: next }, 'cancelled'))();
   }
 
   const topicsSuggestions = useMemo(() => ['Emprego', 'Saúde', 'Cultura', 'Educação', 'Habitação'], []);
@@ -325,6 +349,55 @@ export default function ActivityEditorPage() {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <div>
+                  <Label>{t.get('cpc.activities.fields.status')}</Label>
+                  <Select
+                    value={values.status || 'rascunho'}
+                    onValueChange={(v) => form.setValue('status', v as ActivityStatus, { shouldValidate: true, shouldDirty: true })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={t.get('cpc.activities.fields.status_placeholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACTIVITY_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {t.get(ACTIVITY_STATUS_I18N[s])}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.status ? (
+                    <p className="text-sm font-medium text-destructive mt-2">{String(form.formState.errors.status.message)}</p>
+                  ) : null}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">{t.get('cpc.activities.editor.status_quick_hint')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      disabled={saving || values.status === 'concluida'}
+                      onClick={onMarkCompleted}
+                    >
+                      {t.get('cpc.activities.actions.mark_completed')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      disabled={saving || values.status === 'cancelada'}
+                      onClick={onMarkCancelled}
+                    >
+                      {t.get('cpc.activities.actions.mark_cancelled')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label>{t.get('cpc.activities.fields.location')}</Label>
                 <Input
@@ -352,7 +425,7 @@ export default function ActivityEditorPage() {
                     <Calendar className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                     <Input
                       type="date"
-                      min={todayIsoAppCalendar()}
+                      {...(values.status !== 'concluida' && values.status !== 'cancelada' ? { min: todayIsoAppCalendar() } : {})}
                       value={values.date}
                       onChange={(e) => form.setValue('date', e.target.value, { shouldValidate: true, shouldDirty: true })}
                       className="pl-9"

@@ -18,6 +18,58 @@ import { storage } from '@/integrations/firebase/client';
 import { getDownloadURL, ref as makeStorageRef, uploadBytes } from 'firebase/storage';
 import logo from '@/assets/logo.png';
 import { APP_TIME_ZONE, todayIsoAppCalendar } from '@/lib/appCalendar';
+import { ACTIVITY_STATUSES, type ActivityStatus, computeDurationMinutes, toActivityStatusLabel } from '@/features/activities/model';
+
+type ActivityFirestoreRow = {
+  id: string;
+  title?: string;
+  date?: string;
+  startAt?: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number | null;
+  status?: string | null;
+  deletedAt?: unknown;
+};
+
+/** Carga horária curta para listagens (ex.: "30m", "1h30m"). */
+function formatActivityDurationShort(input: {
+  durationMinutes?: number | null;
+  startTime?: string;
+  endTime?: string;
+}): string | null {
+  let mins: number | null =
+    typeof input.durationMinutes === 'number' && Number.isFinite(input.durationMinutes) && input.durationMinutes > 0
+      ? Math.round(input.durationMinutes)
+      : null;
+  if (mins == null && input.startTime && input.endTime) {
+    const computed = computeDurationMinutes(input.startTime, input.endTime);
+    if (computed != null && computed > 0) mins = computed;
+  }
+  if (mins == null || mins <= 0) return null;
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h${m}m`;
+}
+
+function sortActivitiesForMigrant(rows: ActivityFirestoreRow[]): ActivityFirestoreRow[] {
+  const active = (rows || []).filter((r) => r.deletedAt == null);
+  return active.slice().sort((a, b) => {
+    const sa = (a.startAt || `${a.date || ''}T00:00:00`).slice(0, 19);
+    const sb = (b.startAt || `${b.date || ''}T00:00:00`).slice(0, 19);
+    return sb.localeCompare(sa);
+  });
+}
+
+function activityStatusLabel(status: string | null | undefined): string {
+  if (!status) return '—';
+  if ((ACTIVITY_STATUSES as readonly string[]).includes(status)) {
+    return toActivityStatusLabel(status as ActivityStatus);
+  }
+  return status;
+}
 
 export default function ProfilePage() {
   const { user, profile: authProfile, refreshProfile } = useAuth();
@@ -36,7 +88,17 @@ export default function ProfilePage() {
   const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
   const PHOTO_ALLOWED_MIME = useMemo(() => new Set(['image/jpeg', 'image/png', 'image/gif']), []);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
-  const [activities, setActivities] = useState<Array<{ id: string; title: string; date: string; status?: string | null }>>([]);
+  const [activities, setActivities] = useState<
+    Array<{
+      id: string;
+      title: string;
+      date: string;
+      status?: string | null;
+      durationMinutes?: number | null;
+      startTime?: string;
+      endTime?: string;
+    }>
+  >([]);
 
   const [edit, setEdit] = useState<{
     name: string;
@@ -224,22 +286,28 @@ export default function ProfilePage() {
       }
       setActivitiesLoading(true);
       try {
-        const rows = await queryDocuments<{ id: string; title?: string; date?: string; status?: string | null }>(
+        // Sem orderBy em Firestore: evita índice composto (array-contains + date). Ordenação no cliente.
+        const rows = await queryDocuments<ActivityFirestoreRow>(
           'activities',
           [{ field: 'participantMigrantIds', operator: 'array-contains', value: targetUserId }],
-          { field: 'date', direction: 'desc' },
-          20
+          undefined,
+          200
         );
         if (cancelled) return;
+        const sorted = sortActivitiesForMigrant(rows || []);
         setActivities(
-          (rows || []).map((r) => ({
+          sorted.slice(0, 40).map((r) => ({
             id: r.id,
             title: r.title || 'Atividade',
             date: r.date || '',
             status: r.status ?? null,
+            durationMinutes: r.durationMinutes ?? null,
+            startTime: r.startTime,
+            endTime: r.endTime,
           }))
         );
-      } catch {
+      } catch (e) {
+        console.error('ProfilePage: falha ao carregar atividades do migrante', e);
         if (cancelled) return;
         setActivities([]);
       } finally {
@@ -520,19 +588,14 @@ export default function ProfilePage() {
     try {
       const [{ PDFDocument, StandardFonts, rgb }, activities] = await Promise.all([
         import('pdf-lib'),
-        queryDocuments<{
-          id: string;
-          title?: string;
-          date?: string;
-          startTime?: string;
-          status?: string | null;
-          topics?: string[] | null;
-        }>(
+        queryDocuments<ActivityFirestoreRow>(
           'activities',
           [{ field: 'participantMigrantIds', operator: 'array-contains', value: targetUserId }],
-          { field: 'date', direction: 'desc' },
+          undefined,
           200
-        ).catch(() => []),
+        )
+          .then((raw) => sortActivitiesForMigrant(raw || []))
+          .catch(() => []),
       ]);
 
       const fileDate = todayIsoAppCalendar();
@@ -715,9 +778,11 @@ export default function ProfilePage() {
       });
 
       const activityItems = activities.map((a) => {
-        const date = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
-        const meta = [date, a.status ? `Estado: ${a.status}` : null].filter(Boolean).join(' · ');
-        return { title: a.title || 'Atividade', meta };
+        const dateStr = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '';
+        const dur = formatActivityDurationShort(a);
+        const primary = [dateStr || null, dur].filter(Boolean).join(' • ');
+        const meta = [primary || null, a.status ? `Estado: ${activityStatusLabel(a.status)}` : null].filter(Boolean).join(' · ');
+        return { title: a.title || 'Atividade', meta: meta || undefined };
       });
 
       drawTitle('Relatório de Progresso');
@@ -1626,7 +1691,7 @@ export default function ProfilePage() {
         </div>
 
         {isViewingOtherUser ? (
-          <div className="cpc-card p-6">
+          <div className="cpc-card p-6 lg:col-span-2">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <ClipboardList className="h-5 w-5 text-primary" />
@@ -1643,8 +1708,8 @@ export default function ProfilePage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : activities.length ? (
-                <div className="space-y-3">
-                  {activities.slice(0, 5).map((a) => (
+                <div className="space-y-3 max-h-[min(420px,50vh)] overflow-y-auto pr-1">
+                  {activities.map((a) => (
                     <Link
                       key={a.id}
                       to={`/dashboard/cpc/atividades/${a.id}`}
@@ -1653,12 +1718,27 @@ export default function ProfilePage() {
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{a.title}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—'}
+                          {(() => {
+                            const datePart =
+                              a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)
+                                ? new Intl.DateTimeFormat('pt-PT', {
+                                    timeZone: APP_TIME_ZONE,
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }).format(new Date(`${a.date}T12:00:00Z`))
+                                : null;
+                            const dur = formatActivityDurationShort(a);
+                            if (datePart && dur) return `${datePart} • ${dur}`;
+                            if (datePart) return datePart;
+                            if (dur) return dur;
+                            return '—';
+                          })()}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                          {a.status || '—'}
+                          {activityStatusLabel(a.status)}
                         </span>
                       </div>
                     </Link>

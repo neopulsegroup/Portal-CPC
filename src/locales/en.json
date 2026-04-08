@@ -1243,6 +1243,8 @@
         "save": "Save",
         "publish": "Publish",
         "unpublish": "Revert to draft",
+        "mark_completed": "Mark as completed",
+        "mark_cancelled": "Mark as cancelled",
         "edit": "Edit",
         "delete": "Delete",
         "back": "Back",
@@ -1303,6 +1305,7 @@
         "format": "Format",
         "format_placeholder": "Select a format",
         "status": "Status",
+        "status_placeholder": "Select status",
         "preview": "Summary",
         "date": "Date",
         "time": "Time",
@@ -1353,7 +1356,8 @@
         "checklist": "Checklist",
         "checklist_title": "Valid title",
         "checklist_time": "Valid time range",
-        "checklist_participants": "Participants selected"
+        "checklist_participants": "Participants selected",
+        "status_quick_hint": "Shortcuts: save the status immediately (subject to form validation)."
       },
       "details": {
         "not_found": "Activity not found.",
@@ -1393,6 +1397,18 @@
         "success": {
           "title": "Activity in draft",
           "desc": "Status set to Draft."
+        }
+      },
+      "completed": {
+        "success": {
+          "title": "Activity completed",
+          "desc": "Status set to Completed."
+        }
+      },
+      "cancelled_state": {
+        "success": {
+          "title": "Activity cancelled",
+          "desc": "Status set to Cancelled."
         }
       },
       "errors": {
