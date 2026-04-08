@@ -28,6 +28,9 @@ export function getCalendarDateIsoInTimeZone(date: Date, timeZone = APP_TIME_ZON
   return `${y}-${m}-${d}`;
 }
 
+/** Alias semântico: mesma função com `APP_TIME_ZONE` por omissão (Lisboa). */
+export const getCalendarDateIsoInAppTimeZone = (date: Date) => getCalendarDateIsoInTimeZone(date);
+
 export function todayIsoAppCalendar(): string {
   return getCalendarDateIsoInTimeZone(new Date());
 }
