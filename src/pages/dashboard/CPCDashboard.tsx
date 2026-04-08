@@ -35,6 +35,7 @@ import {
   UserX,
   RotateCcw,
   Wrench,
+  Settings,
   Languages,
   MessagesSquare,
   ClipboardList,
@@ -1070,7 +1071,10 @@ export default function CPCDashboard() {
     { to: '/dashboard/cpc/traducoes', label: t.get('cpcTranslations.title'), icon: Languages },
   ];
 
-  const sidebarItemsProfile = [{ to: '/dashboard/cpc/perfil', label: t.get('cpc.menu.profile'), icon: Building2 }];
+  const sidebarItemsProfile = [
+    { to: '/dashboard/cpc/perfil', label: t.get('cpc.menu.profile'), icon: Building2 },
+    { to: '/dashboard/cpc/configuracoes', label: t.get('cpc.menu.settings'), icon: Settings },
+  ];
   const sidebarItemsMessages = [{ to: '/dashboard/cpc/mensagens', label: t.get('cpc.menu.messages'), icon: MessagesSquare }];
   const isHome = location.pathname === '/dashboard/cpc' || location.pathname === '/dashboard/cpc/';
 
@@ -1358,6 +1362,7 @@ export default function CPCDashboard() {
                 <Route path="equipa" element={<EquipaPage />} />
                 <Route path="estatisticas" element={<StatisticsPage />} />
                 <Route path="perfil" element={<CPCProfilePage />} />
+                <Route path="configuracoes" element={<CPCSettingsPage />} />
                 <Route path="mensagens" element={<CPCMessagesPage />} />
                 <Route path="traducoes" element={<TranslationsAdminPage />} />
               </Routes>
@@ -1381,3 +1386,4 @@ import ActivitiesPage from './cpc/ActivitiesPage';
 import ActivityEditorPage from './cpc/ActivityEditorPage';
 import ActivityDetailsPage from './cpc/ActivityDetailsPage';
 import StatisticsPage from './cpc/StatisticsPage';
+import CPCSettingsPage from './cpc/SettingsPage';

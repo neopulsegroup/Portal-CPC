@@ -4,6 +4,9 @@ import { queryDocuments, getDocument } from '@/integrations/firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 import { Loader2, BarChart3, PieChart, Download, FileText, FileSpreadsheet, Users, CheckCircle } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -17,9 +20,15 @@ import {
   Bar,
 } from 'recharts';
 
+import { buildStatisticsReport, exportStatisticsDocx, exportStatisticsPdf, exportStatisticsXlsx } from './statisticsExport';
+
 type UserDoc = { id: string; role?: string | null; createdAt?: unknown };
 type ProgressDoc = { id: string; user_id?: string | null; trail_id?: string | null; progress_percent?: number | null; modules_completed?: number | null; completed_at?: unknown | null; started_at?: unknown | null };
-type ProfileDoc = { currentLocation?: string | null };
+type ProfileDoc = {
+  currentLocation?: string | null;
+  region?: 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Outra' | null;
+  regionOther?: string | null;
+};
 type TrailDoc = { title?: string | null };
 
 function parseUnknownDate(value: unknown): Date | null {
@@ -59,6 +68,17 @@ function mapLocationToRegion(value?: string | null): 'Lisboa' | 'Norte' | 'Centr
   return 'Desconhecida';
 }
 
+function mapProfileToRegion(profile?: ProfileDoc | null): 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Desconhecida' {
+  const region = profile?.region ?? null;
+  if (region === 'Lisboa' || region === 'Norte' || region === 'Centro' || region === 'Alentejo' || region === 'Algarve') return region;
+  if (region === 'Outra') {
+    const fromOther = mapLocationToRegion(profile?.regionOther ?? null);
+    if (fromOther !== 'Desconhecida') return fromOther;
+  }
+  const fromLocation = mapLocationToRegion(profile?.currentLocation ?? null);
+  return fromLocation;
+}
+
 function startEndForPeriod(year: number, period: 'year' | 'q1' | 'q2' | 'q3' | 'q4'): { start: Date; end: Date } {
   if (period === 'q1') return { start: new Date(year, 0, 1, 0, 0, 0), end: new Date(year, 2, 31, 23, 59, 59, 999) };
   if (period === 'q2') return { start: new Date(year, 3, 1, 0, 0, 0), end: new Date(year, 5, 30, 23, 59, 59, 999) };
@@ -69,6 +89,7 @@ function startEndForPeriod(year: number, period: 'year' | 'q1' | 'q2' | 'q3' | '
 
 export default function StatisticsPage() {
   const { language } = useLanguage();
+  const { toast } = useToast();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [period, setPeriod] = useState<'year' | 'q1' | 'q2' | 'q3' | 'q4'>('year');
   const [regionFilter, setRegionFilter] = useState<'all' | 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Desconhecida'>('all');
@@ -77,7 +98,7 @@ export default function StatisticsPage() {
   const [progressByUser, setProgressByUser] = useState<Map<string, ProgressDoc[]>>(new Map());
   const [regionByUser, setRegionByUser] = useState<Map<string, 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Desconhecida'>>(new Map());
   const [trailTitleById, setTrailTitleById] = useState<Map<string, string>>(new Map());
-  const [exporting, setExporting] = useState<'xlsx' | 'pdf' | 'docx' | null>(null);
+  const [exporting, setExporting] = useState<{ format: 'xlsx' | 'pdf' | 'docx'; progress: number; message: string } | null>(null);
   const xlsxModuleRef = useRef<typeof import('xlsx') | null>(null);
   const xlsxLoaderRef = useRef<Promise<typeof import('xlsx')> | null>(null);
 
@@ -252,15 +273,15 @@ export default function StatisticsPage() {
         const profiles = await Promise.all(ids.map(async (uid) => {
           try {
             const doc = await getDocument<ProfileDoc>('profiles', uid);
-            return { uid, currentLocation: doc?.currentLocation ?? null };
+            return { uid, profile: doc ?? null };
           } catch {
-            return { uid, currentLocation: null };
+            return { uid, profile: null };
           }
         }));
         if (ignore) return;
         const regionMap = new Map<string, 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Desconhecida'>();
         profiles.forEach((p) => {
-          regionMap.set(p.uid, mapLocationToRegion(p.currentLocation));
+          regionMap.set(p.uid, mapProfileToRegion(p.profile));
         });
         setRegionByUser(regionMap);
       } finally {
@@ -290,98 +311,93 @@ export default function StatisticsPage() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  const report = useMemo(() => {
+    return buildStatisticsReport({
+      year,
+      period,
+      regionFilter,
+      dateRange,
+      users,
+      filteredUsers,
+      regionByUser,
+      progressByUser,
+      kpis,
+      regionStats,
+      monthly,
+      trailPerf,
+      parseUnknownDate,
+    });
+  }, [dateRange, filteredUsers, kpis, monthly, period, progressByUser, regionByUser, regionFilter, regionStats, trailPerf, users, year]);
+
+  function yieldToUi(): Promise<void> {
+    return new Promise((resolve) => {
+      window.setTimeout(() => resolve(), 0);
+    });
+  }
+
   async function handleExportXlsx() {
-    setExporting('xlsx');
+    setExporting({ format: 'xlsx', progress: 5, message: 'A preparar exportação...' });
     try {
-      const XLSX = xlsxModuleRef.current;
-      if (!XLSX) {
-        throw new Error('Módulo XLSX indisponível.');
+      await yieldToUi();
+      if (!xlsxModuleRef.current) {
+        setExporting({ format: 'xlsx', progress: 15, message: 'A carregar módulo XLSX...' });
+        await yieldToUi();
+        if (!xlsxLoaderRef.current) xlsxLoaderRef.current = import('xlsx');
+        xlsxModuleRef.current = await xlsxLoaderRef.current;
       }
-      const kpiSheet = XLSX.utils.aoa_to_sheet([
-        ['Indicador', 'Valor'],
-        ['Migrantes Inscritos', kpis.total],
-        ['Inícios de Plano', kpis.started],
-        ['Conclusões Totais', kpis.completed],
-        ['Taxa de Sucesso', `${kpis.successRate}%`],
-        ['% Inícios', `${kpis.startedPct}%`],
-        ['% Conclusões', `${kpis.completedPct}%`],
-      ]);
-      const regionalSheet = XLSX.utils.aoa_to_sheet([
-        ['Região', 'Total', 'Inícios', 'Conclusões', 'Taxa de Conclusão'],
-        ...regionStats.map((r) => [r.region, r.total, r.started, r.completed, `${r.completionRate}%`]),
-      ]);
-      const monthlySheet = XLSX.utils.aoa_to_sheet([
-        ['Mês', 'Inscrições'],
-        ...monthly.map((m) => [m.month, m.registrations]),
-      ]);
-      const trailSheet = XLSX.utils.aoa_to_sheet([
-        ['Percurso', 'Conclusões'],
-        ...trailPerf.map((t) => [t.trail, t.completed]),
-      ]);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPIs');
-      XLSX.utils.book_append_sheet(wb, regionalSheet, 'Regiões');
-      XLSX.utils.book_append_sheet(wb, monthlySheet, 'Mensal');
-      XLSX.utils.book_append_sheet(wb, trailSheet, 'Percursos');
-      const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const XLSX = xlsxModuleRef.current;
+      if (!XLSX) throw new Error('Módulo XLSX indisponível.');
+      setExporting({ format: 'xlsx', progress: 35, message: 'A gerar planilhas...' });
+      await yieldToUi();
+      const out = await exportStatisticsXlsx(report, XLSX);
+      setExporting({ format: 'xlsx', progress: 85, message: 'A finalizar ficheiro...' });
+      await yieldToUi();
       const ts = getExportTimestamp();
       downloadBlob(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `estatisticas_${year}_${ts}.xlsx`);
     } catch (e) {
-      console.error(e);
+      const message = e instanceof Error ? e.message : 'Não foi possível exportar o relatório.';
+      toast({ title: 'Exportação XLSX', description: message, variant: 'destructive' });
     } finally {
       setExporting(null);
     }
   }
 
-  function handleExportPdf() {
-    setExporting('pdf');
+  async function handleExportPdf() {
+    setExporting({ format: 'pdf', progress: 5, message: 'A preparar exportação...' });
     try {
-      window.print();
+      await yieldToUi();
+      setExporting({ format: 'pdf', progress: 40, message: 'A compor relatório...' });
+      await yieldToUi();
+      const bytes = await exportStatisticsPdf(report);
+      setExporting({ format: 'pdf', progress: 85, message: 'A finalizar ficheiro...' });
+      await yieldToUi();
+      const ts = getExportTimestamp();
+      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), `relatorio_estatisticas_${year}_${ts}.pdf`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Não foi possível exportar o relatório.';
+      toast({ title: 'Exportação PDF', description: message, variant: 'destructive' });
     } finally {
       setExporting(null);
     }
   }
 
-  function handleExportDocx() {
-    setExporting('docx');
+  async function handleExportDocx() {
+    setExporting({ format: 'docx', progress: 5, message: 'A preparar exportação...' });
     try {
-      const html = `
-        <html lang="pt">
-        <head><meta charset="utf-8"><title>Relatório ${year}</title></head>
-        <body>
-          <h1>Relatório de Estatísticas CPC – ${year}</h1>
-          <p><strong>Período:</strong> ${period.toUpperCase()} (${dateRange.start.toISOString().slice(0, 10)} a ${dateRange.end.toISOString().slice(0, 10)})</p>
-          <p><strong>Região:</strong> ${regionFilter === 'all' ? 'Todas' : regionFilter}</p>
-          <h2>KPIs</h2>
-          <table border="1" cellspacing="0" cellpadding="6">
-            <tr><th>Indicador</th><th>Valor</th></tr>
-            <tr><td>Migrantes Inscritos</td><td>${kpis.total}</td></tr>
-            <tr><td>Inícios de Plano</td><td>${kpis.started}</td></tr>
-            <tr><td>Conclusões Totais</td><td>${kpis.completed}</td></tr>
-            <tr><td>Taxa de Sucesso</td><td>${kpis.successRate}%</td></tr>
-            <tr><td>% Inícios</td><td>${kpis.startedPct}%</td></tr>
-            <tr><td>% Conclusões</td><td>${kpis.completedPct}%</td></tr>
-          </table>
-          <h2>Detalhamento Regional</h2>
-          <table border="1" cellspacing="0" cellpadding="6">
-            <tr><th>Região</th><th>Total</th><th>Inícios</th><th>Conclusões</th><th>Taxa de Conclusão</th></tr>
-            ${regionStats.map(r => `<tr><td>${r.region}</td><td>${r.total}</td><td>${r.started}</td><td>${r.completed}</td><td>${r.completionRate}%</td></tr>`).join('')}
-          </table>
-          <h2>Inscrições (mensal)</h2>
-          <table border="1" cellspacing="0" cellpadding="6">
-            <tr><th>Mês</th><th>Inscrições</th></tr>
-            ${monthly.map(m => `<tr><td>${m.month}</td><td>${m.registrations}</td></tr>`).join('')}
-          </table>
-          <h2>Conclusões por percurso</h2>
-          <table border="1" cellspacing="0" cellpadding="6">
-            <tr><th>Percurso</th><th>Conclusões</th></tr>
-            ${trailPerf.map(tp => `<tr><td>${tp.trail}</td><td>${tp.completed}</td></tr>`).join('')}
-          </table>
-        </body></html>
-      `;
-      const blob = new Blob([html], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      await yieldToUi();
+      setExporting({ format: 'docx', progress: 30, message: 'A carregar gerador DOCX...' });
+      await yieldToUi();
+      const docx = await import('docx');
+      setExporting({ format: 'docx', progress: 60, message: 'A compor relatório...' });
+      await yieldToUi();
+      const blob = await exportStatisticsDocx(report, docx);
+      setExporting({ format: 'docx', progress: 85, message: 'A finalizar ficheiro...' });
+      await yieldToUi();
       const ts = getExportTimestamp();
       downloadBlob(blob, `relatorio_estatisticas_${year}_${ts}.docx`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Não foi possível exportar o relatório.';
+      toast({ title: 'Exportação DOCX', description: message, variant: 'destructive' });
     } finally {
       setExporting(null);
     }
@@ -442,16 +458,29 @@ export default function StatisticsPage() {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={handleExportPdf} disabled={exporting !== null}>
-            <FileText className="h-4 w-4 mr-2" /> PDF
+            {exporting?.format === 'pdf' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />} PDF
           </Button>
           <Button variant="outline" onClick={handleExportDocx} disabled={exporting !== null}>
-            <Download className="h-4 w-4 mr-2" /> DOCX
+            {exporting?.format === 'docx' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} DOCX
           </Button>
           <Button onClick={handleExportXlsx} disabled={exporting !== null}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> XLSX
+            {exporting?.format === 'xlsx' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-2" />} XLSX
           </Button>
         </div>
       </div>
+
+      <Dialog open={exporting !== null}>
+        <DialogContent hideClose>
+          <DialogHeader>
+            <DialogTitle>Exportação em progresso</DialogTitle>
+            <DialogDescription>{exporting?.message ?? ''}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Progress value={exporting?.progress ?? 0} className="h-2" />
+            <div className="text-xs text-muted-foreground">{exporting ? `${exporting.progress}%` : ''}</div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         {kpiCards.map((k) => (

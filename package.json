@@ -12,7 +12,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "tasks:validate": "node scripts/validate-project-tasks.mjs"
+    "tasks:validate": "node scripts/validate-project-tasks.mjs",
+    "emulators:start": "npx firebase-tools emulators:start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -48,6 +49,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
+    "docx": "^8.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^12.9.0",
     "input-otp": "^1.4.2",
@@ -91,6 +93,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "firebase-tools": "^13.12.0"
   }
 }

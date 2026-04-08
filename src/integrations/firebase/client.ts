@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-import { getAuth } from "firebase/auth";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { connectFirestoreEmulator, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -38,7 +38,19 @@ export const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
 });
 
+if (env.DEV === true && String(env.VITE_FUNCTIONS_EMULATOR) === "true") {
+    const host = (env.VITE_FIRESTORE_EMULATOR_HOST as string) || "localhost";
+    const port = Number(env.VITE_FIRESTORE_EMULATOR_PORT || 8082);
+    connectFirestoreEmulator(db, host, port);
+}
+
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+if (env.DEV === true && String(env.VITE_FUNCTIONS_EMULATOR) === "true") {
+    const host = (env.VITE_AUTH_EMULATOR_HOST as string) || "localhost";
+    const port = Number(env.VITE_AUTH_EMULATOR_PORT || 9099);
+    connectAuthEmulator(auth, `http://${host}:${port}`, { disableWarnings: true });
+}
 
 export default app;

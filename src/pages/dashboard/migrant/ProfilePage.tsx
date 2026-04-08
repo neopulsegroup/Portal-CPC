@@ -10,9 +10,8 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatPhoneValueForDisplay } from '@/components/ui/phone-input';
+import { PhoneInput, formatPhoneValueForDisplay } from '@/components/ui/phone-input';
 import { fetchMigrantProfile, type MigrantProfileDoc, type MigrantProfileResponse } from '@/api/migrantProfile';
-import { updateUserProfile } from '@/integrations/firebase/auth';
 import { queryDocuments, updateDocument } from '@/integrations/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { storage } from '@/integrations/firebase/client';
@@ -38,12 +37,14 @@ export default function ProfilePage() {
 
   const [edit, setEdit] = useState<{
     name: string;
+    phone: string;
+    birthDate: string;
+    nationality: string;
     resumeUrl: string;
     professionalTitle: string;
     professionalExperience: string;
     skills: string;
     languagesList: string;
-    mainNeeds: string;
     contactPreference: 'email' | 'phone';
     address: string;
     identificationNumber: string;
@@ -51,12 +52,14 @@ export default function ProfilePage() {
     regionOther: string;
   }>({
     name: '',
+    phone: '',
+    birthDate: '',
+    nationality: '',
     resumeUrl: '',
     professionalTitle: '',
     professionalExperience: '',
     skills: '',
     languagesList: '',
-    mainNeeds: '',
     contactPreference: 'email',
     address: '',
     identificationNumber: '',
@@ -64,7 +67,9 @@ export default function ProfilePage() {
     regionOther: '',
   });
 
-  const [personalInfoErrors, setPersonalInfoErrors] = useState<Partial<Record<'address' | 'identificationNumber' | 'region' | 'regionOther', string>>>({});
+  const [personalInfoErrors, setPersonalInfoErrors] = useState<
+    Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'identificationNumber' | 'region' | 'regionOther', string>>
+  >({});
 
   const targetUserId = migrantId || user?.uid || null;
   const isViewingOtherUser = !!(migrantId && user?.uid && migrantId !== user.uid);
@@ -107,6 +112,7 @@ export default function ProfilePage() {
         const merged: MigrantProfileDoc | null = p
           ? {
               ...p,
+              phone: p.phone || extras?.phone || null,
               birthDate: p.birthDate || extras?.birthDate || null,
               nationality: p.nationality || extras?.nationality || null,
               address: p.address || extras?.address || null,
@@ -118,13 +124,13 @@ export default function ProfilePage() {
               professionalExperience: p.professionalExperience || extras?.professionalExperience || null,
               skills: p.skills || extras?.skills || null,
               languagesList: p.languagesList || extras?.languagesList || null,
-              mainNeeds: p.mainNeeds || extras?.mainNeeds || null,
               contactPreference: p.contactPreference || extras?.contactPreference || null,
             }
           : null;
 
         if (p && extras) {
           const shouldMigrate =
+            (!p.phone && extras.phone) ||
             (!p.birthDate && extras.birthDate) ||
             (!p.nationality && extras.nationality) ||
             (!p.address && extras.address) ||
@@ -136,11 +142,11 @@ export default function ProfilePage() {
             (!p.professionalExperience && extras.professionalExperience) ||
             (!p.skills && extras.skills) ||
             (!p.languagesList && extras.languagesList) ||
-            (!p.mainNeeds && extras.mainNeeds) ||
             (!p.contactPreference && extras.contactPreference);
 
           if (shouldMigrate) {
             void updateDocument('profiles', targetUserId, {
+              phone: merged?.phone || null,
               birthDate: merged?.birthDate || null,
               nationality: merged?.nationality || null,
               address: merged?.address || null,
@@ -152,20 +158,29 @@ export default function ProfilePage() {
               professionalExperience: merged?.professionalExperience || null,
               skills: merged?.skills || null,
               languagesList: merged?.languagesList || null,
-              mainNeeds: merged?.mainNeeds || null,
               contactPreference: merged?.contactPreference || null,
             });
           }
         }
 
+        const triageAns =
+          res.triage?.answers && typeof res.triage.answers === 'object'
+            ? (res.triage.answers as Record<string, unknown>)
+            : {};
+        const triagePhone = typeof triageAns.phone === 'string' ? triageAns.phone : '';
+        const triageBirthDate = typeof triageAns.birth_date === 'string' ? triageAns.birth_date : '';
+        const triageNationality = typeof triageAns.nationality === 'string' ? triageAns.nationality : '';
+
         setEdit({
           name: merged?.name || res.userProfile?.name || '',
+          phone: merged?.phone || triagePhone || '',
+          birthDate: merged?.birthDate || triageBirthDate || '',
+          nationality: merged?.nationality || triageNationality || '',
           resumeUrl: merged?.resumeUrl || '',
           professionalTitle: merged?.professionalTitle || '',
           professionalExperience: merged?.professionalExperience || '',
           skills: merged?.skills || '',
           languagesList: merged?.languagesList || '',
-          mainNeeds: merged?.mainNeeds || '',
           contactPreference: (merged?.contactPreference as 'email' | 'phone') || 'email',
           address: merged?.address || '',
           identificationNumber: merged?.identificationNumber || '',
@@ -216,10 +231,10 @@ export default function ProfilePage() {
     const triageBirthDate = typeof triageAnswers.birth_date === 'string' ? triageAnswers.birth_date : null;
     const triageNationality = typeof triageAnswers.nationality === 'string' ? triageAnswers.nationality : null;
 
-    const rawPhone = triagePhone || profileDoc?.phone || '';
+    const rawPhone = profileDoc?.phone || triagePhone || '';
     const phone = rawPhone ? formatPhoneValueForDisplay(rawPhone) : '';
 
-    const rawBirth = triageBirthDate || profileDoc?.birthDate || '';
+    const rawBirth = profileDoc?.birthDate || triageBirthDate || '';
     const birth = (() => {
       if (!rawBirth) return '';
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(rawBirth);
@@ -227,7 +242,7 @@ export default function ProfilePage() {
       return `${m[3]}/${m[2]}/${m[1]}`;
     })();
 
-    const nationality = triageNationality || profileDoc?.nationality || '';
+    const nationality = profileDoc?.nationality || triageNationality || '';
 
     return { phone, birth, nationality };
   }, [profileDoc?.birthDate, profileDoc?.nationality, profileDoc?.phone, triageAnswers]);
@@ -358,27 +373,54 @@ export default function ProfilePage() {
 
   async function save() {
     if (!user || !targetUserId) return;
+    const nextErrors: Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'identificationNumber' | 'region' | 'regionOther', string>> = {};
+    const addressTrim = edit.address.trim();
+    const idTrim = edit.identificationNumber.trim();
+    const regionTrim = edit.region;
+    const regionOtherTrim = edit.regionOther.trim();
+    const phoneTrim = edit.phone.trim();
+    const birthDateTrim = edit.birthDate.trim();
+    const nationalityTrim = edit.nationality.trim();
+
     if (isViewingOtherUser) {
-      const nextErrors: Partial<Record<'address' | 'identificationNumber' | 'region' | 'regionOther', string>> = {};
-      const addressTrim = edit.address.trim();
       if (!addressTrim) nextErrors.address = 'A Morada é obrigatória.';
       else if (addressTrim.length < 10) nextErrors.address = 'A Morada deve ter pelo menos 10 caracteres.';
 
-      const idErr = validateIdentificationNumber(edit.identificationNumber);
+      const idErr = validateIdentificationNumber(idTrim);
       if (idErr) nextErrors.identificationNumber = idErr;
 
-      if (!edit.region) nextErrors.region = 'A Região é obrigatória.';
-      else if (!(REGIONS as readonly string[]).includes(edit.region)) nextErrors.region = 'A Região selecionada é inválida.';
+      if (!regionTrim) nextErrors.region = 'A Região é obrigatória.';
+      else if (!(REGIONS as readonly string[]).includes(regionTrim)) nextErrors.region = 'A Região selecionada é inválida.';
 
-      if (edit.region === 'Outra') {
-        const regionOtherTrim = edit.regionOther.trim();
+      if (regionTrim === 'Outra') {
         if (!regionOtherTrim) nextErrors.regionOther = 'Indique a Região.';
         else if (regionOtherTrim.length < 2) nextErrors.regionOther = 'Indique uma Região válida.';
       }
+    } else {
+      if (addressTrim && addressTrim.length < 10) nextErrors.address = 'A Morada deve ter pelo menos 10 caracteres.';
 
-      setPersonalInfoErrors(nextErrors);
-      if (Object.keys(nextErrors).length) return;
+      if (idTrim) {
+        const idErr = validateIdentificationNumber(idTrim);
+        if (idErr && idErr !== 'O Nº Identificação é obrigatório.') nextErrors.identificationNumber = idErr;
+      }
+
+      if (regionTrim && !(REGIONS as readonly string[]).includes(regionTrim)) nextErrors.region = 'A Região selecionada é inválida.';
+
+      if (regionTrim === 'Outra') {
+        if (!regionOtherTrim) nextErrors.regionOther = 'Indique a Região.';
+        else if (regionOtherTrim.length < 2) nextErrors.regionOther = 'Indique uma Região válida.';
+      }
     }
+
+    if (phoneTrim) {
+      const digits = phoneTrim.replace(/\D+/g, '');
+      if (digits.length < 9) nextErrors.phone = 'Indique um telefone válido.';
+    }
+    if (birthDateTrim && !/^(\d{4})-(\d{2})-(\d{2})$/.test(birthDateTrim)) nextErrors.birthDate = 'Indique uma data válida.';
+    if (nationalityTrim && nationalityTrim.length < 2) nextErrors.nationality = 'Indique uma nacionalidade válida.';
+
+    setPersonalInfoErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
 
     setPersonalInfoErrors({});
     setSaving(true);
@@ -391,23 +433,28 @@ export default function ProfilePage() {
         professionalExperience: edit.professionalExperience || null,
         skills: edit.skills || null,
         languagesList: edit.languagesList || null,
-        mainNeeds: edit.mainNeeds || null,
         contactPreference: edit.contactPreference || null,
       };
 
+      if (phoneTrim) payload.phone = phoneTrim;
+      if (birthDateTrim) payload.birthDate = birthDateTrim;
+      if (nationalityTrim) payload.nationality = nationalityTrim;
+
       if (isViewingOtherUser) {
-        payload.address = edit.address.trim();
-        payload.identificationNumber = normalizeIdentificationInput(edit.identificationNumber);
-        payload.region = edit.region;
-        payload.regionOther = edit.region === 'Outra' ? edit.regionOther.trim() : null;
+        payload.address = addressTrim;
+        payload.identificationNumber = normalizeIdentificationInput(idTrim);
+        payload.region = regionTrim;
+        payload.regionOther = regionTrim === 'Outra' ? regionOtherTrim : null;
+      } else {
+        if (addressTrim) payload.address = addressTrim;
+        if (idTrim) payload.identificationNumber = normalizeIdentificationInput(idTrim);
+        if (regionTrim) {
+          payload.region = regionTrim;
+          payload.regionOther = regionTrim === 'Outra' ? regionOtherTrim || null : null;
+        }
       }
 
       await updateDocument('profiles', targetUserId, payload);
-
-      if (targetUserId === user.uid) {
-        await updateUserProfile(user.uid, { name: edit.name });
-        await refreshProfile();
-      }
 
       const res = await fetchMigrantProfile(targetUserId);
       setData(res);
@@ -1186,12 +1233,14 @@ export default function ProfilePage() {
                     setPersonalInfoErrors({});
                     setEdit({
                       name: profileDoc.name || data?.userProfile?.name || '',
+                      phone: profileDoc.phone || (typeof triageAnswers.phone === 'string' ? triageAnswers.phone : '') || '',
+                      birthDate: profileDoc.birthDate || (typeof triageAnswers.birth_date === 'string' ? triageAnswers.birth_date : '') || '',
+                      nationality: profileDoc.nationality || (typeof triageAnswers.nationality === 'string' ? triageAnswers.nationality : '') || '',
                       resumeUrl: profileDoc.resumeUrl || '',
                       professionalTitle: profileDoc.professionalTitle || '',
                       professionalExperience: profileDoc.professionalExperience || '',
                       skills: profileDoc.skills || '',
                       languagesList: profileDoc.languagesList || '',
-                      mainNeeds: profileDoc.mainNeeds || '',
                       contactPreference: (profileDoc.contactPreference as 'email' | 'phone') || 'email',
                       address: profileDoc.address || '',
                       identificationNumber: profileDoc.identificationNumber || '',
@@ -1247,20 +1296,80 @@ export default function ProfilePage() {
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Telefone</p>
-              <p className="mt-1 font-medium">{profileReadOnlyFields.phone || '—'}</p>
+              {editMode ? (
+                <>
+                  <Label htmlFor="profile-phone" className="sr-only">Telefone</Label>
+                  <PhoneInput
+                    id="profile-phone"
+                    value={edit.phone}
+                    onChange={(v) => {
+                      setEdit((s) => ({ ...s, phone: v }));
+                      if (personalInfoErrors.phone) setPersonalInfoErrors((prev) => ({ ...prev, phone: undefined }));
+                    }}
+                    className="mt-2"
+                  />
+                  {personalInfoErrors.phone ? (
+                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.phone}</p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 font-medium">{profileReadOnlyFields.phone || '—'}</p>
+              )}
             </div>
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Nacionalidade</p>
-              <p className="mt-1 font-medium">{profileReadOnlyFields.nationality || '—'}</p>
+              {editMode ? (
+                <>
+                  <Label htmlFor="profile-nationality" className="sr-only">Nacionalidade</Label>
+                  <Input
+                    id="profile-nationality"
+                    aria-label="Nacionalidade"
+                    value={edit.nationality}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEdit((s) => ({ ...s, nationality: v }));
+                      if (personalInfoErrors.nationality) setPersonalInfoErrors((prev) => ({ ...prev, nationality: undefined }));
+                    }}
+                    className="mt-2"
+                    placeholder="Ex.: Brasil"
+                  />
+                  {personalInfoErrors.nationality ? (
+                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.nationality}</p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 font-medium">{profileReadOnlyFields.nationality || '—'}</p>
+              )}
             </div>
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Data de nascimento</p>
-              <p className="mt-1 font-medium">{profileReadOnlyFields.birth || '—'}</p>
+              {editMode ? (
+                <>
+                  <Label htmlFor="profile-birth-date" className="sr-only">Data de nascimento</Label>
+                  <Input
+                    id="profile-birth-date"
+                    aria-label="Data de nascimento"
+                    type="date"
+                    value={edit.birthDate}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEdit((s) => ({ ...s, birthDate: v }));
+                      if (personalInfoErrors.birthDate) setPersonalInfoErrors((prev) => ({ ...prev, birthDate: undefined }));
+                    }}
+                    className="mt-2"
+                  />
+                  {personalInfoErrors.birthDate ? (
+                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.birthDate}</p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mt-1 font-medium">{profileReadOnlyFields.birth || '—'}</p>
+              )}
             </div>
 
             <div className="sm:col-span-2">
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Morada</p>
-              {editMode && isViewingOtherUser ? (
+              {editMode ? (
                 <>
                   <Label htmlFor="profile-address" className="sr-only">Morada</Label>
                   <Input
@@ -1286,7 +1395,7 @@ export default function ProfilePage() {
 
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Nº Identificação</p>
-              {editMode && isViewingOtherUser ? (
+              {editMode ? (
                 <>
                   <Label htmlFor="profile-identification" className="sr-only">Nº Identificação</Label>
                   <Input
@@ -1316,7 +1425,7 @@ export default function ProfilePage() {
 
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Região</p>
-              {editMode && isViewingOtherUser ? (
+              {editMode ? (
                 <>
                   <Select
                     value={edit.region}
@@ -1657,18 +1766,48 @@ export default function ProfilePage() {
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Idiomas</p>
               {editMode ? (
-                <Input value={edit.languagesList} onChange={(e) => setEdit((s) => ({ ...s, languagesList: e.target.value }))} className="mt-2" />
+                (() => {
+                  const options = ['portuguese', 'english', 'french', 'spanish', 'other'] as const;
+                  const labelMap = new Map(options.map((k) => [t.get(`triage.options.languages.${k}`).toLowerCase(), k]));
+                  const currentTokens = edit.languagesList
+                    .split(/[,\n;]/g)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  const selected = new Set(
+                    currentTokens
+                      .map((tok) => labelMap.get(tok.toLowerCase()))
+                      .filter((v): v is (typeof options)[number] => !!v)
+                  );
+
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {options.map((opt) => {
+                        const label = t.get(`triage.options.languages.${opt}`);
+                        const isSelected = selected.has(opt);
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => {
+                              const nextSelected = new Set(selected);
+                              if (isSelected) nextSelected.delete(opt);
+                              else nextSelected.add(opt);
+                              const nextLabels = Array.from(nextSelected).map((k) => t.get(`triage.options.languages.${k}`));
+                              setEdit((s) => ({ ...s, languagesList: nextLabels.join(', ') }));
+                            }}
+                            className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                              isSelected ? 'bg-primary/10 text-primary border-primary/50' : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               ) : (
                 <p className="mt-2 font-medium">{edit.languagesList?.trim() ? edit.languagesList : '—'}</p>
-              )}
-            </div>
-
-            <div className="md:col-span-2">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Necessidades principais</p>
-              {editMode ? (
-                <Textarea value={edit.mainNeeds} onChange={(e) => setEdit((s) => ({ ...s, mainNeeds: e.target.value }))} className="mt-2" />
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">{edit.mainNeeds?.trim() ? edit.mainNeeds : '—'}</p>
               )}
             </div>
           </div>

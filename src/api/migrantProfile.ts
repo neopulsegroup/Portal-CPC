@@ -1,5 +1,5 @@
 import { getUserProfile, type UserProfile } from '@/integrations/firebase/auth';
-import { getDocument, queryDocuments } from '@/integrations/firebase/firestore';
+import { getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
 
 export type MigrantSession = {
   id: string;
@@ -33,6 +33,7 @@ export type MigrantProfileDoc = {
   phone?: string | null;
   birthDate?: string | null;
   nationality?: string | null;
+  registeredAt?: unknown | null;
   photoUrl?: string | null;
   currentLocation?: string | null;
   address?: string | null;
@@ -83,6 +84,15 @@ export async function fetchMigrantProfile(uid: string): Promise<MigrantProfileRe
   const userProfile = await safe(() => getUserProfile(uid), null);
 
   const profileFs = await safe(() => getDocument<Partial<MigrantProfileDoc>>('profiles', uid), null);
+  if (profileFs && !('registeredAt' in profileFs)) {
+    void safe(
+      () =>
+        updateDocument('profiles', uid, {
+          registeredAt: userProfile?.createdAt ?? serverTimestamp(),
+        }),
+      null
+    );
+  }
 
   const profile: MigrantProfileDoc | null = (() => {
     const name = profileFs?.name || userProfile?.name || '';
@@ -95,6 +105,7 @@ export async function fetchMigrantProfile(uid: string): Promise<MigrantProfileRe
       phone: profileFs?.phone ?? null,
       birthDate: profileFs?.birthDate ?? null,
       nationality: profileFs?.nationality ?? null,
+      registeredAt: profileFs?.registeredAt ?? userProfile?.createdAt ?? null,
       photoUrl: profileFs?.photoUrl ?? null,
       currentLocation: profileFs?.currentLocation ?? null,
       address: profileFs?.address ?? null,

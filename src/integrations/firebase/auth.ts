@@ -85,6 +85,7 @@ export async function registerUser(
             photoUrl: null,
             currentLocation: null,
             arrivalDate: null,
+            registeredAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
 

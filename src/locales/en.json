@@ -580,6 +580,7 @@
     "urgencies": "Urgencies",
     "interests": "Interests",
     "overall_progress": "Overall Progress",
+    "triage": "Triage",
     "trails": "Trails",
     "sessions": "Sessions",
     "profile": "Profile",
@@ -1133,6 +1134,7 @@
       "team": "Team",
       "statistics": "Statistics",
       "profile": "Profile",
+      "settings": "Settings",
       "messages": "Messages"
     },
     "profile": {

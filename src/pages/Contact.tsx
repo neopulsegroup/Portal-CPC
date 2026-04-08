@@ -7,22 +7,60 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { addDocument, getDocument, serverTimestamp } from '@/integrations/firebase/firestore';
+import { buildContactNotificationMail, isValidEmail, normalizeEmail } from '@/pages/dashboard/cpc/settingsUtils';
 
 export default function Contact() {
   const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const name = form.name.trim();
+      const email = form.email.trim();
+      const message = form.message.trim();
 
-    setIsSubmitting(false);
-    setSubmitted(true);
-    toast.success(t.contact.form.success);
+      if (!name) throw new Error('Indique o seu nome.');
+      if (!isValidEmail(email)) throw new Error('Indique um email válido.');
+      if (!message) throw new Error('Escreva a sua mensagem.');
+      if (message.length > 5000) throw new Error('A mensagem é demasiado longa.');
+
+      const settings = await getDocument<{ id: string; notificationEmail?: string | null }>('system_settings', 'contact');
+      const notificationEmail = typeof settings?.notificationEmail === 'string' ? settings.notificationEmail : '';
+      if (!isValidEmail(notificationEmail)) throw new Error('O sistema de contacto não está configurado.');
+
+      const createdAtISO = new Date().toISOString();
+      await addDocument('contact_messages', {
+        name,
+        email: normalizeEmail(email),
+        message,
+        createdAt: serverTimestamp(),
+        source: '/contacto',
+      });
+
+      const mail = buildContactNotificationMail({
+        to: notificationEmail,
+        replyTo: email,
+        name,
+        email,
+        message,
+        createdAtISO,
+      });
+      await addDocument('mail', { ...mail, createdAt: serverTimestamp(), tag: 'contact' });
+
+      setSubmitted(true);
+      toast.success(t.contact.form.success);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [
@@ -67,11 +105,24 @@ export default function Contact() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="name">{t.contact.form.name}</Label>
-                    <Input id="name" required placeholder={t.contact.form.placeholderName} />
+                    <Input
+                      id="name"
+                      required
+                      placeholder={t.contact.form.placeholderName}
+                      value={form.name}
+                      onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">{t.contact.form.email}</Label>
-                    <Input id="email" type="email" required placeholder={t.contact.form.placeholderEmail} />
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      placeholder={t.contact.form.placeholderEmail}
+                      value={form.email}
+                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="message">{t.contact.form.message}</Label>
@@ -80,6 +131,8 @@ export default function Contact() {
                       required
                       rows={5}
                       placeholder={t.contact.form.placeholderMessage}
+                      value={form.message}
+                      onChange={(e) => setForm((s) => ({ ...s, message: e.target.value }))}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -7,13 +7,15 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8090,
+    strictPort: true,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
+    exclude: ["**/node_modules/**", "**/dist/**", "**/coverage/**", "functions/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],

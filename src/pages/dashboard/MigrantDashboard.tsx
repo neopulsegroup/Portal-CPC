@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { addDocument, getDocument, queryDocuments } from '@/integrations/firebase/firestore';
+import { getDocument, subscribeDocument, subscribeQuery } from '@/integrations/firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { CircularProgress } from '@/components/ui/circular-progress';
 import {
   Calendar,
   BookOpen,
@@ -48,20 +49,43 @@ import JobDetailPage from './migrant/JobDetailPage';
 import ProfilePage from './migrant/ProfilePage';
 import SessionsPage from './migrant/SessionsPage';
 import MigrantMessagesPage from './migrant/MessagesPage';
+import BookingSessionWizardDialog from './migrant/BookingSessionWizardDialog';
+
+type MigrantDashboardProfileDoc = {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  birthDate?: string | null;
+  nationality?: string | null;
+  registeredAt?: unknown | null;
+  arrivalDate?: string | null;
+  address?: string | null;
+  identificationNumber?: string | null;
+  region?: string | null;
+  regionOther?: string | null;
+  resumeUrl?: string | null;
+  professionalTitle?: string | null;
+  professionalExperience?: string | null;
+  skills?: string | null;
+  languagesList?: string | null;
+  mainNeeds?: string | null;
+  contactPreference?: string | null;
+};
 
 function MigrantHome() {
   const { t } = useLanguage();
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Array<{ id: string; session_type: string; scheduled_date: string; scheduled_time: string; status: string | null }>>([]);
   const [progress, setProgress] = useState<Array<{ trail_id: string; progress_percent: number | null; modules_completed: number | null; completed_at: string | null }>>([]);
   const [trails, setTrails] = useState<Record<string, { id: string; title: string; modules_count: number | null }>>({});
-  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; body: string; date: string; type?: string }>>([]);
-  const [triage, setTriage] = useState<{ legal_status?: string | null; work_status?: string | null; language_level?: string | null; interests?: string[] | null; urgencies?: string[] | null } | null>(null);
+  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; body: string; date: string; type?: string; href?: string }>>([]);
+  const [triage, setTriage] = useState<{ completed?: boolean; legal_status?: string | null; work_status?: string | null; language_level?: string | null; interests?: string[] | null; urgencies?: string[] | null } | null>(null);
+  const [profileDoc, setProfileDoc] = useState<MigrantDashboardProfileDoc | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
-  const [bookType, setBookType] = useState<'mediador' | 'jurista' | 'psicologa'>('mediador');
-  const [bookDate, setBookDate] = useState('');
-  const [bookTime, setBookTime] = useState('');
   const [urgentOpen, setUrgentOpen] = useState(false);
   const [urgentType, setUrgentType] = useState<'juridico' | 'psicologico' | 'habitacional' | 'necessidades'>('juridico');
   const [urgentDesc, setUrgentDesc] = useState('');
@@ -76,56 +100,121 @@ function MigrantHome() {
   });
 
   useEffect(() => {
-    async function fetchAll() {
-      if (!user) return;
-      setLoading(true);
-      try {
-        const [sessionsRes, progressRes, triRes] = await Promise.all([
-          queryDocuments<{ id: string; session_type: string; scheduled_date: string; scheduled_time: string; status: string | null }>(
-            'sessions',
-            [{ field: 'migrant_id', operator: '==', value: user.uid }]
-          ),
-          queryDocuments<{ trail_id: string; progress_percent: number | null; modules_completed: number | null; completed_at: string | null }>(
-            'user_trail_progress',
-            [{ field: 'user_id', operator: '==', value: user.uid }]
-          ),
-          getDocument<{ legal_status?: string | null; work_status?: string | null; language_level?: string | null; interests?: string[] | null; urgencies?: string[] | null }>(
-            'triage',
-            user.uid
-          ),
-        ]);
-        setSessions(sessionsRes || []);
-        const prog = (progressRes || []) as Array<{ trail_id: string; progress_percent: number | null; modules_completed: number | null; completed_at: string | null }>;
+    if (!user) return;
+    setLoading(true);
+    setLoadError(null);
+    let cancelled = false;
+    const ready = { triage: false, profile: false, sessions: false, progress: false };
+    const markReady = () => {
+      if (cancelled) return;
+      if (ready.triage && ready.profile && ready.sessions && ready.progress) setLoading(false);
+    };
+
+    const unsubTriage = subscribeDocument<{ completed?: boolean; interests?: string[] | null; urgencies?: string[] | null; legal_status?: string | null; work_status?: string | null; language_level?: string | null }>({
+      collectionName: 'triage',
+      documentId: user.uid,
+      onNext: (doc) => {
+        ready.triage = true;
+        setTriage(doc || null);
+        markReady();
+      },
+      onError: () => {
+        ready.triage = true;
+        setLoadError('Não foi possível carregar o Perfil de necessidades.');
+        markReady();
+      },
+    });
+
+    const unsubProfile = subscribeDocument<MigrantDashboardProfileDoc>({
+      collectionName: 'profiles',
+      documentId: user.uid,
+      onNext: (doc) => {
+        ready.profile = true;
+        setProfileDoc(doc || null);
+        markReady();
+      },
+      onError: () => {
+        ready.profile = true;
+        setLoadError((prev) => prev || 'Não foi possível carregar os dados do perfil.');
+        markReady();
+      },
+    });
+
+    const unsubSessions = subscribeQuery<{ id: string; session_type: string; scheduled_date: string; scheduled_time: string; status: string | null }>({
+      collectionName: 'sessions',
+      filters: [{ field: 'migrant_id', operator: '==', value: user.uid }],
+      orderByField: { field: 'scheduled_date', direction: 'desc' },
+      onNext: (docs) => {
+        ready.sessions = true;
+        setSessionsError(null);
+        setSessions(docs || []);
+        markReady();
+      },
+      onError: () => {
+        ready.sessions = true;
+        setSessionsError('Não foi possível carregar as sessões.');
+        markReady();
+      },
+    });
+
+    const unsubProgress = subscribeQuery<{ trail_id: string; progress_percent: number | null; modules_completed: number | null; completed_at: string | null }>({
+      collectionName: 'user_trail_progress',
+      filters: [{ field: 'user_id', operator: '==', value: user.uid }],
+      onNext: async (docs) => {
+        ready.progress = true;
+        const prog = (docs || []) as Array<{ trail_id: string; progress_percent: number | null; modules_completed: number | null; completed_at: string | null }>;
         setProgress(prog);
-        if (triRes) setTriage(triRes as typeof triage);
-        const trailIds = Array.from(new Set(prog.map(p => p.trail_id).filter(Boolean)));
-        if (trailIds.length > 0) {
+        try {
+          const trailIds = Array.from(new Set(prog.map((p) => p.trail_id).filter(Boolean)));
+          if (trailIds.length === 0) {
+            setTrails({});
+            markReady();
+            return;
+          }
           const map: Record<string, { id: string; title: string; modules_count: number | null }> = {};
           const docs = await Promise.all(trailIds.map((id) => getDocument<{ id: string; title: string; modules_count: number | null }>('trails', id)));
           docs.forEach((t) => {
             if (t?.id) map[t.id] = t;
           });
           setTrails(map);
-        } else {
+        } catch {
           setTrails({});
+        } finally {
+          markReady();
         }
-        try {
-          const rawNotif = localStorage.getItem(`notifications:${user.uid}`);
-          setNotifications(rawNotif ? JSON.parse(rawNotif) : []);
-        } catch { setNotifications([]); }
-        try {
-          const rawExtras = localStorage.getItem(`profileExtras:${user.uid}`);
-          setExtras(rawExtras ? JSON.parse(rawExtras) : null);
-        } catch { setExtras(null); }
-        try {
-          const rawChat = localStorage.getItem(`chat:${user.uid}`);
-          setChatMessages(rawChat ? JSON.parse(rawChat) : []);
-        } catch { setChatMessages([]); }
-      } finally {
-        setLoading(false);
-      }
+      },
+      onError: () => {
+        ready.progress = true;
+        markReady();
+      },
+    });
+
+    try {
+      const rawNotif = localStorage.getItem(`notifications:${user.uid}`);
+      setNotifications(rawNotif ? JSON.parse(rawNotif) : []);
+    } catch {
+      setNotifications([]);
     }
-    fetchAll();
+    try {
+      const rawExtras = localStorage.getItem(`profileExtras:${user.uid}`);
+      setExtras(rawExtras ? JSON.parse(rawExtras) : null);
+    } catch {
+      setExtras(null);
+    }
+    try {
+      const rawChat = localStorage.getItem(`chat:${user.uid}`);
+      setChatMessages(rawChat ? JSON.parse(rawChat) : []);
+    } catch {
+      setChatMessages([]);
+    }
+
+    return () => {
+      cancelled = true;
+      unsubTriage();
+      unsubProfile();
+      unsubSessions();
+      unsubProgress();
+    };
   }, [user]);
 
   const upcomingSessions = useMemo(() => {
@@ -140,17 +229,80 @@ function MigrantHome() {
   }, [progress]);
 
   const sessionsProgress = useMemo(() => {
-    const count = sessions.length;
-    const percent = Math.min(100, Math.round((count / 5) * 100));
-    return percent;
+    const total = sessions.length;
+    if (total === 0) return 0;
+    const done = sessions.filter((s) => (s.status || '').toLowerCase() === 'completed' || (s.status || '').toLowerCase() === 'concluida' || (s.status || '').toLowerCase() === 'concluída').length;
+    return Math.min(100, Math.round((done / total) * 100));
   }, [sessions]);
 
   const profileCompleteness = useMemo(() => {
-    const fields = [extras?.nationality, extras?.originCountry, extras?.arrivalDate, extras?.skills, extras?.languagesList, extras?.mainNeeds, extras?.professionalTitle, extras?.professionalExperience, extras?.contactPreference, profile?.phone, profile?.name];
-    const filled = fields.filter(v => !!v && String(v).trim().length > 0).length;
-    const percent = Math.round((filled / fields.length) * 100);
-    return percent;
-  }, [extras, profile]);
+    const nonEmpty = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+    const normalize = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+    const digits = (v: string) => v.replace(/\D/g, '');
+    const validateBirthDate = (raw: string) => {
+      if (!raw) return false;
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+      if (!m) return false;
+      const d = new Date(raw);
+      return Number.isFinite(d.getTime());
+    };
+    const normalizeId = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+    const validateIdNumber = (raw: string) => {
+      const v = normalizeId(raw);
+      if (!v) return false;
+      if (!/^[A-Z0-9]+$/.test(v)) return false;
+      const onlyDigits = /^\d+$/.test(v);
+      if (onlyDigits) return v.length === 9;
+      return v.length >= 6;
+    };
+    const validateRegion = (raw: string) => ['Lisboa', 'Norte', 'Centro', 'Alentejo', 'Algarve', 'Outra'].includes(raw);
+
+    const p = profileDoc || {};
+    const requiredChecks: boolean[] = [];
+
+    requiredChecks.push(nonEmpty(normalize(p.name) || normalize(profile?.name)));
+
+    const phoneRaw = normalize(p.phone) || normalize((profile as { phone?: string | null } | null)?.phone);
+    requiredChecks.push(Boolean(phoneRaw) && digits(phoneRaw).length >= 9);
+
+    const birthRaw = normalize(p.birthDate);
+    requiredChecks.push(Boolean(birthRaw) && validateBirthDate(birthRaw));
+
+    requiredChecks.push(nonEmpty(normalize(p.nationality)));
+
+    const address = normalize(p.address);
+    requiredChecks.push(Boolean(address) && address.length >= 10);
+
+    const idNumber = normalize(p.identificationNumber);
+    requiredChecks.push(Boolean(idNumber) && validateIdNumber(idNumber));
+
+    const region = normalize(p.region);
+    requiredChecks.push(Boolean(region) && validateRegion(region));
+    if (region === 'Outra') {
+      const other = normalize(p.regionOther);
+      requiredChecks.push(Boolean(other) && other.length >= 2);
+    }
+
+    const professionalTitle = normalize(p.professionalTitle);
+    requiredChecks.push(Boolean(professionalTitle) && professionalTitle.length >= 2);
+
+    const professionalExperience = normalize(p.professionalExperience);
+    requiredChecks.push(Boolean(professionalExperience) && professionalExperience.length >= 10);
+
+    const skills = normalize(p.skills);
+    const skillTokens = skills ? skills.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    requiredChecks.push(skillTokens.length > 0);
+
+    requiredChecks.push(nonEmpty(normalize(p.languagesList)));
+
+    const filled = requiredChecks.filter(Boolean).length;
+    return Math.round((filled / requiredChecks.length) * 100);
+  }, [profile, profileDoc]);
+
+  const triageProgress = useMemo(() => {
+    if (!triage) return 0;
+    return triage.completed ? 100 : 0;
+  }, [triage]);
 
   const triageUrgenciesLabel = useMemo(() => {
     const values = triage?.urgencies || [];
@@ -178,34 +330,114 @@ function MigrantHome() {
   }, [triage, t]);
 
   const overallProgress = useMemo(() => {
-    const parts = [trailsProgressAvg, sessionsProgress, profileCompleteness];
+    const parts = [trailsProgressAvg, sessionsProgress, profileCompleteness, triageProgress];
     return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
-  }, [trailsProgressAvg, sessionsProgress, profileCompleteness]);
+  }, [trailsProgressAvg, sessionsProgress, profileCompleteness, triageProgress]);
 
   const suggestedActions = useMemo(() => {
     const actions: Array<{ label: string; href: string }> = [];
-    if (!extras?.professionalExperience || !extras?.professionalTitle) actions.push({ label: t.dashboard.complete_cv_action, href: '/dashboard/migrante/perfil' });
+    if (!(profileDoc?.professionalExperience || extras?.professionalExperience) || !(profileDoc?.professionalTitle || extras?.professionalTitle)) {
+      actions.push({ label: t.dashboard.complete_cv_action, href: '/dashboard/migrante/perfil' });
+    }
     if (progress.length === 0) actions.push({ label: t.dashboard.start_trail_action, href: '/dashboard/migrante/trilhas' });
     if (upcomingSessions.length === 0) actions.push({ label: t.dashboard.book_session_action, href: '#' });
     return actions;
-  }, [extras, progress, upcomingSessions.length]);
+  }, [extras, profileDoc, progress, upcomingSessions.length]);
 
-  async function bookSession() {
-    if (!user || !bookDate || !bookTime) return;
-    await addDocument('sessions', {
-      migrant_id: user.uid,
-      session_type: bookType,
-      scheduled_date: bookDate,
-      scheduled_time: bookTime,
-      status: 'Agendada',
-    });
-    setBookOpen(false);
-    const data = await queryDocuments<{ id: string; session_type: string; scheduled_date: string; scheduled_time: string; status: string | null }>(
-      'sessions',
-      [{ field: 'migrant_id', operator: '==', value: user.uid }]
-    );
-    setSessions(data || []);
-  }
+  const profileRequiredAlert = useMemo(() => {
+    const nonEmpty = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+    const normalize = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+    const digits = (v: string) => v.replace(/\D/g, '');
+    const validateBirthDate = (raw: string) => {
+      if (!raw) return false;
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+      if (!m) return false;
+      const d = new Date(raw);
+      return Number.isFinite(d.getTime());
+    };
+    const normalizeId = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
+    const validateIdNumber = (raw: string) => {
+      const v = normalizeId(raw);
+      if (!v) return false;
+      if (!/^[A-Z0-9]+$/.test(v)) return false;
+      const onlyDigits = /^\d+$/.test(v);
+      if (onlyDigits) return v.length === 9;
+      return v.length >= 6;
+    };
+    const validateRegion = (raw: string) => ['Lisboa', 'Norte', 'Centro', 'Alentejo', 'Algarve', 'Outra'].includes(raw);
+
+    const p = profileDoc || {};
+
+    const missingPersonal: string[] = [];
+    const missingProfessional: string[] = [];
+
+    const name = normalize(p.name) || normalize(profile?.name);
+    if (!name) missingPersonal.push('Nome');
+
+    const phoneRaw = normalize(p.phone) || normalize((profile as { phone?: string | null } | null)?.phone);
+    if (!phoneRaw || digits(phoneRaw).length < 9) missingPersonal.push('Telefone');
+
+    const birthRaw = normalize(p.birthDate);
+    if (!birthRaw || !validateBirthDate(birthRaw)) missingPersonal.push('Data de nascimento');
+
+    const nationality = normalize(p.nationality);
+    if (!nationality) missingPersonal.push('Nacionalidade');
+
+    const address = normalize(p.address);
+    if (!address || address.length < 10) missingPersonal.push('Morada');
+
+    const idNumber = normalize(p.identificationNumber);
+    if (!idNumber || !validateIdNumber(idNumber)) missingPersonal.push('Nº Identificação');
+
+    const region = normalize(p.region);
+    if (!region || !validateRegion(region)) missingPersonal.push('Região');
+    if (region === 'Outra') {
+      const other = normalize(p.regionOther);
+      if (!other || other.length < 2) missingPersonal.push('Região (Outra)');
+    }
+
+    const professionalTitle = normalize(p.professionalTitle);
+    if (!professionalTitle || professionalTitle.length < 2) missingProfessional.push('Título profissional');
+
+    const professionalExperience = normalize(p.professionalExperience);
+    if (!professionalExperience || professionalExperience.length < 10) missingProfessional.push('Experiência profissional');
+
+    const skills = normalize(p.skills);
+    const skillTokens = skills ? skills.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    if (skillTokens.length === 0) missingProfessional.push('Competências');
+
+    const languagesList = normalize(p.languagesList);
+    if (!languagesList) missingProfessional.push('Idiomas');
+
+    if (missingPersonal.length === 0 && missingProfessional.length === 0) return null;
+
+    const summarize = (items: string[]) => {
+      const head = items.slice(0, 4).join(', ');
+      if (items.length <= 4) return head;
+      return `${head} e mais ${items.length - 4}`;
+    };
+
+    const parts: string[] = [];
+    if (missingPersonal.length) parts.push(`Informação Pessoal: ${summarize(missingPersonal)}.`);
+    if (missingProfessional.length) parts.push(`Perfil Profissional: ${summarize(missingProfessional)}.`);
+
+    return {
+      id: 'profile-required-alert',
+      title: 'Complete o seu cadastro',
+      body: `${parts.join(' ')} Aceda ao seu Perfil para concluir.`,
+      date: new Date().toISOString(),
+      type: 'warning',
+      href: '/dashboard/migrante/perfil',
+    };
+  }, [profile?.name, profile, profileDoc]);
+
+  const visibleNotifications = useMemo(() => {
+    const list = [
+      ...(profileRequiredAlert ? [profileRequiredAlert] : []),
+      ...notifications,
+    ];
+    return list.slice(0, 4);
+  }, [notifications, profileRequiredAlert]);
 
   function addUrgentRequest() {
     if (!user || !urgentDesc) return;
@@ -259,6 +491,7 @@ function MigrantHome() {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">{t.dashboard.needs_profile}</p>
+                
                 <div className="mt-2 text-sm">
                   <span className="font-medium">{t.dashboard.urgencies}:</span> {triageUrgenciesLabel}
                 </div>
@@ -268,19 +501,15 @@ function MigrantHome() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t.dashboard.overall_progress}</p>
-                <div className="mt-2 text-sm">
-                  <Progress value={overallProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {t.dashboard.trails}: {trailsProgressAvg}% • {t.dashboard.sessions}: {sessionsProgress}% • {t.dashboard.profile}: {profileCompleteness}%
-                  </p>
+                <div className="mt-4 grid grid-cols-2 justify-items-center gap-x-6 gap-y-4 sm:grid-cols-4">
+                  <CircularProgress value={trailsProgressAvg} label={t.dashboard.trails} />
+                  <CircularProgress value={sessionsProgress} label={t.dashboard.sessions} />
+                  <CircularProgress value={profileCompleteness} label={t.dashboard.profile} />
+                  <CircularProgress value={triageProgress} label={t.get('dashboard.triage')} />
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Button variant="outline" size="sm"><FileText className="h-4 w-4 mr-2" />{t.dashboard.complete_cv_action}</Button>
-              <Button variant="outline" size="sm"><ListChecks className="h-4 w-4 mr-2" />{t.dashboard.start_trail_action}</Button>
-              <Button variant="default" size="sm" onClick={() => setBookOpen(true)}><Calendar className="h-4 w-4 mr-2" />{t.dashboard.book_session_action}</Button>
-            </div>
+            
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -291,6 +520,9 @@ function MigrantHome() {
                 <Link to="/dashboard/migrante/sessoes" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
               </CardHeader>
               <CardContent>
+                {sessionsError ? (
+                  <p className="mb-2 text-xs text-destructive">{sessionsError}</p>
+                ) : null}
                 {upcomingSessions.length > 0 ? (
                   <div className="space-y-3">
                     {upcomingSessions.slice(0, 4).map(s => (
@@ -307,7 +539,10 @@ function MigrantHome() {
                 ) : (
                   <div className="text-sm text-muted-foreground mb-4">{t.dashboard.no_sessions}</div>
                 )}
-                <Button variant="outline" size="sm" className="w-full" onClick={() => setBookOpen(true)}>{t.dashboard.book_session_action}</Button>
+                <Button variant="default" size="sm" className="w-full" onClick={() => setBookOpen(true)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {t.dashboard.book_session_action}
+                </Button>
               </CardContent>
             </Card>
 
@@ -333,9 +568,12 @@ function MigrantHome() {
                 ) : (
                   <div className="text-sm text-muted-foreground mb-4">{t.dashboard.no_trails}</div>
                 )}
-                <Link to="/dashboard/migrante/trilhas" className="text-sm text-primary hover:underline inline-flex items-center">
-                  <ArrowRight className="h-4 w-4 mr-1" /> {t.dashboard.startTrail}
-                </Link>
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to="/dashboard/migrante/trilhas">
+                    <ListChecks className="h-4 w-4 mr-2" />
+                    {t.dashboard.start_trail_action}
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -347,12 +585,18 @@ function MigrantHome() {
               <Link to="/dashboard/migrante/emprego" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-              <Link to="/dashboard/migrante/perfil" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted">
-                <FileText className="h-4 w-4" />{t.dashboard.completeCv}
-              </Link>
-              <Link to="/dashboard/migrante/emprego" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm hover:bg-muted">
-                <Briefcase className="h-4 w-4" />{t.dashboard.view_vacancies}
-              </Link>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/migrante/perfil">
+                  <FileText className="h-4 w-4 mr-2" />
+                  {t.dashboard.completeCv}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard/migrante/emprego">
+                  <Briefcase className="h-4 w-4 mr-2" />
+                  {t.dashboard.view_vacancies}
+                </Link>
+              </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               {[{ id: '1', title: 'Auxiliar de Limpeza', company: 'CleanPro', location: 'Lisboa' }, { id: '2', title: 'Operador de Armazém', company: 'LogiTech', location: 'Sintra' }].map(job => (
@@ -376,15 +620,28 @@ function MigrantHome() {
               <h3 className="font-semibold flex items-center gap-2"><Bell className="h-4 w-4" />{t.dashboard.notifications}</h3>
             </CardHeader>
             <CardContent>
-              {notifications.length > 0 ? (
+              {visibleNotifications.length > 0 ? (
                 <div className="space-y-3">
-                  {notifications.slice(0, 4).map(n => (
-                    <div key={n.id} className="p-3 rounded-lg bg-muted/50 flex flex-col gap-1">
-                      <p className="font-medium text-sm">{n.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{n.body}</p>
-                      <span className="text-[10px] text-muted-foreground mt-1">{new Date(n.date).toLocaleString()}</span>
-                    </div>
-                  ))}
+                  {visibleNotifications.map((n) => {
+                    const isWarn = n.type === 'warning';
+                    const baseClass = `p-3 rounded-lg flex flex-col gap-1 ${isWarn ? 'border border-amber-200 bg-amber-50/60' : 'bg-muted/50'}`;
+                    const content = (
+                      <>
+                        <p className="font-medium text-sm">{n.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-3">{n.body}</p>
+                        <span className="text-[10px] text-muted-foreground mt-1">{new Date(n.date).toLocaleString()}</span>
+                      </>
+                    );
+                    return n.href ? (
+                      <Link key={n.id} to={n.href} className={`${baseClass} hover:bg-amber-50`}>
+                        {content}
+                      </Link>
+                    ) : (
+                      <div key={n.id} className={baseClass}>
+                        {content}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{t.dashboard.no_notifications}</p>
@@ -479,33 +736,7 @@ function MigrantHome() {
         </div>
       </div>
 
-      <Dialog open={bookOpen} onOpenChange={setBookOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t.dashboard.book_session_action}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <Label>{t.dashboard.type}</Label>
-              <Select value={bookType} onValueChange={(v) => setBookType(v as typeof bookType)}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mediador">{t.dashboard.session_types.mediador}</SelectItem>
-                  <SelectItem value="jurista">{t.dashboard.session_types.jurista}</SelectItem>
-                  <SelectItem value="psicologa">{t.dashboard.session_types.psicologa}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{t.dashboard.date}</Label>
-              <Input type="date" value={bookDate} onChange={(e) => setBookDate(e.target.value)} className="mt-1" />
-            </div>
-            <div>
-              <Label>{t.dashboard.time}</Label>
-              <Input type="time" value={bookTime} onChange={(e) => setBookTime(e.target.value)} className="mt-1" />
-            </div>
-          </div>
-          <DialogFooter><Button onClick={bookSession}>{t.dashboard.confirm}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BookingSessionWizardDialog open={bookOpen} onOpenChange={setBookOpen} userId={user?.uid ?? null} />
 
       <Dialog open={urgentOpen} onOpenChange={setUrgentOpen}>
         <DialogContent>

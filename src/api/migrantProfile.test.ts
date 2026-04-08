@@ -28,6 +28,8 @@ vi.mock('@/integrations/firebase/firestore', () => ({
     }
     return [];
   }),
+  updateDocument: vi.fn(async () => {}),
+  serverTimestamp: () => ({ __type: 'serverTimestamp' }),
 }));
 
 describe('fetchMigrantProfile', () => {

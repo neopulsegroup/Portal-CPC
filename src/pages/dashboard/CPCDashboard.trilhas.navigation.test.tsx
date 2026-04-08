@@ -42,6 +42,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
           'cpc.menu.trails': 'Trilhas',
           'cpc.menu.team': 'Equipa',
           'cpc.menu.profile': 'Perfil',
+          'cpc.menu.settings': 'Configurações',
           'cpc.menu.messages': 'Mensagens',
           'cpcTranslations.title': 'Traduções',
           'cpc.dashboard.welcome': 'Bem-vindo(a)',
@@ -237,7 +238,8 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
     const links = Array.from(nav.querySelectorAll('a'))
       .map((a) => a.textContent?.trim() ?? '')
       .filter(Boolean);
-    expect(links.at(-2)).toBe('Perfil');
+    expect(links.at(-3)).toBe('Perfil');
+    expect(links.at(-2)).toBe('Configurações');
     expect(links.at(-1)).toBe('Mensagens');
 
     unmount();
@@ -256,7 +258,8 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
     const links2 = Array.from(nav2.querySelectorAll('a'))
       .map((a) => a.textContent?.trim() ?? '')
       .filter(Boolean);
-    expect(links2.at(-2)).toBe('Perfil');
+    expect(links2.at(-3)).toBe('Perfil');
+    expect(links2.at(-2)).toBe('Configurações');
     expect(links2.at(-1)).toBe('Mensagens');
   });
 

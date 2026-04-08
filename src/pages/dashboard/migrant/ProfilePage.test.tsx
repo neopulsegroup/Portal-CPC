@@ -83,6 +83,7 @@ vi.mock('pdf-lib', () => {
 describe('ProfilePage (dashboard/migrante)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetchMigrantProfile.mockReset();
     stableUser.uid = 'u1';
     (stableAuthProfile as { role: string }).role = 'migrant';
   });
@@ -211,7 +212,6 @@ describe('ProfilePage (dashboard/migrante)', () => {
 
     await waitFor(() => {
       expect(mockUpdateDocument).toHaveBeenCalledWith('profiles', 'u1', expect.objectContaining({ name: 'Ana Maria' }));
-      expect(mockUpdateUserProfile).toHaveBeenCalledWith('u1', expect.objectContaining({ name: 'Ana Maria' }));
     });
   });
 
@@ -524,6 +524,42 @@ describe('ProfilePage (dashboard/migrante)', () => {
       expect(mockGetDownloadURL).toHaveBeenCalled();
       expect(mockUpdateDocument).toHaveBeenCalledWith('profiles', 'u1', expect.objectContaining({ photoUrl: 'https://exemplo.com/foto.png' }));
     });
+  });
+
+  it('permite editar campos de "Informação Pessoal" e usa seletor de opções em "Idiomas"', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'ana@exemplo.com', name: 'Ana', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'u1', name: 'Ana', email: 'ana@exemplo.com', phone: null, address: '', identificationNumber: '', region: null, regionOther: null },
+      triage: null,
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+    await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+
+    expect(screen.getByLabelText('Morada')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nº Identificação')).toBeInTheDocument();
+    expect(screen.getByLabelText('Região')).toBeInTheDocument();
+
+    expect(screen.getByLabelText('Telefone')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nacionalidade')).toBeInTheDocument();
+    expect(screen.getByLabelText('Data de nascimento')).toBeInTheDocument();
+
+    expect(screen.queryByText('Necessidades principais')).toBeNull();
+
+    expect(screen.getByRole('button', { name: 'triage.options.languages.portuguese' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'triage.options.languages.english' })).toBeInTheDocument();
   });
 
   it('exporta triagem em PDF no perfil CPC quando existem respostas', async () => {

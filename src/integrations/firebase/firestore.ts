@@ -287,6 +287,35 @@ export function subscribeQuery<T>(args: {
     );
 }
 
+export function subscribeDocument<T>(args: {
+    collectionName: string;
+    documentId: string;
+    onNext: (doc: T | null) => void;
+    onError?: (error: unknown) => void;
+}): () => void {
+    const { collectionName, documentId, onNext, onError } = args;
+    const docRef = doc(db, collectionName, documentId);
+    return onSnapshot(
+        docRef,
+        (snap) => {
+            if (!snap.exists()) {
+                onNext(null);
+                return;
+            }
+            onNext({ id: snap.id, ...snap.data() } as T);
+        },
+        (error) => {
+            console.error(`Error subscribing doc ${collectionName}/${documentId}:`, {
+                code: getFirestoreErrorCode(error),
+                uid: auth.currentUser?.uid ?? null,
+                hasAuth: !!auth.currentUser,
+                error,
+            });
+            onError?.(error);
+        }
+    );
+}
+
 /**
  * Helper to convert Firestore Timestamp to Date
  */
