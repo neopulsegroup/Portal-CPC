@@ -42,7 +42,8 @@ export type ActivitiesListFilters = {
   topic: string | 'all';
   startAtMin: string | null;
   startAtMax: string | null;
-  searchToken: string | null;
+  /** Até 10 tokens; Firestore `array-contains-any` (documento contém qualquer um). */
+  searchTokensAny: string[] | null;
 };
 
 function buildFirestoreFilters(filters: ActivitiesListFilters) {
@@ -52,29 +53,171 @@ function buildFirestoreFilters(filters: ActivitiesListFilters) {
   if (filters.format !== 'all') out.push({ field: 'format', operator: '==', value: filters.format });
   if (filters.consultantId !== 'all') out.push({ field: 'consultantIds', operator: 'array-contains', value: filters.consultantId });
   if (filters.topic !== 'all') out.push({ field: 'topics', operator: 'array-contains', value: filters.topic });
-  if (filters.searchToken) out.push({ field: 'searchTokens', operator: 'array-contains', value: filters.searchToken });
+  if (filters.searchTokensAny && filters.searchTokensAny.length > 0) {
+    out.push({ field: 'searchTokens', operator: 'array-contains-any', value: filters.searchTokensAny });
+  }
   if (filters.startAtMin) out.push({ field: 'startAt', operator: '>=', value: filters.startAtMin });
   if (filters.startAtMax) out.push({ field: 'startAt', operator: '<=', value: filters.startAtMax });
   return out;
 }
 
-export async function countActivities(filters: ActivitiesListFilters): Promise<number> {
-  return countDocuments('activities', buildFirestoreFilters(filters));
+/**
+ * Firestore permite no máximo um filtro `array-contains` / `array-contains-any` por consulta.
+ * Com pesquisa + temática + consultor ativos em simultâneo, mantém-se no servidor o de maior prioridade
+ * (pesquisa → consultor → temática) e aplicam-se os restantes em memória após ler os documentos.
+ */
+function planActivitiesQuery(filters: ActivitiesListFilters): {
+  serverFilters: ReturnType<typeof buildFirestoreFilters>;
+  clientPredicate: (doc: ActivityDoc) => boolean;
+  needsBufferedScan: boolean;
+} {
+  const hasSearch = !!(filters.searchTokensAny && filters.searchTokensAny.length > 0);
+  const hasTopic = filters.topic !== 'all';
+  const hasConsultant = filters.consultantId !== 'all';
+  const arrayCount = (hasSearch ? 1 : 0) + (hasTopic ? 1 : 0) + (hasConsultant ? 1 : 0);
+
+  if (arrayCount <= 1) {
+    return {
+      serverFilters: buildFirestoreFilters(filters),
+      clientPredicate: () => true,
+      needsBufferedScan: false,
+    };
+  }
+
+  const server: ActivitiesListFilters = {
+    type: filters.type,
+    status: filters.status,
+    format: filters.format,
+    consultantId: 'all',
+    topic: 'all',
+    searchTokensAny: null,
+    startAtMin: filters.startAtMin,
+    startAtMax: filters.startAtMax,
+  };
+
+  let clientTopic = false;
+  let clientConsultant = false;
+
+  if (hasSearch) {
+    server.searchTokensAny = filters.searchTokensAny;
+    clientTopic = hasTopic;
+    clientConsultant = hasConsultant;
+  } else if (hasConsultant) {
+    server.consultantId = filters.consultantId;
+    clientTopic = hasTopic;
+  } else if (hasTopic) {
+    server.topic = filters.topic;
+  }
+
+  const topicValue = filters.topic;
+  const consultantValue = filters.consultantId;
+
+  const clientPredicate = (row: ActivityDoc): boolean => {
+    if (clientTopic && topicValue !== 'all' && !(row.topics || []).includes(topicValue)) return false;
+    if (clientConsultant && consultantValue !== 'all' && !(row.consultantIds || []).includes(consultantValue)) return false;
+    return true;
+  };
+
+  return {
+    serverFilters: buildFirestoreFilters(server),
+    clientPredicate,
+    needsBufferedScan: true,
+  };
 }
+
+export async function countActivities(filters: ActivitiesListFilters): Promise<number> {
+  const planned = planActivitiesQuery(filters);
+  if (!planned.needsBufferedScan) {
+    return countDocuments('activities', planned.serverFilters);
+  }
+
+  let firestoreCursor: string | null = null;
+  let total = 0;
+  const batchSize = 200;
+  let guard = 0;
+  while (guard < 500) {
+    guard += 1;
+    const batch = await queryDocuments<ActivityDoc>(
+      'activities',
+      planned.serverFilters,
+      { field: 'startAt', direction: 'desc' },
+      batchSize,
+      firestoreCursor ? [firestoreCursor] : undefined
+    );
+    if (batch.length === 0) break;
+    for (const doc of batch) {
+      if (planned.clientPredicate(doc)) total += 1;
+    }
+    firestoreCursor = batch[batch.length - 1]?.startAt ?? null;
+    if (batch.length < batchSize || !firestoreCursor) break;
+  }
+  return total;
+}
+
+export type ListActivitiesPageResult = { rows: ActivityDoc[]; nextCursor: string | null };
 
 export async function listActivitiesPage(args: {
   filters: ActivitiesListFilters;
   limit: number;
   cursorStartAfterStartAt?: string | null;
-}): Promise<ActivityDoc[]> {
+}): Promise<ListActivitiesPageResult> {
   const { filters, limit: limitCount, cursorStartAfterStartAt } = args;
-  return queryDocuments<ActivityDoc>(
-    'activities',
-    buildFirestoreFilters(filters),
-    { field: 'startAt', direction: 'desc' },
-    limitCount,
-    cursorStartAfterStartAt ? [cursorStartAfterStartAt] : undefined
-  );
+  const planned = planActivitiesQuery(filters);
+
+  if (!planned.needsBufferedScan) {
+    const rows = await queryDocuments<ActivityDoc>(
+      'activities',
+      planned.serverFilters,
+      { field: 'startAt', direction: 'desc' },
+      limitCount,
+      cursorStartAfterStartAt ? [cursorStartAfterStartAt] : undefined
+    );
+    return {
+      rows,
+      nextCursor: rows.length === limitCount ? rows[rows.length - 1]?.startAt ?? null : null,
+    };
+  }
+
+  const batchSize = Math.max(80, limitCount * 3);
+  let firestoreCursor: string | null = cursorStartAfterStartAt ?? null;
+  const out: ActivityDoc[] = [];
+  let lastReadStartAt: string | null = null;
+  let iterations = 0;
+  let serverExhausted = false;
+
+  while (out.length < limitCount && iterations < 400) {
+    iterations += 1;
+    const batch = await queryDocuments<ActivityDoc>(
+      'activities',
+      planned.serverFilters,
+      { field: 'startAt', direction: 'desc' },
+      batchSize,
+      firestoreCursor ? [firestoreCursor] : undefined
+    );
+    if (batch.length === 0) {
+      serverExhausted = true;
+      break;
+    }
+
+    for (const doc of batch) {
+      lastReadStartAt = doc.startAt;
+      if (planned.clientPredicate(doc)) {
+        out.push(doc);
+        if (out.length >= limitCount) break;
+      }
+    }
+
+    const lastInBatch = batch[batch.length - 1]?.startAt ?? null;
+    firestoreCursor = lastInBatch;
+    if (batch.length < batchSize) serverExhausted = true;
+    if (out.length >= limitCount) break;
+    if (!firestoreCursor) break;
+  }
+
+  return {
+    rows: out,
+    nextCursor: out.length === limitCount && !serverExhausted && lastReadStartAt ? lastReadStartAt : null,
+  };
 }
 
 export async function getActivity(activityId: string): Promise<ActivityDoc | null> {

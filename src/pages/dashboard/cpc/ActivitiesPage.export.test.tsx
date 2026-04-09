@@ -44,6 +44,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
           'cpc.activities.filters.search.label': 'Pesquisar',
           'cpc.activities.filters.search.placeholder': 'Pesquisar por título ou tema',
           'cpc.activities.filters.search.action': 'Aplicar',
+          'cpc.activities.filters.search.hint': 'Dica pesquisa',
           'cpc.activities.filters.search.disabled_hint': 'Pesquisa desativada',
           'cpc.activities.filters.type': 'Tipo',
           'cpc.activities.filters.all_types': 'Todos os tipos',
@@ -90,7 +91,7 @@ describe('ActivitiesPage - exportação', () => {
 
   it('exporta CSV com cabeçalho e linhas esperadas', async () => {
     mockLoadActivitiesSummary.mockResolvedValue({ total: 0 });
-    mockLoadActivitiesPage.mockResolvedValue([]);
+    mockLoadActivitiesPage.mockResolvedValue({ rows: [], nextCursor: null });
     mockLoadActivitiesForExport.mockResolvedValue([
       {
         id: 'a1',
@@ -185,7 +186,7 @@ describe('ActivitiesPage - exportação', () => {
 
   it('abre janela imprimível para Exportar PDF contendo cabeçalho e tabela', async () => {
     mockLoadActivitiesSummary.mockResolvedValue({ total: 0 });
-    mockLoadActivitiesPage.mockResolvedValue([]);
+    mockLoadActivitiesPage.mockResolvedValue({ rows: [], nextCursor: null });
     mockLoadActivitiesForExport.mockResolvedValue([
       {
         id: 'a1',

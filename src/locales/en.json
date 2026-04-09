@@ -1277,6 +1277,7 @@
           "label": "Search",
           "placeholder": "Search by title or location",
           "action": "Apply",
+          "hint": "Use one or more words (min. 2 characters each). Matches activities that contain any of the terms in indexed data.",
           "disabled_hint": "Search is disabled when you select Consultant or Topic."
         },
         "type": "Type",
@@ -1300,7 +1301,7 @@
         },
         "any_topic": "Any topic",
         "hints_title": "Tip",
-        "hints_body": "To keep queries fast, Search, Consultant and Topic cannot be used at the same time."
+        "hints_body": "You can combine type, status, format, period, consultant, topic, and search. If Firestore asks for a composite index, create it in the console when the error appears."
       },
       "fields": {
         "title": "Title",
@@ -1724,6 +1725,12 @@
         "urgencies": {
           "label": "Urgencies",
           "all": "All"
+        },
+        "triage": {
+          "label": "Triage",
+          "all": "All",
+          "complete": "Complete",
+          "incomplete": "Incomplete"
         }
       },
       "empty": {
@@ -2005,6 +2012,7 @@
           "location": "Location",
           "sector": "Sector",
           "contractType": "Contract type",
+          "workMode": "Work mode",
           "salaryRange": "Salary range",
           "requirements": "Requirements"
         },
@@ -2021,6 +2029,11 @@
           "part_time": "Part-time",
           "temporary": "Temporary",
           "internship": "Internship"
+        },
+        "workModes": {
+          "on_site": "On-site",
+          "hybrid": "Hybrid",
+          "remote": "Remote"
         }
       },
       "actions": {

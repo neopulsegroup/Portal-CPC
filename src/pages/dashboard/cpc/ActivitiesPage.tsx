@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { CalendarDays, ClipboardList, Download, FileText, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ClipboardList, Download, FileText, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { ActivityDoc, ActivityStatus, ActivityType } from '@/features/activities/model';
+import { normalizeText } from '@/features/activities/model';
 import { formatDuration, toActivityFormatLabel, toActivityStatusLabel, toActivityTypeLabel } from '@/features/activities/model';
 import type { ActivitiesUiFilters } from '@/features/activities/controller';
-import { loadActivitiesForExport, loadActivitiesPage, loadActivitiesSummary, removeActivity, toFiltersWithDatePreset } from '@/features/activities/controller';
+import { loadActivitiesForExport, loadActivitiesPage, loadActivitiesSummary, removeActivity } from '@/features/activities/controller';
 import { listConsultants } from '@/features/activities/repository';
 
 type ConsultantOption = { id: string; name: string };
+
+/** Temáticas sugeridas no UI (além das que aparecem nos resultados atuais). */
+const ACTIVITY_TOPIC_PRESETS = ['Emprego', 'Saúde', 'Cultura', 'Educação', 'Habitação', 'Jurídico', 'Língua', 'Saúde mental'];
 
 function getInitials(name: string): string {
   const parts = name.split(/\s+/g).filter(Boolean);
@@ -147,29 +151,41 @@ export default function ActivitiesPage() {
     format: 'all',
     consultantId: 'all',
     topic: 'all',
-    datePreset: 'this_month',
+    datePreset: 'all',
   });
 
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<ActivityDoc[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const cursorsRef = useRef<Record<number, string | null>>({ 1: null });
   const pagesCount = useMemo(() => Math.max(1, Math.ceil(total / 20)), [total]);
 
-  const filtersEffective = useMemo(() => toFiltersWithDatePreset(filters), [filters]);
-  const arrayFilterLocked = useMemo(() => {
-    const consultantSelected = filters.consultantId !== 'all';
-    const topicSelected = filters.topic !== 'all';
-    const searchSelected = filters.search.trim().length > 0;
-    return {
-      consultantSelected,
-      topicSelected,
-      searchSelected,
-      consultantDisabled: topicSelected || searchSelected,
-      topicDisabled: consultantSelected || searchSelected,
-      searchDisabled: consultantSelected || topicSelected,
-    };
-  }, [filters.consultantId, filters.search, filters.topic]);
+  const visiblePageNumbers = useMemo(() => {
+    const totalPages = pagesCount;
+    if (totalPages <= 0) return [];
+    const windowSize = Math.min(3, totalPages);
+    if (totalPages <= 3) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+    const start = Math.max(1, Math.min(page - 1, totalPages - 2));
+    return Array.from({ length: windowSize }, (_, idx) => start + idx);
+  }, [page, pagesCount]);
+
+  /** Reinicia página/cursores quando mudam filtros ou a pesquisa (evita cursores de outro conjunto filtrado). */
+  const filtersPaginationResetKey = useMemo(
+    () =>
+      JSON.stringify({
+        type: filters.type,
+        status: filters.status,
+        format: filters.format,
+        consultantId: filters.consultantId,
+        topic: filters.topic,
+        datePreset: filters.datePreset,
+        searchNorm: normalizeText(filters.search).trim(),
+      }),
+    [filters.type, filters.status, filters.format, filters.consultantId, filters.topic, filters.datePreset, filters.search]
+  );
 
   useEffect(() => {
     async function loadOptions() {
@@ -183,10 +199,10 @@ export default function ActivitiesPage() {
     loadOptions();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     cursorsRef.current = { 1: null };
     setPage(1);
-  }, [filtersEffective]);
+  }, [filtersPaginationResetKey, reloadKey]);
 
   async function ensureCursorForPage(targetPage: number): Promise<string | null> {
     if (targetPage <= 1) return null;
@@ -199,9 +215,12 @@ export default function ActivitiesPage() {
     if (!current || current < 1) current = 1;
     while (current < targetPage) {
       const cursor = cursorsRef.current[current] ?? null;
-      const pageRows = await loadActivitiesPage({ uiFilters: filters, limit: 20, cursorStartAfterStartAt: cursor });
-      const last = pageRows.length ? pageRows[pageRows.length - 1] : null;
-      cursorsRef.current[current + 1] = last ? last.startAt : null;
+      const { rows: pageRows, nextCursor } = await loadActivitiesPage({
+        uiFilters: filters,
+        limit: 20,
+        cursorStartAfterStartAt: cursor,
+      });
+      cursorsRef.current[current + 1] = nextCursor;
       current += 1;
       if (pageRows.length < 20) break;
     }
@@ -217,10 +236,14 @@ export default function ActivitiesPage() {
           ensureCursorForPage(page),
         ]);
         setTotal(totalCount);
-        const pageRows = await loadActivitiesPage({ uiFilters: filters, limit: 20, cursorStartAfterStartAt: cursor });
+        const { rows: pageRows, nextCursor } = await loadActivitiesPage({
+          uiFilters: filters,
+          limit: 20,
+          cursorStartAfterStartAt: cursor,
+        });
         setRows(pageRows);
-        const last = pageRows.length ? pageRows[pageRows.length - 1] : null;
-        if (last) cursorsRef.current[page + 1] = last.startAt;
+        if (nextCursor != null) cursorsRef.current[page + 1] = nextCursor;
+        else delete cursorsRef.current[page + 1];
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : t.get('common.error');
         toast({ title: t.get('common.error'), description: message, variant: 'destructive' });
@@ -231,7 +254,7 @@ export default function ActivitiesPage() {
       }
     }
     load();
-  }, [filters, page, t]);
+  }, [filters, page, reloadKey, t]);
 
   const showingLabel = useMemo(() => {
     if (total === 0) return t.get('cpc.activities.list.showing_none');
@@ -242,8 +265,8 @@ export default function ActivitiesPage() {
 
   const topicsOptions = useMemo(() => {
     const set = new Set<string>();
+    ACTIVITY_TOPIC_PRESETS.forEach((topic) => set.add(topic));
     rows.forEach((r) => (r.topics || []).forEach((topic) => set.add(topic)));
-    ['Emprego', 'Saúde', 'Cultura', 'Educação', 'Habitação'].forEach((topic) => set.add(topic));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [rows]);
 
@@ -285,6 +308,7 @@ export default function ActivitiesPage() {
       setDeleteTarget(null);
       cursorsRef.current = { 1: null };
       setPage(1);
+      setReloadKey((k) => k + 1);
     } catch (error: unknown) {
       const rawMessage = error instanceof Error ? error.message : '';
       const message = rawMessage.includes('Missing or insufficient permissions')
@@ -338,24 +362,17 @@ export default function ActivitiesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
           <div className="xl:col-span-2">
             <div className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('cpc.activities.filters.search.label')}</div>
-            <div className="mt-1 flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  value={filters.search}
-                  onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
-                  disabled={arrayFilterLocked.searchDisabled}
-                  placeholder={t.get('cpc.activities.filters.search.placeholder')}
-                  className="pl-9"
-                />
-              </div>
-              <Button variant="outline" className="gap-2" disabled>
-                <CalendarDays className="h-4 w-4" /> {t.get('cpc.activities.filters.search.action')}
-              </Button>
+            <div className="mt-1 relative">
+              <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+              <Input
+                value={filters.search}
+                onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+                placeholder={t.get('cpc.activities.filters.search.placeholder')}
+                className="pl-9"
+                aria-label={t.get('cpc.activities.filters.search.label')}
+              />
             </div>
-            {arrayFilterLocked.searchDisabled ? (
-              <p className="text-xs text-muted-foreground mt-2">{t.get('cpc.activities.filters.search.disabled_hint')}</p>
-            ) : null}
+            <p className="text-xs text-muted-foreground mt-2">{t.get('cpc.activities.filters.search.hint')}</p>
           </div>
 
           <div>
@@ -416,8 +433,7 @@ export default function ActivitiesPage() {
             <div className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('cpc.activities.filters.consultant.label')}</div>
             <Select
               value={filters.consultantId}
-              onValueChange={(v) => setFilters((p) => ({ ...p, consultantId: v as string | 'all', topic: 'all', search: p.search }))}
-              disabled={arrayFilterLocked.consultantDisabled}
+              onValueChange={(v) => setFilters((p) => ({ ...p, consultantId: v as string | 'all' }))}
             >
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -427,17 +443,13 @@ export default function ActivitiesPage() {
                 ))}
               </SelectContent>
             </Select>
-            {arrayFilterLocked.consultantDisabled ? (
-              <p className="text-xs text-muted-foreground mt-2">{t.get('cpc.activities.filters.consultant.disabled_hint')}</p>
-            ) : null}
           </div>
 
           <div>
             <div className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('cpc.activities.filters.topic.label')}</div>
             <Select
               value={filters.topic}
-              onValueChange={(v) => setFilters((p) => ({ ...p, topic: v as string | 'all', consultantId: 'all', search: p.search }))}
-              disabled={arrayFilterLocked.topicDisabled}
+              onValueChange={(v) => setFilters((p) => ({ ...p, topic: v as string | 'all' }))}
             >
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -447,9 +459,6 @@ export default function ActivitiesPage() {
                 ))}
               </SelectContent>
             </Select>
-            {arrayFilterLocked.topicDisabled ? (
-              <p className="text-xs text-muted-foreground mt-2">{t.get('cpc.activities.filters.topic.disabled_hint')}</p>
-            ) : null}
           </div>
 
           <div className="rounded-2xl bg-muted/40 p-4">
@@ -467,25 +476,21 @@ export default function ActivitiesPage() {
               {t.get('cpc.activities.pagination.prev')}
             </Button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(3, pagesCount) }, (_, i) => i + 1)
-                .map((n) => {
-                  const pageNumber = page <= 2 ? n : page - 1 + i;
-                  if (pageNumber > pagesCount) return null;
-                  const active = pageNumber === page;
-                  return (
-                    <Button
-                      key={pageNumber}
-                      variant={active ? 'default' : 'outline'}
-                      className="h-9 w-9 p-0"
-                      disabled={loading}
-                      onClick={() => setPage(pageNumber)}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      {pageNumber}
-                    </Button>
-                  );
-                })
-                .filter(Boolean)}
+              {visiblePageNumbers.map((pageNumber) => {
+                const active = pageNumber === page;
+                return (
+                  <Button
+                    key={pageNumber}
+                    variant={active ? 'default' : 'outline'}
+                    className="h-9 w-9 p-0"
+                    disabled={loading}
+                    onClick={() => setPage(pageNumber)}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    {pageNumber}
+                  </Button>
+                );
+              })}
             </div>
             <Button variant="outline" disabled={page >= pagesCount || loading} onClick={() => setPage((p) => Math.min(pagesCount, p + 1))}>
               {t.get('cpc.activities.pagination.next')}

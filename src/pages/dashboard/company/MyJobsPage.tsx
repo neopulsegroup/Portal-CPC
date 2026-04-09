@@ -41,6 +41,8 @@ export default function MyJobsPage() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState<string | null>(null);
+  /** IDs usados em job_offers.company_id (uid canónico + doc legado, se existir). */
+  const [jobOfferCompanyIds, setJobOfferCompanyIds] = useState<string[]>([]);
   const [jobs, setJobs] = useState<JobOffer[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
@@ -60,36 +62,31 @@ export default function MyJobsPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!companyId) return;
+    if (!companyId || jobOfferCompanyIds.length === 0) return;
     setPageIndex(0);
     setPageCursors([null]);
-    void fetchStats(companyId);
-    void fetchPage({ companyId, cursor: null, nextPageIndex: 0 });
-  }, [companyId, statusFilter, sortDir, dateFrom, dateTo]);
+    void fetchStats(jobOfferCompanyIds);
+    void fetchPage({ companyIds: jobOfferCompanyIds, cursor: null, nextPageIndex: 0 });
+  }, [companyId, jobOfferCompanyIds, statusFilter, sortDir, dateFrom, dateTo]);
 
   async function fetchCompanyAndBootstrap() {
     if (!user) return;
     setLoadingInitial(true);
 
-    try {
-      const company = await queryDocuments<{ id: string }>(
-        'companies',
-        [{ field: 'user_id', operator: '==', value: user.uid }],
-        undefined,
-        1
-      );
-      if (company[0]?.id) {
-        setCompanyId(company[0].id);
-        return;
-      }
+    const uid = user.uid;
 
-      const direct = await getDocument<{ id: string; user_id?: string; company_name?: string; verified?: boolean }>(
-        'companies',
-        user.uid
-      );
+    try {
+      const direct = await getDocument<{
+        id: string;
+        user_id?: string;
+        userId?: string;
+        company_name?: string;
+        verified?: boolean;
+      }>('companies', uid);
+
       if (direct) {
         const patch: Record<string, unknown> = {};
-        if (direct.user_id !== user.uid) patch.user_id = user.uid;
+        if (direct.user_id !== uid && direct.userId !== uid) patch.user_id = uid;
         if (typeof direct.company_name !== 'string' || !direct.company_name.trim()) {
           patch.company_name =
             (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
@@ -99,8 +96,43 @@ export default function MyJobsPage() {
             'Empresa';
         }
         if (typeof direct.verified !== 'boolean') patch.verified = false;
-        if (Object.keys(patch).length > 0) await setDocument('companies', user.uid, patch, true);
-        setCompanyId(direct.id);
+        if (Object.keys(patch).length > 0) await setDocument('companies', uid, patch, true);
+        setCompanyId(uid);
+        setJobOfferCompanyIds([uid]);
+        return;
+      }
+
+      const legacyRows = await queryDocuments<{ id: string; company_name?: string; verified?: boolean }>(
+        'companies',
+        [{ field: 'user_id', operator: '==', value: uid }],
+        undefined,
+        1
+      );
+      const legacy = legacyRows[0];
+      if (legacy) {
+        const baseName =
+          (typeof legacy.company_name === 'string' && legacy.company_name.trim()
+            ? legacy.company_name.trim()
+            : null) ??
+          (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+          (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+          (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+          user.email ??
+          'Empresa';
+
+        await setDocument(
+          'companies',
+          uid,
+          {
+            user_id: uid,
+            company_name: baseName,
+            verified: typeof legacy.verified === 'boolean' ? legacy.verified : false,
+            createdAt: new Date().toISOString(),
+          },
+          true
+        );
+        setCompanyId(uid);
+        setJobOfferCompanyIds(legacy.id !== uid ? [uid, legacy.id] : [uid]);
         return;
       }
 
@@ -113,18 +145,21 @@ export default function MyJobsPage() {
           'Empresa';
         await setDocument(
           'companies',
-          user.uid,
-          { user_id: user.uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
+          uid,
+          { user_id: uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
           true
         );
-        setCompanyId(user.uid);
+        setCompanyId(uid);
+        setJobOfferCompanyIds([uid]);
         return;
       }
 
       setCompanyId(null);
+      setJobOfferCompanyIds([]);
     } catch (error) {
       console.error('Error fetching company:', error);
       setCompanyId(null);
+      setJobOfferCompanyIds([]);
     } finally {
       setLoadingInitial(false);
     }
@@ -161,10 +196,20 @@ export default function MyJobsPage() {
     return date.toISOString();
   }
 
-  function buildOfferFilters(args: { companyId: string; statusFilter: StatusFilter; dateFrom: string; dateTo: string }) {
-    const filters: { field: string; operator: OfferFilterOp; value: unknown }[] = [
-      { field: 'company_id', operator: '==', value: args.companyId },
-    ];
+  function companyScopeFilters(companyIds: string[]): { field: string; operator: OfferFilterOp; value: unknown }[] {
+    const ids = Array.from(new Set(companyIds.filter(Boolean)));
+    if (ids.length === 0) return [];
+    if (ids.length === 1) return [{ field: 'company_id', operator: '==', value: ids[0] }];
+    return [{ field: 'company_id', operator: 'in', value: ids }];
+  }
+
+  function buildOfferFilters(args: {
+    companyIds: string[];
+    statusFilter: StatusFilter;
+    dateFrom: string;
+    dateTo: string;
+  }) {
+    const filters: { field: string; operator: OfferFilterOp; value: unknown }[] = [...companyScopeFilters(args.companyIds)];
 
     if (args.statusFilter === 'active') {
       filters.push({ field: 'status', operator: '==', value: 'active' });
@@ -187,22 +232,15 @@ export default function MyJobsPage() {
     return filters;
   }
 
-  async function fetchStats(companyIdValue: string) {
+  async function fetchStats(companyIds: string[]) {
+    const scope = companyScopeFilters(companyIds);
+    if (scope.length === 0) return;
     try {
       const [total, active, paused, closed] = await Promise.all([
-        countDocuments('job_offers', [{ field: 'company_id', operator: '==', value: companyIdValue }]),
-        countDocuments('job_offers', [
-          { field: 'company_id', operator: '==', value: companyIdValue },
-          { field: 'status', operator: '==', value: 'active' },
-        ]),
-        countDocuments('job_offers', [
-          { field: 'company_id', operator: '==', value: companyIdValue },
-          { field: 'status', operator: '==', value: 'paused' },
-        ]),
-        countDocuments('job_offers', [
-          { field: 'company_id', operator: '==', value: companyIdValue },
-          { field: 'status', operator: 'in', value: ['closed', 'rejected'] },
-        ]),
+        countDocuments('job_offers', scope),
+        countDocuments('job_offers', [...scope, { field: 'status', operator: '==', value: 'active' }]),
+        countDocuments('job_offers', [...scope, { field: 'status', operator: '==', value: 'paused' }]),
+        countDocuments('job_offers', [...scope, { field: 'status', operator: 'in', value: ['closed', 'rejected'] }]),
       ]);
       setStats({ total, active, paused, closed });
     } catch (error) {
@@ -210,10 +248,16 @@ export default function MyJobsPage() {
     }
   }
 
-  async function fetchPage(args: { companyId: string; cursor: string | null; nextPageIndex: number }) {
+  async function fetchPage(args: { companyIds: string[]; cursor: string | null; nextPageIndex: number }) {
+    if (args.companyIds.length === 0) {
+      setJobs([]);
+      setFilteredCount(0);
+      setHasNextPage(false);
+      return;
+    }
     setLoadingList(true);
     try {
-      const filters = buildOfferFilters({ companyId: args.companyId, statusFilter, dateFrom, dateTo });
+      const filters = buildOfferFilters({ companyIds: args.companyIds, statusFilter, dateFrom, dateTo });
       const total = await countDocuments('job_offers', filters);
       setFilteredCount(total);
 
@@ -292,21 +336,21 @@ export default function MyJobsPage() {
   const shownTo = Math.min(pageIndex * PAGE_SIZE + visibleJobs.length, filteredCount);
 
   async function goToPrevPage() {
-    if (!companyId || pageIndex === 0) return;
+    if (!companyId || jobOfferCompanyIds.length === 0 || pageIndex === 0) return;
     const prevIndex = pageIndex - 1;
     const cursor = pageCursors[prevIndex] ?? null;
     setPageIndex(prevIndex);
-    await fetchPage({ companyId, cursor, nextPageIndex: prevIndex });
+    await fetchPage({ companyIds: jobOfferCompanyIds, cursor, nextPageIndex: prevIndex });
   }
 
   async function updateOfferStatus(job: JobOffer, nextStatus: 'active' | 'paused' | 'closed') {
     try {
       await updateDocument('job_offers', job.id, { status: nextStatus });
       toast({ title: t.get('company.offers.toast.updatedTitle'), description: t.get('company.offers.toast.updatedDesc') });
-      if (companyId) {
-        void fetchStats(companyId);
+      if (companyId && jobOfferCompanyIds.length > 0) {
+        void fetchStats(jobOfferCompanyIds);
         const cursor = pageCursors[pageIndex] ?? null;
-        void fetchPage({ companyId, cursor, nextPageIndex: pageIndex });
+        void fetchPage({ companyIds: jobOfferCompanyIds, cursor, nextPageIndex: pageIndex });
       }
     } catch (error) {
       console.error('Error updating offer status:', error);
@@ -571,11 +615,11 @@ export default function MyJobsPage() {
             <button
               type="button"
               onClick={async () => {
-                if (!companyId || !hasNextPage) return;
+                if (!companyId || jobOfferCompanyIds.length === 0 || !hasNextPage) return;
                 const nextIndex = pageIndex + 1;
                 const cursor = pageCursors[nextIndex] ?? jobs[jobs.length - 1]?.created_at ?? null;
                 setPageIndex(nextIndex);
-                await fetchPage({ companyId, cursor, nextPageIndex: nextIndex });
+                await fetchPage({ companyIds: jobOfferCompanyIds, cursor, nextPageIndex: nextIndex });
               }}
               className="h-10 w-10 rounded-xl border bg-background hover:bg-muted flex items-center justify-center disabled:opacity-50"
               aria-label={t.get('company.offers.pagination.next')}

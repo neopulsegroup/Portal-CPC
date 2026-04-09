@@ -54,6 +54,7 @@ service cloud.firestore {
         : rawRole in ['lawyer', 'jurista'] ? 'lawyer'
         : rawRole in ['psychologist', 'psicologo', 'psicóloga', 'psicologa'] ? 'psychologist'
         : rawRole in ['trainer', 'formador'] ? 'trainer'
+        : rawRole in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'] ? 'company'
         : rawRole;
     }
 
@@ -124,10 +125,55 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/companies/$(companyId));
     }
 
-    function companyOwnerByCompanyId(companyId) {
-      return isCompany()
+    // Papel de empresa além de userRole() (ex.: role não-string no doc users, ou só em profiles).
+    function employerRoleOnUserDoc() {
+      let u = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return (u.role is string && u.role.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (u.profile is string && u.profile.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (u.perfil is string && u.perfil.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (u.type is string && u.type.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário']);
+    }
+
+    function profileDocLooksEmployer(p) {
+      return (p.role is string && p.role.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (p.profile is string && p.profile.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (p.perfil is string && p.perfil.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário'])
+        || (p.type is string && p.type.lower() in ['company', 'empresa', 'employer', 'business', 'empresario', 'empresário']);
+    }
+
+    function employerRoleOnProfileDoc() {
+      return exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && profileDocLooksEmployer(get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data);
+    }
+
+    function employerPublisher() {
+      return isAccountEnabled()
+        && (
+          userRole() == 'company'
+          || employerRoleOnUserDoc()
+          || employerRoleOnProfileDoc()
+        );
+    }
+
+    // Dono do documento companies/{companyId}:
+    // - Se company_id na vaga == auth.uid e existe companies/{uid}, aceita (convénio do app: doc canónico no ID do utilizador).
+    // - Caso contrário: user_id / userId no doc (string ou referência a users/{uid}).
+    function companyOwnsCompanyId(companyId) {
+      return companyId is string
+        && companyId.size() > 0
         && exists(/databases/$(database)/documents/companies/$(companyId))
-        && companyDoc(companyId).data.user_id == request.auth.uid;
+        && (
+          companyId == request.auth.uid
+          || companyDoc(companyId).data.user_id == request.auth.uid
+          || companyDoc(companyId).data.userId == request.auth.uid
+          || companyDoc(companyId).data.user_id == /databases/$(database)/documents/users/$(request.auth.uid)
+          || companyDoc(companyId).data.userId == /databases/$(database)/documents/users/$(request.auth.uid)
+          || (
+            companyId == request.auth.uid
+            && !(companyDoc(companyId).data.keys().hasAll(['user_id']))
+            && !(companyDoc(companyId).data.keys().hasAll(['userId']))
+          )
+        );
     }
 
     // Users collection
@@ -177,7 +223,21 @@ service cloud.firestore {
     match /companies/{companyId} {
       allow read: if true;
       allow create: if (isAuthenticated() && request.auth.uid == companyId && request.resource.data.user_id == request.auth.uid) || isCpcStaff();
-      allow update: if isCpcStaff() || (isAuthenticated() && resource.data.user_id == request.auth.uid);
+      // Atualizar perfil próprio; corrigir user_id em legado (sem campo ou só em companies/{uid}).
+      allow update: if isCpcStaff() || (
+        isAuthenticated() && (
+          resource.data.user_id == request.auth.uid
+          || (
+            companyId == request.auth.uid
+            && !(resource.data.keys().hasAll(['user_id']))
+          )
+          || (
+            employerPublisher()
+            && !(resource.data.keys().hasAll(['user_id']))
+            && request.resource.data.user_id == request.auth.uid
+          )
+        )
+      );
       allow delete: if isCpcStaff();
     }
 
@@ -187,12 +247,13 @@ service cloud.firestore {
         (
           resource.data.status == 'active' ||
           isCpcStaff() ||
-          (isCompany() && companyOwnerByCompanyId(resource.data.company_id))
+          (employerPublisher() && companyOwnsCompanyId(resource.data.company_id))
         );
-      allow create: if isCompany()
-        && companyOwnerByCompanyId(request.resource.data.company_id);
+      allow create: if employerPublisher()
+        && request.resource.data.company_id is string
+        && companyOwnsCompanyId(request.resource.data.company_id);
       allow update: if isCpcStaff() ||
-        (isCompany() && companyOwnerByCompanyId(resource.data.company_id));
+        (employerPublisher() && companyOwnsCompanyId(resource.data.company_id));
       allow delete: if isCpcStaff();
     }
 
@@ -201,26 +262,26 @@ service cloud.firestore {
       allow read: if isCpcStaff() ||
         (isAccountEnabled() && resource.data.applicant_id == request.auth.uid) ||
         (
-          isCompany() &&
+          employerPublisher() &&
           jobOffer(resource.data.job_id).exists() &&
-          companyOwnerByCompanyId(jobOffer(resource.data.job_id).data.company_id)
+          companyOwnsCompanyId(jobOffer(resource.data.job_id).data.company_id)
         );
       allow create: if isAccountEnabled() &&
         request.resource.data.applicant_id == request.auth.uid &&
         jobOffer(request.resource.data.job_id).exists();
       allow update: if isCpcStaff() ||
         (
-          isCompany() &&
+          employerPublisher() &&
           jobOffer(resource.data.job_id).exists() &&
-          companyOwnerByCompanyId(jobOffer(resource.data.job_id).data.company_id)
+          companyOwnsCompanyId(jobOffer(resource.data.job_id).data.company_id)
         );
       allow delete: if isCpcStaff();
     }
 
     match /company_candidates/{candidateId} {
-      allow read: if isCpcStaff() || (isCompany() && companyOwnerByCompanyId(resource.data.company_id));
-      allow create: if isCompany()
-        && companyOwnerByCompanyId(request.resource.data.company_id)
+      allow read: if isCpcStaff() || (employerPublisher() && companyOwnsCompanyId(resource.data.company_id));
+      allow create: if employerPublisher()
+        && companyOwnsCompanyId(request.resource.data.company_id)
         && request.resource.data.keys().hasAll(['company_id', 'name', 'cpf', 'email', 'phone', 'desired_role', 'experience', 'stage', 'created_at'])
         && request.resource.data.keys().hasOnly([
           'company_id',
@@ -237,8 +298,8 @@ service cloud.firestore {
           'created_at',
           'updatedAt'
         ]);
-      allow update: if isCpcStaff() || (isCompany() && companyOwnerByCompanyId(resource.data.company_id));
-      allow delete: if isCpcStaff() || (isCompany() && companyOwnerByCompanyId(resource.data.company_id));
+      allow update: if isCpcStaff() || (employerPublisher() && companyOwnsCompanyId(resource.data.company_id));
+      allow delete: if isCpcStaff() || (employerPublisher() && companyOwnsCompanyId(resource.data.company_id));
     }
 
     // Trails and modules (content)

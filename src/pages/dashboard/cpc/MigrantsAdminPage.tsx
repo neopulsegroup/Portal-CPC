@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
-import { Users, Filter, Eye, Ban, CheckCircle, AlertTriangle, Clock, ClipboardList, Download, FileSpreadsheet, FileText, Loader2, Trash2 } from 'lucide-react';
+import { Users, Eye, Ban, CheckCircle, AlertTriangle, Clock, ClipboardList, Download, FileSpreadsheet, FileText, Loader2, Trash2 } from 'lucide-react';
 import { todayIsoAppCalendar } from '@/lib/appCalendar';
 
 type TriageAnswers = Record<string, unknown>;
@@ -38,6 +38,8 @@ type MigrantRow = {
   language_level?: string | null;
   urgencies?: string[] | null;
   triage_answers?: TriageAnswers | null;
+  /** `true` quando o documento `triage` tem `completed === true` (triagem inicial submetida). */
+  triage_completed: boolean;
   upcoming_sessions?: number;
   trails_progress_avg?: number;
   blocked?: boolean;
@@ -45,7 +47,14 @@ type MigrantRow = {
 
 type UserDoc = { id: string; name?: string | null; email?: string | null; role?: string | null; nif?: string | null; blocked?: boolean | null; active?: boolean | null };
 type ProfileDoc = { name?: string | null; email?: string | null; birthDate?: string | null; nationality?: string | null; arrivalDate?: string | null };
-type TriageDoc = { legal_status?: string | null; work_status?: string | null; language_level?: string | null; urgencies?: string[] | null; answers?: TriageAnswers | null };
+type TriageDoc = {
+  legal_status?: string | null;
+  work_status?: string | null;
+  language_level?: string | null;
+  urgencies?: string[] | null;
+  answers?: TriageAnswers | null;
+  completed?: boolean | null;
+};
 type SessionDoc = { migrant_id?: string | null; scheduled_date?: string | null; status?: string | null };
 type ProgressDoc = { user_id?: string | null; progress_percent?: number | null };
 
@@ -109,6 +118,7 @@ export default function MigrantsAdminPage() {
   const [workFilter, setWorkFilter] = useState<'all' | 'empregado' | 'desempregado' | 'informal'>('all');
   const [langFilter, setLangFilter] = useState<'all' | 'iniciante' | 'intermediario' | 'avancado'>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'juridico' | 'psicologico' | 'habitacional'>('all');
+  const [triageFilter, setTriageFilter] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [selectedTriage, setSelectedTriage] = useState<MigrantRow | null>(null);
   const [exporting, setExporting] = useState<'csv' | 'xlsx' | 'pdf' | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MigrantRow | null>(null);
@@ -528,23 +538,28 @@ export default function MigrantsAdminPage() {
           progressMap[uid] = Math.round(a.count ? a.sum / a.count : 0);
         });
 
-        const result: Array<MigrantRow> = profileList.map(p => ({
-          user_id: p.user_id,
-          name: profileMap[p.user_id]?.name || p.name || p.email || t.get('cpc.migrantsAdmin.fallback_migrant'),
-          email: profileMap[p.user_id]?.email || p.email || '—',
-          nif: p.nif || null,
-          birth_date: profileMap[p.user_id]?.birthDate || null,
-          nationality: profileMap[p.user_id]?.nationality || null,
-          arrival_date: profileMap[p.user_id]?.arrivalDate || null,
-          legal_status: triageMap[p.user_id]?.legal_status || null,
-          work_status: triageMap[p.user_id]?.work_status || null,
-          language_level: triageMap[p.user_id]?.language_level || null,
-          urgencies: normalizeUrgencies(triageMap[p.user_id]?.urgencies),
-          triage_answers: triageMap[p.user_id]?.answers || null,
-          upcoming_sessions: sessionsMap[p.user_id] || 0,
-          trails_progress_avg: progressMap[p.user_id] || 0,
-          blocked: p.blocked,
-        }));
+        const result: Array<MigrantRow> = profileList.map((p) => {
+          const triage = triageMap[p.user_id];
+          const triage_completed = triage?.completed === true;
+          return {
+            user_id: p.user_id,
+            name: profileMap[p.user_id]?.name || p.name || p.email || t.get('cpc.migrantsAdmin.fallback_migrant'),
+            email: profileMap[p.user_id]?.email || p.email || '—',
+            nif: p.nif || null,
+            birth_date: profileMap[p.user_id]?.birthDate || null,
+            nationality: profileMap[p.user_id]?.nationality || null,
+            arrival_date: profileMap[p.user_id]?.arrivalDate || null,
+            legal_status: triage?.legal_status || null,
+            work_status: triage?.work_status || null,
+            language_level: triage?.language_level || null,
+            urgencies: normalizeUrgencies(triage?.urgencies),
+            triage_answers: triage?.answers || null,
+            triage_completed,
+            upcoming_sessions: sessionsMap[p.user_id] || 0,
+            trails_progress_avg: progressMap[p.user_id] || 0,
+            blocked: p.blocked,
+          };
+        });
 
         setRows(result);
       } catch (error: unknown) {
@@ -667,15 +682,19 @@ export default function MigrantsAdminPage() {
   }
 
   const filtered = useMemo(() => {
-    return rows.filter(r => {
+    return rows.filter((r) => {
       const matchQuery = query.trim().length === 0 || r.name.toLowerCase().includes(query.toLowerCase());
       const matchLegal = legalFilter === 'all' || normalizeLegalStatus(r.legal_status) === legalFilter;
       const matchWork = workFilter === 'all' || normalizeWorkStatus(r.work_status) === workFilter;
       const matchLang = langFilter === 'all' || normalizeLanguageLevel(r.language_level) === langFilter;
       const matchUrg = urgencyFilter === 'all' || normalizeUrgencies(r.urgencies).includes(urgencyFilter);
-      return matchQuery && matchLegal && matchWork && matchLang && matchUrg;
+      const matchTriage =
+        triageFilter === 'all' ||
+        (triageFilter === 'complete' && r.triage_completed) ||
+        (triageFilter === 'incomplete' && !r.triage_completed);
+      return matchQuery && matchLegal && matchWork && matchLang && matchUrg && matchTriage;
     });
-  }, [rows, query, legalFilter, workFilter, langFilter, urgencyFilter]);
+  }, [rows, query, legalFilter, workFilter, langFilter, urgencyFilter, triageFilter]);
 
   if (loading) {
     return (
@@ -716,19 +735,21 @@ export default function MigrantsAdminPage() {
         </DropdownMenu>
       </div>
 
-      <div className="cpc-card p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <Label>{t.get('cpc.migrantsAdmin.filters.search.label')}</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.get('cpc.migrantsAdmin.filters.search.placeholder')} />
-              <Button variant="outline" className="gap-2"><Filter className="h-4 w-4" /> {t.get('cpc.migrantsAdmin.filters.search.action')}</Button>
-            </div>
+      <div className="cpc-card p-6 mb-6 overflow-x-auto">
+        <div className="grid w-full min-w-[52rem] grid-cols-6 gap-4">
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.search.label')}</Label>
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t.get('cpc.migrantsAdmin.filters.search.placeholder')}
+              className="mt-1 h-11 w-full min-w-0 text-base"
+            />
           </div>
-          <div>
-            <Label>{t.get('cpc.migrantsAdmin.filters.legal.label')}</Label>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.legal.label')}</Label>
             <Select value={legalFilter} onValueChange={(v) => setLegalFilter(v as typeof legalFilter)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 text-base"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.legal.all')}</SelectItem>
                 <SelectItem value="regular">{t.get('cpc.migrantsAdmin.legal.regular')}</SelectItem>
@@ -737,10 +758,10 @@ export default function MigrantsAdminPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>{t.get('cpc.migrantsAdmin.filters.work.label')}</Label>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.work.label')}</Label>
             <Select value={workFilter} onValueChange={(v) => setWorkFilter(v as typeof workFilter)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 text-base"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.work.all')}</SelectItem>
                 <SelectItem value="empregado">{t.get('cpc.migrantsAdmin.work.employed')}</SelectItem>
@@ -749,10 +770,10 @@ export default function MigrantsAdminPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>{t.get('cpc.migrantsAdmin.filters.language.label')}</Label>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.language.label')}</Label>
             <Select value={langFilter} onValueChange={(v) => setLangFilter(v as typeof langFilter)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 text-base"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.language.all')}</SelectItem>
                 <SelectItem value="iniciante">{t.get('cpc.migrantsAdmin.language.beginner')}</SelectItem>
@@ -761,15 +782,28 @@ export default function MigrantsAdminPage() {
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>{t.get('cpc.migrantsAdmin.filters.urgencies.label')}</Label>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.urgencies.label')}</Label>
             <Select value={urgencyFilter} onValueChange={(v) => setUrgencyFilter(v as typeof urgencyFilter)}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 h-11 text-base"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.urgencies.all')}</SelectItem>
                 <SelectItem value="juridico">{t.get('cpc.migrantsAdmin.urgencies.legal')}</SelectItem>
                 <SelectItem value="psicologico">{t.get('cpc.migrantsAdmin.urgencies.psychological')}</SelectItem>
                 <SelectItem value="habitacional">{t.get('cpc.migrantsAdmin.urgencies.housing')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.triage.label')}</Label>
+            <Select value={triageFilter} onValueChange={(v) => setTriageFilter(v as typeof triageFilter)}>
+              <SelectTrigger className="mt-1 h-11 text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.triage.all')}</SelectItem>
+                <SelectItem value="complete">{t.get('cpc.migrantsAdmin.filters.triage.complete')}</SelectItem>
+                <SelectItem value="incomplete">{t.get('cpc.migrantsAdmin.filters.triage.incomplete')}</SelectItem>
               </SelectContent>
             </Select>
           </div>

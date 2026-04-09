@@ -41,26 +41,22 @@ export function toFiltersWithDatePreset(filters: ActivitiesUiFilters): Activitie
     startAtMax = `${end}T23:59:59`;
   }
 
-  const rawTokens = normalizeText(filters.search).split(/\s+/g).filter(Boolean);
-  const searchToken = rawTokens.length ? rawTokens[0] : null;
-
-  const consultantSelected = filters.consultantId !== 'all';
-  const topicSelected = filters.topic !== 'all';
-  const searchSelected = !!searchToken;
-
-  const constrainedTopic = consultantSelected || searchSelected ? 'all' : filters.topic;
-  const constrainedConsultantId = topicSelected || searchSelected ? 'all' : filters.consultantId;
-  const constrainedSearchToken = consultantSelected || topicSelected ? null : searchToken;
+  const rawTokens = normalizeText(filters.search)
+    .split(/\s+/g)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2)
+    .slice(0, 10);
+  const searchTokensAny = rawTokens.length > 0 ? rawTokens : null;
 
   return {
     type: filters.type,
     status: filters.status,
     format: filters.format,
-    consultantId: constrainedConsultantId,
-    topic: constrainedTopic,
+    consultantId: filters.consultantId,
+    topic: filters.topic,
     startAtMin,
     startAtMax,
-    searchToken: constrainedSearchToken,
+    searchTokensAny,
   };
 }
 
@@ -74,7 +70,7 @@ export async function loadActivitiesPage(args: {
   uiFilters: ActivitiesUiFilters;
   limit: number;
   cursorStartAfterStartAt?: string | null;
-}): Promise<ActivityDoc[]> {
+}): Promise<{ rows: ActivityDoc[]; nextCursor: string | null }> {
   const filters = toFiltersWithDatePreset(args.uiFilters);
   return listActivitiesPage({ filters, limit: args.limit, cursorStartAfterStartAt: args.cursorStartAfterStartAt ?? null });
 }
@@ -90,14 +86,14 @@ export async function loadActivitiesForExport(args: {
   const out: ActivityDoc[] = [];
   let cursorStartAfterStartAt: string | null = null;
   while (out.length < maxRows) {
-    const page = await listActivitiesPage({
+    const { rows, nextCursor } = await listActivitiesPage({
       filters,
       limit: Math.min(chunk, maxRows - out.length),
       cursorStartAfterStartAt,
     });
-    if (page.length === 0) break;
-    out.push(...page);
-    cursorStartAfterStartAt = page[page.length - 1]?.startAt ?? null;
+    if (rows.length === 0) break;
+    out.push(...rows);
+    cursorStartAfterStartAt = nextCursor;
     if (!cursorStartAfterStartAt) break;
   }
   return out;

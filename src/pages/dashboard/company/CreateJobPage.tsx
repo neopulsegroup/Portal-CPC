@@ -25,14 +25,15 @@ export default function CreateJobPage() {
     location: '',
     sector: '',
     contract_type: 'full_time',
+    work_mode: 'on_site' as 'on_site' | 'hybrid' | 'remote',
     salary_range: '',
     requirements: '',
   });
 
   useEffect(() => {
     setEditJobId(searchParams.get('edit'));
-    fetchCompany();
-  }, [user, searchParams]);
+    void fetchCompany();
+  }, [user, searchParams, profile?.role]);
 
   useEffect(() => {
     if (!companyId || !editJobId) return;
@@ -42,23 +43,55 @@ export default function CreateJobPage() {
   async function fetchCompany() {
     if (!user) return;
 
-    try {
-      const data = await queryDocuments<{ id: string }>(
-        'companies',
-        [{ field: 'user_id', operator: '==', value: user.uid }],
-        undefined,
-        1
-      );
+    const uid = user.uid;
 
-      if (data[0]?.id) {
-        setCompanyId(data[0].id);
+    try {
+      // Doc canónico: sempre companies/{auth.uid} — alinha com as regras Firestore (company_id == uid).
+      const direct = await getDocument<{
+        id: string;
+        user_id?: string;
+        userId?: string;
+        company_name?: string;
+        verified?: boolean;
+      }>('companies', uid);
+
+      if (direct) {
+        if (direct.user_id !== uid && direct.userId !== uid) {
+          await setDocument('companies', uid, { user_id: uid }, true);
+        }
+        setCompanyId(uid);
         return;
       }
 
-      const direct = await getDocument<{ id: string; user_id?: string }>('companies', user.uid);
-      if (direct) {
-        if (direct.user_id !== user.uid) await setDocument('companies', user.uid, { user_id: user.uid }, true);
-        setCompanyId(direct.id);
+      const legacy = await queryDocuments<{
+        id: string;
+        company_name?: string;
+        verified?: boolean;
+      }>('companies', [{ field: 'user_id', operator: '==', value: uid }], undefined, 1);
+
+      if (legacy[0]) {
+        const baseName =
+          (typeof legacy[0].company_name === 'string' && legacy[0].company_name.trim()
+            ? legacy[0].company_name.trim()
+            : null) ??
+          (profileData?.name && profileData.name.trim() ? profileData.name.trim() : null) ??
+          (profile?.name && profile.name.trim() ? profile.name.trim() : null) ??
+          (user.displayName && user.displayName.trim() ? user.displayName.trim() : null) ??
+          user.email ??
+          'Empresa';
+
+        await setDocument(
+          'companies',
+          uid,
+          {
+            user_id: uid,
+            company_name: baseName,
+            verified: typeof legacy[0].verified === 'boolean' ? legacy[0].verified : false,
+            createdAt: new Date().toISOString(),
+          },
+          true
+        );
+        setCompanyId(uid);
         return;
       }
 
@@ -72,11 +105,11 @@ export default function CreateJobPage() {
 
         await setDocument(
           'companies',
-          user.uid,
-          { user_id: user.uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
+          uid,
+          { user_id: uid, company_name: baseName, verified: false, createdAt: new Date().toISOString() },
           true
         );
-        setCompanyId(user.uid);
+        setCompanyId(uid);
       }
     } catch (error) {
       console.error('Error fetching company:', error);
@@ -84,6 +117,9 @@ export default function CreateJobPage() {
   }
 
   async function fetchOfferForEdit(args: { companyId: string; jobId: string }) {
+    const uid = user?.uid;
+    if (!uid) return;
+
     try {
       const offer = await getDocument<{
         id: string;
@@ -93,12 +129,28 @@ export default function CreateJobPage() {
         location?: string | null;
         sector?: string | null;
         contract_type?: string | null;
+        work_mode?: string | null;
         salary_range?: string | null;
         requirements?: string | null;
         status?: string;
       }>('job_offers', args.jobId);
 
-      if (!offer || offer.company_id !== args.companyId) {
+      if (!offer?.company_id) {
+        toast({
+          title: t.get('company.createJob.errors.loadFailedTitle'),
+          description: t.get('company.createJob.errors.loadFailedDesc'),
+          variant: 'destructive',
+        });
+        navigate('/dashboard/empresa/ofertas');
+        return;
+      }
+
+      const ownsByCanonical = offer.company_id === uid;
+      const co = await getDocument<{ user_id?: string; userId?: string }>('companies', offer.company_id);
+      const ownerUid = co?.user_id ?? co?.userId;
+      const ownsByCompanyDoc = ownerUid === uid;
+
+      if (!ownsByCanonical && !ownsByCompanyDoc) {
         toast({
           title: t.get('company.createJob.errors.loadFailedTitle'),
           description: t.get('company.createJob.errors.loadFailedDesc'),
@@ -109,12 +161,16 @@ export default function CreateJobPage() {
       }
 
       setExistingStatus(offer.status ?? null);
+      const wm = offer.work_mode;
+      const workMode: 'on_site' | 'hybrid' | 'remote' =
+        wm === 'hybrid' || wm === 'remote' || wm === 'on_site' ? wm : 'on_site';
       setForm({
         title: offer.title ?? '',
         description: offer.description ?? '',
         location: offer.location ?? '',
         sector: offer.sector ?? '',
         contract_type: offer.contract_type ?? 'full_time',
+        work_mode: workMode,
         salary_range: offer.salary_range ?? '',
         requirements: offer.requirements ?? '',
       });
@@ -141,9 +197,22 @@ export default function CreateJobPage() {
       return;
     }
 
+    if (!user?.uid) {
+      toast({
+        title: t.get('company.createJob.errors.createFailedTitle'),
+        description: t.get('company.createJob.errors.createFailedDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const publisherId = user.uid;
+      // Doc canónico no ID do utilizador (regras aceitam company_id == auth.uid quando o doc existe).
+      await setDocument('companies', publisherId, { user_id: publisherId }, true);
+
       if (editJobId) {
         await updateDocument('job_offers', editJobId, {
           title: form.title,
@@ -151,6 +220,7 @@ export default function CreateJobPage() {
           location: form.location || null,
           sector: form.sector || null,
           contract_type: form.contract_type || null,
+          work_mode: form.work_mode,
           salary_range: form.salary_range || null,
           requirements: form.requirements || null,
           status: existingStatus ?? 'pending_review',
@@ -162,12 +232,13 @@ export default function CreateJobPage() {
         });
       } else {
         await addDocument('job_offers', {
-          company_id: companyId,
+          company_id: publisherId,
           title: form.title,
           description: form.description || null,
           location: form.location || null,
           sector: form.sector || null,
           contract_type: form.contract_type || null,
+          work_mode: form.work_mode,
           salary_range: form.salary_range || null,
           requirements: form.requirements || null,
           status: 'pending_review',
@@ -255,18 +326,34 @@ export default function CreateJobPage() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">{t.get('company.createJob.form.labels.contractType')}</label>
-                <select
-                  value={form.contract_type}
-                  onChange={(e) => setForm({ ...form, contract_type: e.target.value })}
-                  className="w-full px-4 py-2 rounded-lg border border-input bg-background"
-                >
-                  <option value="full_time">{t.get('company.createJob.form.contractTypes.full_time')}</option>
-                  <option value="part_time">{t.get('company.createJob.form.contractTypes.part_time')}</option>
-                  <option value="temporary">{t.get('company.createJob.form.contractTypes.temporary')}</option>
-                  <option value="internship">{t.get('company.createJob.form.contractTypes.internship')}</option>
-                </select>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">{t.get('company.createJob.form.labels.contractType')}</label>
+                  <select
+                    value={form.contract_type}
+                    onChange={(e) => setForm({ ...form, contract_type: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg border border-input bg-background"
+                  >
+                    <option value="full_time">{t.get('company.createJob.form.contractTypes.full_time')}</option>
+                    <option value="part_time">{t.get('company.createJob.form.contractTypes.part_time')}</option>
+                    <option value="temporary">{t.get('company.createJob.form.contractTypes.temporary')}</option>
+                    <option value="internship">{t.get('company.createJob.form.contractTypes.internship')}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">{t.get('company.createJob.form.labels.workMode')}</label>
+                  <select
+                    value={form.work_mode}
+                    onChange={(e) =>
+                      setForm({ ...form, work_mode: e.target.value as 'on_site' | 'hybrid' | 'remote' })
+                    }
+                    className="w-full px-4 py-2 rounded-lg border border-input bg-background"
+                  >
+                    <option value="on_site">{t.get('company.createJob.form.workModes.on_site')}</option>
+                    <option value="hybrid">{t.get('company.createJob.form.workModes.hybrid')}</option>
+                    <option value="remote">{t.get('company.createJob.form.workModes.remote')}</option>
+                  </select>
+                </div>
               </div>
 
               <div>

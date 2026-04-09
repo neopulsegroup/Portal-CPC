@@ -1277,6 +1277,7 @@
           "label": "Pesquisa",
           "placeholder": "Pesquisar por título ou local",
           "action": "Aplicar",
+          "hint": "Use uma ou várias palavras (mín. 2 letras cada). Corresponde a atividades que contenham qualquer um dos termos nos dados indexados.",
           "disabled_hint": "A pesquisa fica indisponível quando seleciona Consultor ou Temática."
         },
         "type": "Tipo",
@@ -1300,7 +1301,7 @@
         },
         "any_topic": "Qualquer temática",
         "hints_title": "Dica",
-        "hints_body": "Para manter as consultas rápidas, Pesquisa, Consultor e Temática não podem ser usados ao mesmo tempo."
+        "hints_body": "Pode combinar tipo, estado, formato, período, consultor, temática e pesquisa. Se o Firestore pedir um índice composto, crie-o na consola quando o erro aparecer."
       },
       "fields": {
         "title": "Título",
@@ -1724,6 +1725,12 @@
         "urgencies": {
           "label": "Urgências",
           "all": "Todas"
+        },
+        "triage": {
+          "label": "Triagem",
+          "all": "Todas",
+          "complete": "Completa",
+          "incomplete": "Incompleta"
         }
       },
       "empty": {
@@ -2005,6 +2012,7 @@
           "location": "Localização",
           "sector": "Setor",
           "contractType": "Tipo de Contrato",
+          "workMode": "Modo de trabalho",
           "salaryRange": "Faixa Salarial",
           "requirements": "Requisitos"
         },
@@ -2021,6 +2029,11 @@
           "part_time": "Part-time",
           "temporary": "Temporário",
           "internship": "Estágio"
+        },
+        "workModes": {
+          "on_site": "Presencial",
+          "hybrid": "Híbrido",
+          "remote": "Remoto"
         }
       },
       "actions": {

@@ -23,6 +23,7 @@ interface JobOffer {
   location: string | null;
   sector: string | null;
   contract_type: string | null;
+  work_mode?: string | null;
   salary_range: string | null;
   requirements: string | null;
   created_at: string;
@@ -122,6 +123,20 @@ export default function JobDetailPage() {
     return type ? labels[type] || type : null;
   };
 
+  const normalizeWorkMode = (wm: string | null | undefined): 'on_site' | 'hybrid' | 'remote' => {
+    if (wm === 'hybrid' || wm === 'remote' || wm === 'on_site') return wm;
+    return 'on_site';
+  };
+
+  const getWorkModeLabel = (wm: string | null | undefined) => {
+    const labels: Record<string, string> = {
+      on_site: 'Presencial',
+      hybrid: 'Híbrido',
+      remote: 'Remoto',
+    };
+    return labels[normalizeWorkMode(wm)];
+  };
+
   const getTimeAgo = (date: string) => {
     const now = new Date();
     const posted = new Date(date);
@@ -186,11 +201,16 @@ export default function JobDetailPage() {
                   )}
                 </div>
               </div>
-              {job.contract_type && (
-                <span className="text-sm px-3 py-1 rounded-full bg-primary/10 text-primary">
-                  {getContractLabel(job.contract_type)}
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                {job.contract_type && (
+                  <span className="text-sm px-3 py-1 rounded-full bg-primary/10 text-primary">
+                    {getContractLabel(job.contract_type)}
+                  </span>
+                )}
+                <span className="text-sm px-3 py-1 rounded-full border border-border text-foreground">
+                  {getWorkModeLabel(job.work_mode)}
                 </span>
-              )}
+              </div>
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">

@@ -20,6 +20,7 @@ interface JobOffer {
   location: string | null;
   sector: string | null;
   contract_type: string | null;
+  work_mode?: string | null;
   salary_range: string | null;
   created_at: string;
   company_id?: string | null;
@@ -203,6 +204,20 @@ export default function JobsPage() {
     return type ? labels[type] || type : null;
   };
 
+  const normalizeWorkMode = (wm: string | null | undefined): 'on_site' | 'hybrid' | 'remote' => {
+    if (wm === 'hybrid' || wm === 'remote' || wm === 'on_site') return wm;
+    return 'on_site';
+  };
+
+  const getWorkModeLabel = (wm: string | null | undefined) => {
+    const labels: Record<string, string> = {
+      on_site: 'Presencial',
+      hybrid: 'Híbrido',
+      remote: 'Remoto',
+    };
+    return labels[normalizeWorkMode(wm)];
+  };
+
   const getTimeAgo = (date: string) => {
     const now = new Date();
     const posted = new Date(date);
@@ -316,6 +331,9 @@ export default function JobsPage() {
                         {getContractLabel(job.contract_type)}
                       </Badge>
                     )}
+                    <Badge variant="outline" className="text-xs">
+                      {getWorkModeLabel(job.work_mode)}
+                    </Badge>
                     {job.isDemo && (
                       <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
                         Demo
