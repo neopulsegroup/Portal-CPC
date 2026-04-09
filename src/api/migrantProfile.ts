@@ -37,6 +37,10 @@ export type MigrantProfileDoc = {
   photoUrl?: string | null;
   currentLocation?: string | null;
   address?: string | null;
+  addressNumber?: string | null;
+  /** Código postal (rótulo CEP no formulário). */
+  cep?: string | null;
+  /** Legado; não exposto no UI — migração para `cep`. */
   identificationNumber?: string | null;
   region?: 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Outra' | null;
   regionOther?: string | null;
@@ -109,6 +113,8 @@ export async function fetchMigrantProfile(uid: string): Promise<MigrantProfileRe
       photoUrl: profileFs?.photoUrl ?? null,
       currentLocation: profileFs?.currentLocation ?? null,
       address: profileFs?.address ?? null,
+      addressNumber: profileFs?.addressNumber ?? null,
+      cep: profileFs?.cep ?? null,
       identificationNumber: profileFs?.identificationNumber ?? null,
       region: (profileFs?.region as MigrantProfileDoc['region']) ?? null,
       regionOther: profileFs?.regionOther ?? null,

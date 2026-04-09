@@ -28,6 +28,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
         overall_progress: 'Progresso Geral',
         trails: 'Trilhas',
         sessions: 'Sessões',
+        activities: 'Atividades',
         profile: 'Perfil',
         book_session_action: 'Marcar sessão',
         start_trail_action: '',
@@ -36,6 +37,8 @@ vi.mock('@/contexts/LanguageContext', () => ({
         description: '',
         notifications: 'Notificações',
         no_notifications: 'Sem notificações',
+        view_all: 'Ver todas',
+        employment_area: 'Área de Emprego',
         session_types: { mediador: 'Mediador', jurista: 'Jurista', psicologa: 'Psicóloga' },
         support_types: { juridico: 'Jurídico', psicologico: 'Psicológico', habitacional: 'Habitacional', necessidades: 'Necessidades' },
       },
@@ -50,6 +53,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
         const dict: Record<string, string> = {
           'dashboard.overview': 'Visão geral',
           'dashboard.sessions': 'Sessões',
+          'dashboard.activities': 'Atividades',
           'dashboard.employment': 'Emprego',
           'dashboard.trails': 'Trilhas',
           'dashboard.profile': 'Perfil',
@@ -62,6 +66,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
           'dashboard.welcome': 'Bem-vindo(a)',
           'dashboard.overview_desc': 'Resumo personalizado da sua integração',
           'auth.roles.migrant': 'Pessoa Migrante',
+          'dashboard.activities_empty': 'O migrante ainda não participou em nenhuma atividade.',
         };
         return dict[k] ?? k;
       },
@@ -95,6 +100,8 @@ vi.mock('./migrant/JobDetailPage', () => ({ default: () => <div>JobDetail</div> 
 vi.mock('./migrant/ProfilePage', () => ({ default: () => <div>Profile</div> }));
 vi.mock('./migrant/SessionsPage', () => ({ default: () => <div>Sessions</div> }));
 vi.mock('./migrant/MessagesPage', () => ({ default: () => <div>Messages</div> }));
+vi.mock('./migrant/MigrantActivitiesListPage', () => ({ default: () => <div>MigrantActivities</div> }));
+vi.mock('./migrant/MigrantActivityDetailPage', () => ({ default: () => <div>MigrantActivityDetail</div> }));
 
 describe('MigrantDashboard - navegação', () => {
   beforeEach(() => {
@@ -168,6 +175,10 @@ describe('MigrantDashboard - navegação', () => {
         },
         {
           "className": "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted",
+          "label": "Atividades",
+        },
+        {
+          "className": "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted",
           "label": "Emprego",
         },
         {
@@ -200,7 +211,8 @@ describe('MigrantDashboard - navegação', () => {
           birthDate: null,
           nationality: '',
           address: '',
-          identificationNumber: '',
+          addressNumber: '',
+          cep: '',
           region: null,
           professionalTitle: '',
           professionalExperience: '',
@@ -242,7 +254,8 @@ describe('MigrantDashboard - navegação', () => {
           birthDate: '1990-02-03',
           nationality: 'Brasil',
           address: 'Rua Exemplo, 123, Lisboa',
-          identificationNumber: 'AB123456',
+          addressNumber: '10',
+          cep: '1000-001',
           region: 'Lisboa',
           regionOther: null,
           professionalTitle: 'Operadora',
@@ -278,7 +291,7 @@ describe('MigrantDashboard - navegação', () => {
         return () => {};
       }
       if (a.collectionName === 'profiles') {
-        a.onNext({ name: 'Ana', phone: '+351900000000', birthDate: '1990-02-03', nationality: 'Brasil', address: 'Rua Exemplo, 123, Lisboa', identificationNumber: 'AB123456', region: 'Lisboa', professionalTitle: 'Operadora', professionalExperience: 'Experiência profissional suficiente.', skills: 'Atendimento', languagesList: 'Português', mainNeeds: 'Apoio' });
+        a.onNext({ name: 'Ana', phone: '+351900000000', birthDate: '1990-02-03', nationality: 'Brasil', address: 'Rua Exemplo, 123, Lisboa', addressNumber: '10', cep: '1000-001', region: 'Lisboa', professionalTitle: 'Operadora', professionalExperience: 'Experiência profissional suficiente.', skills: 'Atendimento', languagesList: 'Português', mainNeeds: 'Apoio' });
         return () => {};
       }
       a.onNext(null);
@@ -312,7 +325,8 @@ describe('MigrantDashboard - navegação', () => {
           birthDate: '1990-02-03',
           nationality: 'Brasil',
           address: 'Rua Exemplo, 123, Lisboa',
-          identificationNumber: 'AB123456',
+          addressNumber: '10',
+          cep: '1000-001',
           region: 'Lisboa',
           professionalTitle: 'Operadora',
           professionalExperience: 'Experiência profissional suficiente.',

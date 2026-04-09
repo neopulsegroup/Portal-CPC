@@ -114,6 +114,36 @@ export function formatDuration(minutes: number | null): string {
   return parts.length ? parts.join(' ') : '—';
 }
 
+/** Duração compacta para listagens (ex.: "30m", "1h30m"). */
+export function formatActivityDurationShort(input: {
+  durationMinutes?: number | null;
+  startTime?: string;
+  endTime?: string;
+}): string | null {
+  let mins: number | null =
+    typeof input.durationMinutes === 'number' && Number.isFinite(input.durationMinutes) && input.durationMinutes > 0
+      ? Math.round(input.durationMinutes)
+      : null;
+  if (mins == null && input.startTime && input.endTime) {
+    const computed = computeDurationMinutes(input.startTime, input.endTime);
+    if (computed != null && computed > 0) mins = computed;
+  }
+  if (mins == null || mins <= 0) return null;
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (m === 0) return `${h}h`;
+  return `${h}h${m}m`;
+}
+
+export function formatActivityStatusListLabel(status: string | null | undefined): string {
+  if (!status) return '—';
+  if ((ACTIVITY_STATUSES as readonly string[]).includes(status)) {
+    return toActivityStatusLabel(status as ActivityStatus);
+  }
+  return status;
+}
+
 export function toStartAt(date: string, time: string): string {
   return `${date}T${time}:00`;
 }

@@ -78,15 +78,17 @@ service cloud.firestore {
       return (value is string) && value.size() >= 10 && value.size() <= 200;
     }
 
-    function isValidMigrantIdentificationNumber(value) {
+    function isValidMigrantAddressNumber(value) {
       return (value is string)
         && value.size() >= 1
-        && value.size() <= 20
-        && value.matches('^[A-Z0-9]+$')
-        && (
-          (value.matches('^\\d+$') && value.size() == 9) ||
-          (!value.matches('^\\d+$') && value.size() >= 6)
-        );
+        && value.size() <= 20;
+    }
+
+    function isValidMigrantCep(value) {
+      return (value is string)
+        && value.size() >= 4
+        && value.size() <= 14
+        && value.matches('^[0-9\\-]+$');
     }
 
     function isValidMigrantRegionOther(region, value) {
@@ -95,7 +97,8 @@ service cloud.firestore {
 
     function isValidMigrantPersonalInfoForCpc() {
       return isValidMigrantAddress(request.resource.data.address)
-        && isValidMigrantIdentificationNumber(request.resource.data.identificationNumber)
+        && isValidMigrantAddressNumber(request.resource.data.addressNumber)
+        && isValidMigrantCep(request.resource.data.cep)
         && (request.resource.data.region is string)
         && isValidMigrantRegion(request.resource.data.region)
         && isValidMigrantRegionOther(request.resource.data.region, request.resource.data.regionOther);
@@ -275,7 +278,23 @@ service cloud.firestore {
     }
 
     match /activities/{activityId} {
-      allow read: if isCpcStaff();
+      // Migrante: ler só se estiver na lista (UID ou email em participantMigrantIds).
+      // Usa isAuthenticated (não isAccountEnabled) para não bloquear quem tem Auth mas falta/está incompleto o doc users/{uid}.
+      allow read: if isCpcStaff() ||
+        (
+          isAuthenticated() &&
+          (
+            request.auth.uid in resource.data.get('participantMigrantIds', []) ||
+            (
+              request.auth.token.email is string &&
+              request.auth.token.email in resource.data.get('participantMigrantIds', [])
+            )
+          ) &&
+          (
+            !(resource.data.keys().hasAny(['deletedAt'])) ||
+            resource.data.deletedAt == null
+          )
+        );
       allow create: if isCpcStaff()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.updatedBy == request.auth.uid;

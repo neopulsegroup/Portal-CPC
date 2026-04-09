@@ -4,6 +4,9 @@ import { Layout } from '@/components/layout/Layout';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDocument, subscribeDocument, subscribeQuery } from '@/integrations/firebase/firestore';
+import { formatActivityDurationShort, formatActivityStatusListLabel } from '@/features/activities/model';
+import { loadParticipantActivitiesForUser, MAX_PARTICIPANT_ACTIVITIES_QUERY_LIMIT } from '@/features/activities/participantActivityList';
+import { APP_TIME_ZONE } from '@/lib/appCalendar';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CircularProgress } from '@/components/ui/circular-progress';
@@ -49,6 +52,8 @@ import JobsPage from './migrant/JobsPage';
 import JobDetailPage from './migrant/JobDetailPage';
 import ProfilePage from './migrant/ProfilePage';
 import SessionsPage from './migrant/SessionsPage';
+import MigrantActivitiesListPage from './migrant/MigrantActivitiesListPage';
+import MigrantActivityDetailPage from './migrant/MigrantActivityDetailPage';
 import MigrantMessagesPage from './migrant/MessagesPage';
 import BookingSessionWizardDialog from './migrant/BookingSessionWizardDialog';
 
@@ -62,6 +67,8 @@ type MigrantDashboardProfileDoc = {
   registeredAt?: unknown | null;
   arrivalDate?: string | null;
   address?: string | null;
+  addressNumber?: string | null;
+  cep?: string | null;
   identificationNumber?: string | null;
   region?: string | null;
   regionOther?: string | null;
@@ -99,6 +106,18 @@ function MigrantHome() {
       return raw === 'true';
     } catch { return false; }
   });
+  const [migrantActivitiesLoading, setMigrantActivitiesLoading] = useState(false);
+  const [migrantActivities, setMigrantActivities] = useState<
+    Array<{
+      id: string;
+      title: string;
+      date: string;
+      status?: string | null;
+      durationMinutes?: number | null;
+      startTime?: string;
+      endTime?: string;
+    }>
+  >([]);
 
   useEffect(() => {
     if (!user) return;
@@ -247,14 +266,11 @@ function MigrantHome() {
       const d = new Date(raw);
       return Number.isFinite(d.getTime());
     };
-    const normalizeId = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
-    const validateIdNumber = (raw: string) => {
-      const v = normalizeId(raw);
-      if (!v) return false;
-      if (!/^[A-Z0-9]+$/.test(v)) return false;
-      const onlyDigits = /^\d+$/.test(v);
-      if (onlyDigits) return v.length === 9;
-      return v.length >= 6;
+    const validateCepComplete = (raw: string) => {
+      const v = raw.trim();
+      if (!v || !/^[\d-]+$/.test(v)) return false;
+      const d = v.replace(/\D/g, '');
+      return d.length >= 4 && d.length <= 9;
     };
     const validateRegion = (raw: string) => ['Lisboa', 'Norte', 'Centro', 'Alentejo', 'Algarve', 'Outra'].includes(raw);
 
@@ -274,8 +290,10 @@ function MigrantHome() {
     const address = normalize(p.address);
     requiredChecks.push(Boolean(address) && address.length >= 10);
 
-    const idNumber = normalize(p.identificationNumber);
-    requiredChecks.push(Boolean(idNumber) && validateIdNumber(idNumber));
+    requiredChecks.push(nonEmpty(normalize(p.addressNumber)));
+
+    const cepRaw = normalize(p.cep) || normalize(p.identificationNumber);
+    requiredChecks.push(validateCepComplete(cepRaw));
 
     const region = normalize(p.region);
     requiredChecks.push(Boolean(region) && validateRegion(region));
@@ -356,14 +374,11 @@ function MigrantHome() {
       const d = new Date(raw);
       return Number.isFinite(d.getTime());
     };
-    const normalizeId = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20);
-    const validateIdNumber = (raw: string) => {
-      const v = normalizeId(raw);
-      if (!v) return false;
-      if (!/^[A-Z0-9]+$/.test(v)) return false;
-      const onlyDigits = /^\d+$/.test(v);
-      if (onlyDigits) return v.length === 9;
-      return v.length >= 6;
+    const validateCepComplete = (raw: string) => {
+      const v = raw.trim();
+      if (!v || !/^[\d-]+$/.test(v)) return false;
+      const d = v.replace(/\D/g, '');
+      return d.length >= 4 && d.length <= 9;
     };
     const validateRegion = (raw: string) => ['Lisboa', 'Norte', 'Centro', 'Alentejo', 'Algarve', 'Outra'].includes(raw);
 
@@ -387,8 +402,11 @@ function MigrantHome() {
     const address = normalize(p.address);
     if (!address || address.length < 10) missingPersonal.push('Morada');
 
-    const idNumber = normalize(p.identificationNumber);
-    if (!idNumber || !validateIdNumber(idNumber)) missingPersonal.push('Nº Identificação');
+    const addressNumber = normalize(p.addressNumber);
+    if (!addressNumber) missingPersonal.push('Número');
+
+    const cepRaw = normalize(p.cep) || normalize(p.identificationNumber);
+    if (!validateCepComplete(cepRaw)) missingPersonal.push('CEP');
 
     const region = normalize(p.region);
     if (!region || !validateRegion(region)) missingPersonal.push('Região');
@@ -470,6 +488,44 @@ function MigrantHome() {
     }
     try { localStorage.setItem('cpc-accessibility', accessibility ? 'true' : 'false'); } catch { void 0; }
   }, [accessibility]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadActs() {
+      if (!user?.uid) {
+        setMigrantActivities([]);
+        setMigrantActivitiesLoading(false);
+        return;
+      }
+      setMigrantActivitiesLoading(true);
+      try {
+        const sorted = await loadParticipantActivitiesForUser(user.uid, {
+          firestoreLimit: MAX_PARTICIPANT_ACTIVITIES_QUERY_LIMIT,
+          participantEmail: user.email ?? null,
+        });
+        if (cancelled) return;
+        setMigrantActivities(
+          sorted.map((r) => ({
+            id: r.id,
+            title: r.title || 'Atividade',
+            date: r.date || '',
+            status: r.status ?? null,
+            durationMinutes: r.durationMinutes ?? null,
+            startTime: r.startTime,
+            endTime: r.endTime,
+          }))
+        );
+      } catch {
+        if (!cancelled) setMigrantActivities([]);
+      } finally {
+        if (!cancelled) setMigrantActivitiesLoading(false);
+      }
+    }
+    void loadActs();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, user?.email]);
 
   if (loading) {
     return (
@@ -577,6 +633,68 @@ function MigrantHome() {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="cpc-card p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" /> {t.dashboard.activities}
+              </h2>
+              <Link to="/dashboard/migrante/atividades" className="text-sm text-primary hover:underline shrink-0">
+                {t.dashboard.view_all}
+              </Link>
+            </div>
+            <div className="rounded-xl border bg-muted/30 p-6 min-h-[160px]">
+              {migrantActivitiesLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                </div>
+              ) : migrantActivities.length ? (
+                <div className="space-y-3 max-h-[min(420px,50vh)] overflow-y-auto pr-1">
+                  {migrantActivities.map((a) => (
+                    <Link
+                      key={a.id}
+                      to={`/dashboard/migrante/atividades/${a.id}`}
+                      className="flex items-center justify-between rounded-lg bg-background/70 border px-4 py-3 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{a.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {(() => {
+                            const datePart =
+                              a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)
+                                ? new Intl.DateTimeFormat('pt-PT', {
+                                    timeZone: APP_TIME_ZONE,
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }).format(new Date(`${a.date}T12:00:00Z`))
+                                : null;
+                            const dur = formatActivityDurationShort(a);
+                            if (datePart && dur) return `${datePart} • ${dur}`;
+                            if (datePart) return datePart;
+                            if (dur) return dur;
+                            return '—';
+                          })()}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                          {formatActivityStatusListLabel(a.status)}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center flex flex-col items-center justify-center min-h-[120px]">
+                  <div className="mx-auto h-12 w-12 rounded-full bg-background border flex items-center justify-center text-muted-foreground">
+                    <ClipboardList className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-sm text-muted-foreground">{t.get('dashboard.activities_empty')}</p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Employment Card */}
@@ -775,6 +893,7 @@ export default function MigrantDashboard() {
   const sidebarItemsMain = [
     { to: '/dashboard/migrante', label: t.get('dashboard.overview'), icon: TrendingUp },
     { to: '/dashboard/migrante/sessoes', label: t.get('dashboard.sessions'), icon: Calendar },
+    { to: '/dashboard/migrante/atividades', label: t.get('dashboard.activities'), icon: ClipboardList },
     { to: '/dashboard/migrante/emprego', label: t.get('dashboard.employment'), icon: Briefcase },
     { to: '/dashboard/migrante/trilhas', label: t.get('dashboard.trails'), icon: BookOpen },
   ];
@@ -879,6 +998,8 @@ export default function MigrantDashboard() {
                 <Route path="trilhas/:trailId/modulo/:moduleId" element={<ModuleViewerPage />} />
                 <Route path="emprego" element={<JobsPage />} />
                 <Route path="emprego/:jobId" element={<JobDetailPage />} />
+                <Route path="atividades" element={<MigrantActivitiesListPage />} />
+                <Route path="atividades/:activityId" element={<MigrantActivityDetailPage />} />
                 <Route path="perfil" element={<ProfilePage />} />
                 <Route path="mensagens" element={<MigrantMessagesPage />} />
               </Routes>

@@ -14,6 +14,8 @@ const mockToast = vi.fn();
 const stableUser = { uid: 'u1' };
 const stableAuthProfile = { role: 'migrant' as const };
 
+const originalFetch = globalThis.fetch?.bind(globalThis) as typeof fetch;
+
 vi.mock('@/api/migrantProfile', () => ({
   fetchMigrantProfile: (...args: unknown[]) => mockFetchMigrantProfile(...args),
 }));
@@ -87,6 +89,24 @@ describe('ProfilePage (dashboard/migrante)', () => {
     mockQueryDocuments.mockResolvedValue([]);
     stableUser.uid = 'u1';
     (stableAuthProfile as { role: string }).role = 'migrant';
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const u =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (u.includes('photon.komoot.io')) {
+        return {
+          ok: true,
+          json: async () => ({ features: [] }),
+        } as Response;
+      }
+      if (u.includes('nominatim.openstreetmap.org') || u.includes('/osm-nominatim')) {
+        return {
+          ok: true,
+          json: async () => [],
+        } as Response;
+      }
+      if (originalFetch) return originalFetch(input, init);
+      throw new Error(`fetch não mockado: ${u}`);
+    }) as typeof fetch;
   });
 
   it('mostra loading e depois renderiza dados vindos da base de dados', async () => {
@@ -255,7 +275,8 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await user.clear(screen.getByLabelText('Nome'));
     await user.type(screen.getByLabelText('Nome'), 'Migrante 1 Atualizado');
     await user.type(screen.getByLabelText('Morada'), 'Rua da Liberdade 123, Lisboa');
-    await user.type(screen.getByLabelText('Nº Identificação'), 'AA123456');
+    await user.type(screen.getByLabelText('Número'), '10');
+    await user.type(screen.getByLabelText('CEP'), '1000-001');
     await user.click(screen.getByLabelText('Região'));
     await user.click(await screen.findByText('Lisboa'));
     await user.click(screen.getByRole('button', { name: 'Guardar alterações' }));
@@ -267,7 +288,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
     });
   });
 
-  it('valida campos obrigatórios (Morada, Nº Identificação e Região) no perfil CPC', async () => {
+  it('valida campos obrigatórios (Morada, Número, CEP e Região) no perfil CPC', async () => {
     localStorage.clear();
     const user = userEvent.setup();
     stableUser.uid = 'cpc1';
@@ -294,12 +315,13 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar alterações' }));
 
     expect(await screen.findByText('A Morada é obrigatória.')).toBeInTheDocument();
-    expect(screen.getByText('O Nº Identificação é obrigatório.')).toBeInTheDocument();
+    expect(screen.getByText('O Número é obrigatório.')).toBeInTheDocument();
+    expect(screen.getByText('O CEP é obrigatório.')).toBeInTheDocument();
     expect(screen.getByText('A Região é obrigatória.')).toBeInTheDocument();
     expect(mockUpdateDocument).not.toHaveBeenCalled();
   });
 
-  it('normaliza o Nº Identificação para letras maiúsculas e apenas números/letras', async () => {
+  it('restringe o CEP a dígitos e hífen', async () => {
     localStorage.clear();
     const user = userEvent.setup();
     stableUser.uid = 'cpc1';
@@ -307,7 +329,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
     mockFetchMigrantProfile.mockResolvedValueOnce({
       userProfile: { email: 'm2@exemplo.com', name: 'Migrante 2', role: 'migrant', createdAt: null, updatedAt: null },
       profile: { id: 'm2', name: 'Migrante 2', email: 'm2@exemplo.com', phone: null },
-      triage: { id: 'm2', userId: 'm2', answers: { document_type: 'passport' }, legal_status: null, work_status: null, language_level: null, interests: null, urgencies: null },
+      triage: { id: 'm2', userId: 'm2', answers: {}, legal_status: null, work_status: null, language_level: null, interests: null, urgencies: null },
       sessions: [],
       progress: [],
       trails: {},
@@ -324,9 +346,9 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await screen.findByText('Informação Pessoal');
     await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
 
-    const input = screen.getByLabelText('Nº Identificação') as HTMLInputElement;
-    await user.type(input, 'ab-12cD#ç@');
-    expect(input.value).toBe('AB12CD');
+    const input = screen.getByLabelText('CEP') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '10ab00-00x1' } });
+    expect(input.value).toBe('1000-001');
   });
 
   it('requer região adicional quando seleciona "Outra" e guarda no Firestore', async () => {
@@ -364,7 +386,8 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
 
     await user.type(screen.getByLabelText('Morada'), 'Rua Exemplo, 123, Lisboa');
-    await user.type(screen.getByLabelText('Nº Identificação'), 'ab123456');
+    await user.type(screen.getByLabelText('Número'), '5');
+    await user.type(screen.getByLabelText('CEP'), '1000-002');
 
     await user.click(screen.getByLabelText('Região'));
     await user.click(await screen.findByText('Outra'));
@@ -382,7 +405,8 @@ describe('ProfilePage (dashboard/migrante)', () => {
         'm3',
         expect.objectContaining({
           address: 'Rua Exemplo, 123, Lisboa',
-          identificationNumber: 'AB123456',
+          addressNumber: '5',
+          cep: '1000-002',
           region: 'Outra',
           regionOther: 'Madeira',
         })
@@ -537,7 +561,7 @@ describe('ProfilePage (dashboard/migrante)', () => {
 
     mockFetchMigrantProfile.mockResolvedValueOnce({
       userProfile: { email: 'ana@exemplo.com', name: 'Ana', role: 'migrant', createdAt: null, updatedAt: null },
-      profile: { id: 'u1', name: 'Ana', email: 'ana@exemplo.com', phone: null, address: '', identificationNumber: '', region: null, regionOther: null },
+      profile: { id: 'u1', name: 'Ana', email: 'ana@exemplo.com', phone: null, address: '', addressNumber: '', cep: '', region: null, regionOther: null },
       triage: null,
       sessions: [],
       progress: [],
@@ -554,7 +578,8 @@ describe('ProfilePage (dashboard/migrante)', () => {
     await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
 
     expect(screen.getByLabelText('Morada')).toBeInTheDocument();
-    expect(screen.getByLabelText('Nº Identificação')).toBeInTheDocument();
+    expect(screen.getByLabelText('Número')).toBeInTheDocument();
+    expect(screen.getByLabelText('CEP')).toBeInTheDocument();
     expect(screen.getByLabelText('Região')).toBeInTheDocument();
 
     expect(screen.getByLabelText('Telefone')).toBeInTheDocument();

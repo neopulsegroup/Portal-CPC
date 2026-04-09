@@ -81,6 +81,12 @@ export async function getActivity(activityId: string): Promise<ActivityDoc | nul
   return getDocument<ActivityDoc>('activities', activityId);
 }
 
+function normalizeParticipantIdToken(id: string): string {
+  const t = id.trim();
+  if (t.includes('@')) return t.toLowerCase();
+  return t;
+}
+
 function toPersistedDoc(input: ActivityUpsertInput): Omit<ActivityDoc, 'id'> {
   const duration = computeDurationMinutes(input.startTime, input.endTime);
   if (!duration) throw new Error('Intervalo de horário inválido.');
@@ -103,7 +109,7 @@ function toPersistedDoc(input: ActivityUpsertInput): Omit<ActivityDoc, 'id'> {
     topics,
     consultantIds: Array.from(new Set(input.consultantIds)),
     consultantNames,
-    participantMigrantIds: Array.from(new Set(input.participantMigrantIds)),
+    participantMigrantIds: Array.from(new Set(input.participantMigrantIds.map(normalizeParticipantIdToken).filter(Boolean))),
     participantCompanyIds: Array.from(new Set(input.participantCompanyIds)),
     participantConsultantIds: Array.from(new Set(input.participantConsultantIds)),
     searchTokens: buildSearchTokens({

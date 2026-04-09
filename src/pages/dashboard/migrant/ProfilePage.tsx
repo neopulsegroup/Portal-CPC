@@ -5,70 +5,105 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Calendar, BookOpen, Clock, User, FileText, Camera, Download, Loader2, ClipboardList } from 'lucide-react';
+import { AlertCircle, Calendar, BookOpen, CheckCircle2, Clock, User, FileText, Camera, Download, Loader2, ClipboardList } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PhoneInput, formatPhoneValueForDisplay } from '@/components/ui/phone-input';
 import { fetchMigrantProfile, type MigrantProfileDoc, type MigrantProfileResponse } from '@/api/migrantProfile';
-import { queryDocuments, updateDocument } from '@/integrations/firebase/firestore';
+import { updateDocument } from '@/integrations/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { storage } from '@/integrations/firebase/client';
 import { getDownloadURL, ref as makeStorageRef, uploadBytes } from 'firebase/storage';
 import logo from '@/assets/logo.png';
 import { APP_TIME_ZONE, todayIsoAppCalendar } from '@/lib/appCalendar';
-import { ACTIVITY_STATUSES, type ActivityStatus, computeDurationMinutes, toActivityStatusLabel } from '@/features/activities/model';
+import { cepDigitsPortugal, formatPortugalCepDigits, lookupAddressFromPortugalCep } from '@/lib/portugalCepLookup';
+import { formatActivityDurationShort, formatActivityStatusListLabel } from '@/features/activities/model';
+import { loadParticipantActivitiesForUser } from '@/features/activities/participantActivityList';
 
-type ActivityFirestoreRow = {
-  id: string;
-  title?: string;
-  date?: string;
-  startAt?: string;
-  startTime?: string;
-  endTime?: string;
-  durationMinutes?: number | null;
-  status?: string | null;
-  deletedAt?: unknown;
+function readProfileExtrasFromStorage(userKey: string): Partial<MigrantProfileDoc> | null {
+  const extrasRaw =
+    localStorage.getItem(`profileExtras:${userKey}`) ||
+    localStorage.getItem(`profileExtras:${String(userKey)}`);
+  if (!extrasRaw) return null;
+  try {
+    return JSON.parse(extrasRaw) as Partial<MigrantProfileDoc>;
+  } catch {
+    return null;
+  }
+}
+
+function mergeProfileWithExtrasForUser(p: MigrantProfileDoc, userKey: string): MigrantProfileDoc {
+  const extras = readProfileExtrasFromStorage(userKey);
+  return {
+    ...p,
+    phone: p.phone || extras?.phone || null,
+    birthDate: p.birthDate || extras?.birthDate || null,
+    nationality: p.nationality || extras?.nationality || null,
+    address: p.address || extras?.address || null,
+    addressNumber: p.addressNumber || extras?.addressNumber || null,
+    cep: p.cep || extras?.cep || null,
+    identificationNumber: p.identificationNumber || extras?.identificationNumber || null,
+    region: p.region || extras?.region || null,
+    regionOther: p.regionOther || extras?.regionOther || null,
+    resumeUrl: p.resumeUrl || extras?.resumeUrl || null,
+    professionalTitle: p.professionalTitle || extras?.professionalTitle || null,
+    professionalExperience: p.professionalExperience || extras?.professionalExperience || null,
+    skills: p.skills || extras?.skills || null,
+    languagesList: p.languagesList || extras?.languagesList || null,
+    contactPreference: p.contactPreference || extras?.contactPreference || null,
+  };
+}
+
+type ProfileEditFormState = {
+  name: string;
+  phone: string;
+  birthDate: string;
+  nationality: string;
+  resumeUrl: string;
+  professionalTitle: string;
+  professionalExperience: string;
+  skills: string;
+  languagesList: string;
+  contactPreference: 'email' | 'phone';
+  address: string;
+  addressNumber: string;
+  cep: string;
+  region: '' | 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Outra';
+  regionOther: string;
 };
 
-/** Carga horária curta para listagens (ex.: "30m", "1h30m"). */
-function formatActivityDurationShort(input: {
-  durationMinutes?: number | null;
-  startTime?: string;
-  endTime?: string;
-}): string | null {
-  let mins: number | null =
-    typeof input.durationMinutes === 'number' && Number.isFinite(input.durationMinutes) && input.durationMinutes > 0
-      ? Math.round(input.durationMinutes)
-      : null;
-  if (mins == null && input.startTime && input.endTime) {
-    const computed = computeDurationMinutes(input.startTime, input.endTime);
-    if (computed != null && computed > 0) mins = computed;
-  }
-  if (mins == null || mins <= 0) return null;
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (m === 0) return `${h}h`;
-  return `${h}h${m}m`;
-}
+function buildEditStateFromMergedProfile(res: MigrantProfileResponse, merged: MigrantProfileDoc | null): ProfileEditFormState {
+  const triageAns =
+    res.triage?.answers && typeof res.triage.answers === 'object'
+      ? (res.triage.answers as Record<string, unknown>)
+      : {};
+  const triagePhone = typeof triageAns.phone === 'string' ? triageAns.phone : '';
+  const triageBirthDate = typeof triageAns.birth_date === 'string' ? triageAns.birth_date : '';
+  const triageNationality = typeof triageAns.nationality === 'string' ? triageAns.nationality : '';
 
-function sortActivitiesForMigrant(rows: ActivityFirestoreRow[]): ActivityFirestoreRow[] {
-  const active = (rows || []).filter((r) => r.deletedAt == null);
-  return active.slice().sort((a, b) => {
-    const sa = (a.startAt || `${a.date || ''}T00:00:00`).slice(0, 19);
-    const sb = (b.startAt || `${b.date || ''}T00:00:00`).slice(0, 19);
-    return sb.localeCompare(sa);
-  });
-}
-
-function activityStatusLabel(status: string | null | undefined): string {
-  if (!status) return '—';
-  if ((ACTIVITY_STATUSES as readonly string[]).includes(status)) {
-    return toActivityStatusLabel(status as ActivityStatus);
-  }
-  return status;
+  type R = ProfileEditFormState['region'];
+  return {
+    name: merged?.name || res.userProfile?.name || '',
+    phone: merged?.phone || triagePhone || '',
+    birthDate: merged?.birthDate || triageBirthDate || '',
+    nationality: merged?.nationality || triageNationality || '',
+    resumeUrl: merged?.resumeUrl || '',
+    professionalTitle: merged?.professionalTitle || '',
+    professionalExperience: merged?.professionalExperience || '',
+    skills: merged?.skills || '',
+    languagesList: merged?.languagesList || '',
+    contactPreference: (merged?.contactPreference as 'email' | 'phone') || 'email',
+    address: merged?.address || '',
+    addressNumber: merged?.addressNumber || '',
+    cep:
+      (typeof merged?.cep === 'string' && merged.cep.trim()) ||
+      (typeof merged?.identificationNumber === 'string' && merged.identificationNumber.trim()) ||
+      '',
+    region: (merged?.region as R) || '',
+    regionOther: merged?.regionOther || '',
+  };
 }
 
 export default function ProfilePage() {
@@ -82,6 +117,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [profileSaveFeedback, setProfileSaveFeedback] = useState<'saved' | 'error' | null>(null);
   const [exportingFicha, setExportingFicha] = useState(false);
   const [exportingTriagem, setExportingTriagem] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,7 +148,8 @@ export default function ProfilePage() {
     languagesList: string;
     contactPreference: 'email' | 'phone';
     address: string;
-    identificationNumber: string;
+    addressNumber: string;
+    cep: string;
     region: '' | 'Lisboa' | 'Norte' | 'Centro' | 'Alentejo' | 'Algarve' | 'Outra';
     regionOther: string;
   }>({
@@ -127,14 +164,21 @@ export default function ProfilePage() {
     languagesList: '',
     contactPreference: 'email',
     address: '',
-    identificationNumber: '',
+    addressNumber: '',
+    cep: '',
     region: '',
     regionOther: '',
   });
 
   const [personalInfoErrors, setPersonalInfoErrors] = useState<
-    Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'identificationNumber' | 'region' | 'regionOther', string>>
+    Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'addressNumber' | 'cep' | 'region' | 'regionOther', string>>
   >({});
+
+  const cepWhenEditOpenedRef = useRef<string | null>(null);
+  const locationFieldsManualRef = useRef(false);
+  const cepLookupSeq = useRef(0);
+  const [cepLookupStatus, setCepLookupStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [cepLookupMessage, setCepLookupMessage] = useState<string | null>(null);
 
   const targetUserId = migrantId || user?.uid || null;
   const isViewingOtherUser = !!(migrantId && user?.uid && migrantId !== user.uid);
@@ -160,38 +204,11 @@ export default function ProfilePage() {
         const res = await fetchMigrantProfile(targetUserId);
         if (cancelled) return;
         const userKey = targetUserId;
-        const extrasRaw =
-          localStorage.getItem(`profileExtras:${userKey}`) ||
-          localStorage.getItem(`profileExtras:${String(userKey)}`);
-        const extras = (() => {
-          if (!extrasRaw) return null;
-          try {
-            return JSON.parse(extrasRaw) as Partial<MigrantProfileDoc>;
-          } catch {
-            return null;
-          }
-        })();
 
         setData(res);
         const p = res.profile;
-        const merged: MigrantProfileDoc | null = p
-          ? {
-              ...p,
-              phone: p.phone || extras?.phone || null,
-              birthDate: p.birthDate || extras?.birthDate || null,
-              nationality: p.nationality || extras?.nationality || null,
-              address: p.address || extras?.address || null,
-              identificationNumber: p.identificationNumber || extras?.identificationNumber || null,
-              region: p.region || extras?.region || null,
-              regionOther: p.regionOther || extras?.regionOther || null,
-              resumeUrl: p.resumeUrl || extras?.resumeUrl || null,
-              professionalTitle: p.professionalTitle || extras?.professionalTitle || null,
-              professionalExperience: p.professionalExperience || extras?.professionalExperience || null,
-              skills: p.skills || extras?.skills || null,
-              languagesList: p.languagesList || extras?.languagesList || null,
-              contactPreference: p.contactPreference || extras?.contactPreference || null,
-            }
-          : null;
+        const extras = readProfileExtrasFromStorage(userKey);
+        const merged: MigrantProfileDoc | null = p ? mergeProfileWithExtrasForUser(p, userKey) : null;
 
         if (p && extras) {
           const shouldMigrate =
@@ -199,6 +216,8 @@ export default function ProfilePage() {
             (!p.birthDate && extras.birthDate) ||
             (!p.nationality && extras.nationality) ||
             (!p.address && extras.address) ||
+            (!p.addressNumber && extras.addressNumber) ||
+            (!p.cep && extras.cep) ||
             (!p.identificationNumber && extras.identificationNumber) ||
             (!p.region && extras.region) ||
             (!p.regionOther && extras.regionOther) ||
@@ -215,6 +234,8 @@ export default function ProfilePage() {
               birthDate: merged?.birthDate || null,
               nationality: merged?.nationality || null,
               address: merged?.address || null,
+              addressNumber: merged?.addressNumber || null,
+              cep: merged?.cep || null,
               identificationNumber: merged?.identificationNumber || null,
               region: merged?.region || null,
               regionOther: merged?.regionOther || null,
@@ -228,30 +249,7 @@ export default function ProfilePage() {
           }
         }
 
-        const triageAns =
-          res.triage?.answers && typeof res.triage.answers === 'object'
-            ? (res.triage.answers as Record<string, unknown>)
-            : {};
-        const triagePhone = typeof triageAns.phone === 'string' ? triageAns.phone : '';
-        const triageBirthDate = typeof triageAns.birth_date === 'string' ? triageAns.birth_date : '';
-        const triageNationality = typeof triageAns.nationality === 'string' ? triageAns.nationality : '';
-
-        setEdit({
-          name: merged?.name || res.userProfile?.name || '',
-          phone: merged?.phone || triagePhone || '',
-          birthDate: merged?.birthDate || triageBirthDate || '',
-          nationality: merged?.nationality || triageNationality || '',
-          resumeUrl: merged?.resumeUrl || '',
-          professionalTitle: merged?.professionalTitle || '',
-          professionalExperience: merged?.professionalExperience || '',
-          skills: merged?.skills || '',
-          languagesList: merged?.languagesList || '',
-          contactPreference: (merged?.contactPreference as 'email' | 'phone') || 'email',
-          address: merged?.address || '',
-          identificationNumber: merged?.identificationNumber || '',
-          region: (merged?.region as typeof edit.region) || '',
-          regionOther: merged?.regionOther || '',
-        });
+        setEdit(buildEditStateFromMergedProfile(res, merged));
         setEditMode(false);
         setPersonalInfoErrors({});
       } catch (err: unknown) {
@@ -286,15 +284,15 @@ export default function ProfilePage() {
       }
       setActivitiesLoading(true);
       try {
-        // Sem orderBy em Firestore: evita índice composto (array-contains + date). Ordenação no cliente.
-        const rows = await queryDocuments<ActivityFirestoreRow>(
-          'activities',
-          [{ field: 'participantMigrantIds', operator: 'array-contains', value: targetUserId }],
-          undefined,
-          200
-        );
+        const migrantEmail =
+          (typeof data?.profile?.email === 'string' && data.profile.email.trim()) ||
+          (typeof data?.userProfile?.email === 'string' && data.userProfile.email.trim()) ||
+          null;
+        const sorted = await loadParticipantActivitiesForUser(targetUserId, {
+          firestoreLimit: 200,
+          participantEmail: migrantEmail,
+        });
         if (cancelled) return;
-        const sorted = sortActivitiesForMigrant(rows || []);
         setActivities(
           sorted.slice(0, 40).map((r) => ({
             id: r.id,
@@ -318,7 +316,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [isViewingOtherUser, targetUserId]);
+  }, [isViewingOtherUser, targetUserId, data?.profile?.email, data?.userProfile?.email]);
 
   const sessionsSorted = useMemo(() => {
     return (data?.sessions || []).slice().sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
@@ -446,45 +444,103 @@ export default function ProfilePage() {
     return progressSorted.length ? progressSorted[0] : null;
   }, [progressSorted]);
 
-  const selectedDocumentType = useMemo(() => {
-    const raw =
-      (typeof triageAnswers.document_type === 'string' ? triageAnswers.document_type : null) ||
-      (typeof triageAnswers.id_document_type === 'string' ? triageAnswers.id_document_type : null) ||
-      (typeof triageAnswers.documentType === 'string' ? triageAnswers.documentType : null) ||
-      null;
-    return raw ? raw.toLowerCase() : null;
-  }, [triageAnswers]);
-
   const REGIONS = useMemo(() => ['Lisboa', 'Norte', 'Centro', 'Alentejo', 'Algarve', 'Outra'] as const, []);
 
-  const normalizeIdentificationInput = useCallback((raw: string) => {
-    return raw
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .slice(0, 20);
+  const normalizeCepInput = useCallback((raw: string) => {
+    return raw.replace(/[^\d-]/g, '').slice(0, 14);
   }, []);
 
-  const validateIdentificationNumber = useCallback((value: string) => {
-    const v = normalizeIdentificationInput(value);
-    if (!v) return 'O Nº Identificação é obrigatório.';
-    if (v.length > 20) return 'O Nº Identificação deve ter no máximo 20 caracteres.';
-    if (!/^[A-Z0-9]+$/.test(v)) return 'Use apenas letras maiúsculas e números.';
-    const dt = selectedDocumentType || '';
-    if (dt.includes('nif')) {
-      if (!/^\d{9}$/.test(v)) return 'Para NIF, introduza exatamente 9 dígitos.';
-    } else if (dt.includes('pass')) {
-      if (v.length < 6) return 'Para Passaporte, introduza pelo menos 6 caracteres.';
-    } else if (dt.includes('resid') || dt.includes('cart') || dt.includes('cc')) {
-      if (v.length < 6) return 'O Nº Identificação é inválido para o tipo de documento selecionado.';
-    }
+  const validateCep = useCallback((value: string, required: boolean): string | null => {
+    const v = value.trim();
+    if (!v) return required ? 'O CEP é obrigatório.' : null;
+    if (!/^[\d-]+$/.test(v)) return 'Use apenas números e hífen.';
+    const digits = v.replace(/\D/g, '');
+    if (digits.length < 4 || digits.length > 9) return 'Indique um CEP válido (ex.: 1000-001).';
     return null;
-  }, [normalizeIdentificationInput, selectedDocumentType]);
+  }, []);
+
+  useEffect(() => {
+    if (!editMode) {
+      cepLookupSeq.current += 1;
+      cepWhenEditOpenedRef.current = null;
+      locationFieldsManualRef.current = false;
+      setCepLookupStatus('idle');
+      setCepLookupMessage(null);
+      return;
+    }
+    cepWhenEditOpenedRef.current = edit.cep;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot do CEP só ao entrar em modo edição, não a cada tecla
+  }, [editMode]);
+
+  useEffect(() => {
+    if (!editMode) return;
+
+    const d7 = cepDigitsPortugal(edit.cep);
+    const openedDigits = (cepWhenEditOpenedRef.current || '').replace(/\D/g, '');
+    const cepUnchangedSinceOpen = !!(d7 && openedDigits.length === 7 && d7 === openedDigits);
+
+    if (!d7 || cepUnchangedSinceOpen || locationFieldsManualRef.current) {
+      setCepLookupStatus('idle');
+      setCepLookupMessage(null);
+      return;
+    }
+
+    const seq = ++cepLookupSeq.current;
+    setCepLookupStatus('loading');
+    setCepLookupMessage(null);
+
+    const t = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const result = await lookupAddressFromPortugalCep(edit.cep);
+          if (seq !== cepLookupSeq.current) return;
+          if (!result) {
+            setCepLookupStatus('error');
+            setCepLookupMessage('Não foi possível sugerir morada para este CEP.');
+            return;
+          }
+          let applied = false;
+          setEdit((s) => {
+            if (locationFieldsManualRef.current || seq !== cepLookupSeq.current) return s;
+            applied = true;
+            return {
+              ...s,
+              cep: formatPortugalCepDigits(d7),
+              address: result.addressLine,
+              region: result.region,
+              regionOther: result.region === 'Outra' ? result.regionOther : '',
+            };
+          });
+          queueMicrotask(() => {
+            if (seq !== cepLookupSeq.current) return;
+            if (!applied) return;
+            if (locationFieldsManualRef.current) {
+              setCepLookupStatus('idle');
+              setCepLookupMessage(null);
+              return;
+            }
+            setCepLookupStatus('ok');
+            setCepLookupMessage('Morada e região sugeridas a partir do CEP. Pode ajustar se necessário.');
+          });
+        } catch {
+          if (seq !== cepLookupSeq.current) return;
+          setCepLookupStatus('error');
+          setCepLookupMessage('Não foi possível consultar o CEP.');
+        }
+      })();
+    }, 500);
+
+    return () => {
+      window.clearTimeout(t);
+    };
+  }, [editMode, edit.cep]);
 
   async function save() {
     if (!user || !targetUserId) return;
-    const nextErrors: Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'identificationNumber' | 'region' | 'regionOther', string>> = {};
+    const nextErrors: Partial<Record<'phone' | 'birthDate' | 'nationality' | 'address' | 'addressNumber' | 'cep' | 'region' | 'regionOther', string>> = {};
     const addressTrim = edit.address.trim();
-    const idTrim = edit.identificationNumber.trim();
+    const addressNumberTrim = edit.addressNumber.trim();
+    const cepTrim = edit.cep.trim();
     const regionTrim = edit.region;
     const regionOtherTrim = edit.regionOther.trim();
     const phoneTrim = edit.phone.trim();
@@ -495,8 +551,11 @@ export default function ProfilePage() {
       if (!addressTrim) nextErrors.address = 'A Morada é obrigatória.';
       else if (addressTrim.length < 10) nextErrors.address = 'A Morada deve ter pelo menos 10 caracteres.';
 
-      const idErr = validateIdentificationNumber(idTrim);
-      if (idErr) nextErrors.identificationNumber = idErr;
+      if (!addressNumberTrim) nextErrors.addressNumber = 'O Número é obrigatório.';
+      else if (addressNumberTrim.length > 20) nextErrors.addressNumber = 'O Número deve ter no máximo 20 caracteres.';
+
+      const cepErr = validateCep(cepTrim, true);
+      if (cepErr) nextErrors.cep = cepErr;
 
       if (!regionTrim) nextErrors.region = 'A Região é obrigatória.';
       else if (!(REGIONS as readonly string[]).includes(regionTrim)) nextErrors.region = 'A Região selecionada é inválida.';
@@ -508,9 +567,11 @@ export default function ProfilePage() {
     } else {
       if (addressTrim && addressTrim.length < 10) nextErrors.address = 'A Morada deve ter pelo menos 10 caracteres.';
 
-      if (idTrim) {
-        const idErr = validateIdentificationNumber(idTrim);
-        if (idErr && idErr !== 'O Nº Identificação é obrigatório.') nextErrors.identificationNumber = idErr;
+      if (addressNumberTrim && addressNumberTrim.length > 20) nextErrors.addressNumber = 'O Número deve ter no máximo 20 caracteres.';
+
+      if (cepTrim) {
+        const cepErr = validateCep(cepTrim, false);
+        if (cepErr) nextErrors.cep = cepErr;
       }
 
       if (regionTrim && !(REGIONS as readonly string[]).includes(regionTrim)) nextErrors.region = 'A Região selecionada é inválida.';
@@ -551,12 +612,14 @@ export default function ProfilePage() {
 
       if (isViewingOtherUser) {
         payload.address = addressTrim;
-        payload.identificationNumber = normalizeIdentificationInput(idTrim);
+        payload.addressNumber = addressNumberTrim;
+        payload.cep = cepTrim;
         payload.region = regionTrim;
         payload.regionOther = regionTrim === 'Outra' ? regionOtherTrim : null;
       } else {
         if (addressTrim) payload.address = addressTrim;
-        if (idTrim) payload.identificationNumber = normalizeIdentificationInput(idTrim);
+        if (addressNumberTrim) payload.addressNumber = addressNumberTrim;
+        if (cepTrim) payload.cep = cepTrim;
         if (regionTrim) {
           payload.region = regionTrim;
           payload.regionOther = regionTrim === 'Outra' ? regionOtherTrim || null : null;
@@ -567,8 +630,21 @@ export default function ProfilePage() {
 
       const res = await fetchMigrantProfile(targetUserId);
       setData(res);
+      const p = res.profile;
+      const merged = p ? mergeProfileWithExtrasForUser(p, targetUserId) : null;
+      setEdit(buildEditStateFromMergedProfile(res, merged));
+      setEditMode(false);
+      setPersonalInfoErrors({});
+      setProfileSaveFeedback('saved');
+      toast({ title: 'Perfil guardado', description: 'As alterações foram guardadas com sucesso.' });
+      if (targetUserId === user.uid) void refreshProfile();
     } catch {
-      setError('Não foi possível guardar as alterações do perfil.');
+      setProfileSaveFeedback('error');
+      toast({
+        title: 'Não foi possível guardar',
+        description: 'Verifique a ligação e tente novamente.',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }
@@ -588,14 +664,13 @@ export default function ProfilePage() {
     try {
       const [{ PDFDocument, StandardFonts, rgb }, activities] = await Promise.all([
         import('pdf-lib'),
-        queryDocuments<ActivityFirestoreRow>(
-          'activities',
-          [{ field: 'participantMigrantIds', operator: 'array-contains', value: targetUserId }],
-          undefined,
-          200
-        )
-          .then((raw) => sortActivitiesForMigrant(raw || []))
-          .catch(() => []),
+        loadParticipantActivitiesForUser(targetUserId, {
+          firestoreLimit: 200,
+          participantEmail:
+            (typeof data?.profile?.email === 'string' && data.profile.email.trim()) ||
+            (typeof data?.userProfile?.email === 'string' && data.userProfile.email.trim()) ||
+            null,
+        }).catch(() => []),
       ]);
 
       const fileDate = todayIsoAppCalendar();
@@ -713,12 +788,11 @@ export default function ProfilePage() {
       const nationality = profileReadOnlyFields.nationality || '—';
       const phone = profileReadOnlyFields.phone || '—';
       const addressValue = (profile.address || '').trim() || '—';
-      const idDocNumber =
-        (typeof profile.identificationNumber === 'string' && profile.identificationNumber.trim().length > 0)
-          ? profile.identificationNumber
-          : (typeof triageAnswers.document_number === 'string' && triageAnswers.document_number.trim().length > 0)
-            ? triageAnswers.document_number
-            : '—';
+      const addressNumberValue = (typeof profile.addressNumber === 'string' && profile.addressNumber.trim()) || '—';
+      const cepValue =
+        (typeof profile.cep === 'string' && profile.cep.trim()) ||
+        (typeof profile.identificationNumber === 'string' && profile.identificationNumber.trim()) ||
+        '—';
       const regionValue = (() => {
         const r = typeof profile.region === 'string' ? profile.region : '';
         if (!r) return '—';
@@ -729,12 +803,13 @@ export default function ProfilePage() {
       drawTitle('Ficha de Inscrição');
       drawKeyValue('Nome completo', profile.name || '—');
       drawKeyValue('Morada', addressValue);
+      drawKeyValue('Número', addressNumberValue);
+      drawKeyValue('CEP', cepValue);
       drawKeyValue('Região', regionValue);
       drawKeyValue('Telefone', phone);
       drawKeyValue('E-mail', profile.email || '—');
       drawKeyValue('Data de nascimento', birthDate);
       drawKeyValue('Nacionalidade', nationality);
-      drawKeyValue('Nº documento de identificação', idDocNumber);
 
       const progress = (data?.progress || []).map((p) => ({
         ...p,
@@ -781,7 +856,7 @@ export default function ProfilePage() {
         const dateStr = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '';
         const dur = formatActivityDurationShort(a);
         const primary = [dateStr || null, dur].filter(Boolean).join(' • ');
-        const meta = [primary || null, a.status ? `Estado: ${activityStatusLabel(a.status)}` : null].filter(Boolean).join(' · ');
+        const meta = [primary || null, a.status ? `Estado: ${formatActivityStatusListLabel(a.status)}` : null].filter(Boolean).join(' · ');
         return { title: a.title || 'Atividade', meta: meta || undefined };
       });
 
@@ -1322,11 +1397,24 @@ export default function ProfilePage() {
                     Portugal desde: {arrivedSinceLabel}
                   </span>
                 ) : null}
+                {!editMode && profileSaveFeedback === 'saved' ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Alterações guardadas
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:justify-end">
+          <div className="flex flex-col items-stretch gap-2 md:items-end">
+            {editMode && profileSaveFeedback === 'error' ? (
+              <p role="alert" className="text-sm text-destructive flex items-center gap-1.5 md:justify-end">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+                Não foi possível guardar as alterações.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3 md:justify-end">
             {editMode ? (
               <>
                 <Button
@@ -1335,6 +1423,7 @@ export default function ProfilePage() {
                   onClick={() => {
                     setEditMode(false);
                     setPersonalInfoErrors({});
+                    setProfileSaveFeedback(null);
                     setEdit({
                       name: profileDoc.name || data?.userProfile?.name || '',
                       phone: profileDoc.phone || (typeof triageAnswers.phone === 'string' ? triageAnswers.phone : '') || '',
@@ -1347,7 +1436,11 @@ export default function ProfilePage() {
                       languagesList: profileDoc.languagesList || '',
                       contactPreference: (profileDoc.contactPreference as 'email' | 'phone') || 'email',
                       address: profileDoc.address || '',
-                      identificationNumber: profileDoc.identificationNumber || '',
+                      addressNumber: profileDoc.addressNumber || '',
+                      cep:
+                        (typeof profileDoc.cep === 'string' && profileDoc.cep.trim()) ||
+                        (typeof profileDoc.identificationNumber === 'string' && profileDoc.identificationNumber.trim()) ||
+                        '',
                       region: (profileDoc.region as typeof edit.region) || '',
                       regionOther: profileDoc.regionOther || '',
                     });
@@ -1376,7 +1469,15 @@ export default function ProfilePage() {
                     ) : null}
                   </>
                 ) : null}
-                <Button type="button" onClick={() => { setPersonalInfoErrors({}); setEditMode(true); }} disabled={uploadingPhoto}>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setPersonalInfoErrors({});
+                    setProfileSaveFeedback(null);
+                    setEditMode(true);
+                  }}
+                  disabled={uploadingPhoto}
+                >
                   Editar Perfil
                 </Button>
                 {!isViewingOtherUser ? (
@@ -1386,6 +1487,7 @@ export default function ProfilePage() {
                 ) : null}
               </>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -1472,57 +1574,114 @@ export default function ProfilePage() {
             </div>
 
             <div className="sm:col-span-2">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Morada</p>
-              {editMode ? (
-                <>
-                  <Label htmlFor="profile-address" className="sr-only">Morada</Label>
-                  <Input
-                    id="profile-address"
-                    aria-label="Morada"
-                    value={edit.address}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setEdit((s) => ({ ...s, address: v }));
-                      if (personalInfoErrors.address) setPersonalInfoErrors((prev) => ({ ...prev, address: undefined }));
-                    }}
-                    className="mt-2"
-                    placeholder="Endereço completo"
-                  />
-                  {personalInfoErrors.address ? (
-                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.address}</p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="mt-1 font-medium">{profileDoc.address || profileDoc.currentLocation || '—'}</p>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
+                <div>
+                  <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Morada</p>
+                  {editMode ? (
+                    <>
+                      <Label htmlFor="profile-address" className="sr-only">Morada</Label>
+                      <Input
+                        id="profile-address"
+                        aria-label="Morada"
+                        value={edit.address}
+                        onChange={(e) => {
+                          cepLookupSeq.current += 1;
+                          locationFieldsManualRef.current = true;
+                          setCepLookupStatus('idle');
+                          setCepLookupMessage(null);
+                          const v = e.target.value;
+                          setEdit((s) => ({ ...s, address: v }));
+                          if (personalInfoErrors.address) setPersonalInfoErrors((prev) => ({ ...prev, address: undefined }));
+                        }}
+                        className="mt-2"
+                        placeholder="Rua, avenida, etc."
+                      />
+                      {personalInfoErrors.address ? (
+                        <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.address}</p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="mt-1 font-medium">{profileDoc.address || profileDoc.currentLocation || '—'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Número</p>
+                  {editMode ? (
+                    <>
+                      <Label htmlFor="profile-address-number" className="sr-only">Número</Label>
+                      <Input
+                        id="profile-address-number"
+                        aria-label="Número"
+                        value={edit.addressNumber}
+                        onChange={(e) => {
+                          const v = e.target.value.slice(0, 20);
+                          setEdit((s) => ({ ...s, addressNumber: v }));
+                          if (personalInfoErrors.addressNumber) setPersonalInfoErrors((prev) => ({ ...prev, addressNumber: undefined }));
+                        }}
+                        className="mt-2"
+                        placeholder="Ex.: 12"
+                        maxLength={20}
+                      />
+                      {personalInfoErrors.addressNumber ? (
+                        <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.addressNumber}</p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="mt-1 font-medium">{(profileDoc.addressNumber || '').trim() || '—'}</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div>
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Nº Identificação</p>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">CEP</p>
               {editMode ? (
                 <>
-                  <Label htmlFor="profile-identification" className="sr-only">Nº Identificação</Label>
-                  <Input
-                    id="profile-identification"
-                    aria-label="Nº Identificação"
-                    value={edit.identificationNumber}
-                    onChange={(e) => {
-                      const v = normalizeIdentificationInput(e.target.value);
-                      setEdit((s) => ({ ...s, identificationNumber: v }));
-                      if (personalInfoErrors.identificationNumber) setPersonalInfoErrors((prev) => ({ ...prev, identificationNumber: undefined }));
-                    }}
-                    className="mt-2"
-                    placeholder="Ex.: AB123456"
-                    inputMode="text"
-                    maxLength={20}
-                  />
-                  {personalInfoErrors.identificationNumber ? (
-                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.identificationNumber}</p>
+                  <Label htmlFor="profile-cep" className="sr-only">CEP</Label>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Input
+                      id="profile-cep"
+                      aria-label="CEP"
+                      value={edit.cep}
+                      onChange={(e) => {
+                        locationFieldsManualRef.current = false;
+                        const v = normalizeCepInput(e.target.value);
+                        setEdit((s) => ({ ...s, cep: v }));
+                        if (personalInfoErrors.cep) setPersonalInfoErrors((prev) => ({ ...prev, cep: undefined }));
+                      }}
+                      className="flex-1"
+                      placeholder="Ex.: 1000-001"
+                      inputMode="numeric"
+                      maxLength={14}
+                      aria-busy={cepLookupStatus === 'loading'}
+                    />
+                    {cepLookupStatus === 'loading' ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+                    ) : null}
+                  </div>
+                  {cepLookupMessage ? (
+                    <p
+                      className={
+                        cepLookupStatus === 'error'
+                          ? 'text-xs text-destructive mt-1'
+                          : 'text-xs text-muted-foreground mt-1'
+                      }
+                    >
+                      {cepLookupMessage}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Com o código postal completo (7 dígitos), ao alterar o CEP a morada e a região podem ser sugeridas automaticamente.
+                  </p>
+                  {personalInfoErrors.cep ? (
+                    <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.cep}</p>
                   ) : null}
                 </>
               ) : (
                 <p className="mt-1 font-medium">
-                  {profileDoc.identificationNumber || (typeof triageAnswers.document_number === 'string' ? triageAnswers.document_number : '') || '—'}
+                  {(typeof profileDoc.cep === 'string' && profileDoc.cep.trim()) ||
+                    (typeof profileDoc.identificationNumber === 'string' && profileDoc.identificationNumber.trim()) ||
+                    '—'}
                 </p>
               )}
             </div>
@@ -1534,6 +1693,10 @@ export default function ProfilePage() {
                   <Select
                     value={edit.region}
                     onValueChange={(v) => {
+                      cepLookupSeq.current += 1;
+                      locationFieldsManualRef.current = true;
+                      setCepLookupStatus('idle');
+                      setCepLookupMessage(null);
                       setEdit((s) => ({ ...s, region: v as typeof edit.region, regionOther: v === 'Outra' ? s.regionOther : '' }));
                       setPersonalInfoErrors((prev) => ({ ...prev, region: undefined }));
                     }}
@@ -1561,6 +1724,10 @@ export default function ProfilePage() {
                         aria-label="Outra Região"
                         value={edit.regionOther}
                         onChange={(e) => {
+                          cepLookupSeq.current += 1;
+                          locationFieldsManualRef.current = true;
+                          setCepLookupStatus('idle');
+                          setCepLookupMessage(null);
                           const v = e.target.value;
                           setEdit((s) => ({ ...s, regionOther: v }));
                           if (personalInfoErrors.regionOther) setPersonalInfoErrors((prev) => ({ ...prev, regionOther: undefined }));
@@ -1738,7 +1905,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                          {activityStatusLabel(a.status)}
+                          {formatActivityStatusListLabel(a.status)}
                         </span>
                       </div>
                     </Link>
