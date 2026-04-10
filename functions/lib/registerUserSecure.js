@@ -22,6 +22,21 @@ const ALLOWED_ROLES = [
 ];
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_ATTEMPTS = 8;
+/** Origens permitidas no browser (callable Gen2 + Cloud Run). Incluir domínio de produção e emuladores locais. */
+const REGISTER_CORS_ORIGINS = [
+    'https://www.portalcpc.com',
+    'https://portalcpc.com',
+    'https://cpc-projeto-app.web.app',
+    'https://cpc-projeto-app.firebaseapp.com',
+    'https://saas-cpc.vercel.app',
+    /^https:\/\/[\w-]+\.portalcpc\.com$/,
+    /^https:\/\/[\w-]+\.vercel\.app$/,
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8080',
+];
 function getClientIp(rawRequest) {
     const forwarded = rawRequest.headers?.['x-forwarded-for'];
     if (typeof forwarded === 'string' && forwarded.trim()) {
@@ -164,7 +179,13 @@ function validatePayload(payload, requestId) {
     return { email, name, password, role, nif };
 }
 exports.registerUserSecure = (0, https_1.onCall)({
-    cors: true,
+    region: 'us-central1',
+    /**
+     * Registo corre antes de existir sessão Firebase: o serviço Cloud Run subjacente tem de permitir invocação pública.
+     * Sem isto, o preflight OPTIONS pode falhar e o browser reporta erro de CORS.
+     */
+    invoker: 'public',
+    cors: REGISTER_CORS_ORIGINS,
     enforceAppCheck: process.env.ENFORCE_APPCHECK === 'true',
 }, async (request) => {
     const requestId = (0, node_crypto_1.randomUUID)();

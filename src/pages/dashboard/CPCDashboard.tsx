@@ -86,6 +86,23 @@ function deriveNameFromEmail(email?: string | null): string {
     .join(' ');
 }
 
+function resolveRecentMigrantDisplayName(args: {
+  profile: { name?: string | null; email?: string | null } | null | undefined;
+  userDoc: { name?: string | null; email?: string | null } | null | undefined;
+  t: { get: (path: string) => string };
+}): string {
+  const fromProfile = typeof args.profile?.name === 'string' ? args.profile.name.trim() : '';
+  if (fromProfile) return fromProfile;
+  const fromUser = typeof args.userDoc?.name === 'string' ? args.userDoc.name.trim() : '';
+  if (fromUser) return fromUser;
+  const email =
+    (typeof args.profile?.email === 'string' ? args.profile.email.trim() : '') ||
+    (typeof args.userDoc?.email === 'string' ? args.userDoc.email.trim() : '');
+  const derived = deriveNameFromEmail(email);
+  if (derived) return derived;
+  return args.t.get('cpc.migrantsAdmin.fallback_migrant');
+}
+
 function parseUnknownDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -1078,13 +1095,19 @@ export default function CPCDashboard() {
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
           .slice(0, 4);
         const recentIds = recentRaw.map((m) => m.id);
-        const [recentProfiles, recentTriage] = await Promise.all([
-          Promise.all(recentIds.map((id) => getDocument<{ name?: string | null; professionalTitle?: string | null }>('profiles', id))),
+        const [recentProfiles, recentTriage, recentUsers] = await Promise.all([
+          Promise.all(
+            recentIds.map((id) =>
+              getDocument<{ name?: string | null; professionalTitle?: string | null; email?: string | null }>('profiles', id)
+            )
+          ),
           Promise.all(recentIds.map((id) => getDocument<{ urgencies?: string[] | null }>('triage', id))),
+          Promise.all(recentIds.map((id) => getDocument<{ name?: string | null; email?: string | null }>('users', id))),
         ]);
 
         const recentList = recentRaw.map((m, idx) => {
           const profileDoc = recentProfiles[idx];
+          const userDoc = recentUsers[idx];
           const triageDoc = recentTriage[idx];
           const urgenciesCount = (triageDoc?.urgencies || []).length;
           const hasTriage = Boolean(triageDoc);
@@ -1106,7 +1129,7 @@ export default function CPCDashboard() {
 
           return {
             id: m.id,
-            name: profileDoc?.name || m.id,
+            name: resolveRecentMigrantDisplayName({ profile: profileDoc, userDoc, t }),
             subtitle: `${relative}${title}`,
             statusLabel,
             statusClassName,

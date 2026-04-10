@@ -200,6 +200,9 @@ VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 
 # Fallback opcional (se já usar a mesma chave no App Check)
 VITE_FIREBASE_APPCHECK_SITE_KEY=your_appcheck_site_key
+
+# Ativa o registo via Cloud Function segura (default: false para evitar bloqueio por CORS sem deploy de functions)
+VITE_USE_SECURE_REGISTER_FUNCTION=false
 ```
 
 #### Variáveis de ambiente (Cloud Functions)
@@ -230,6 +233,13 @@ RECAPTCHA_MIN_SCORE=0.5
    firebase deploy --only functions
    ```
 3. Verificar no cliente se o registo continua funcional e sem erro técnico exposto.
+
+#### CORS e domínio de produção (`registerUserSecure`)
+
+A callable de registo usa **Cloud Functions Gen2** (`onCall` + `invoker: 'public'`) e uma lista explícita de **origens CORS** (ex.: `https://www.portalcpc.com`). Isto evita o erro de browser *“No 'Access-Control-Allow-Origin' header”* no preflight quando o site corre noutro domínio que não o hosting predefinido do Firebase.
+
+* Se o site público usar **outro domínio ou subdomínio**, acrescente-o em `functions/src/registerUserSecure.ts` (`REGISTER_CORS_ORIGINS`) e faça **novo deploy** das functions.
+* Com **`ENFORCE_APPCHECK=true`**, registe também o domínio em **Firebase Console → App Check** (sites autorizados), caso contrário as chamadas podem falhar após o CORS estar correto.
 
 #### Checklist de validação ponta a ponta
 

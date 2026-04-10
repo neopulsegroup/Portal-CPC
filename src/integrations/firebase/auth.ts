@@ -1,14 +1,16 @@
 import {
+    createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
     sendPasswordResetEmail,
     User,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './client';
 import { functions } from './functionsClient';
 import { getRecaptchaToken } from '@/lib/recaptcha';
+const env = import.meta.env as unknown as Record<string, string | boolean | undefined>;
 
 export interface UserProfile {
     email: string;
@@ -87,6 +89,95 @@ function mapLoginAuthError(error: unknown): string {
     return 'LOGIN_FAILED';
 }
 
+function isFunctionFallbackEligible(error: unknown): boolean {
+    const code = getFirebaseAuthCode(error) ?? '';
+    if (code === 'functions/internal' || code === 'functions/unavailable' || code === 'functions/unknown') {
+        return true;
+    }
+    const message = error instanceof Error ? error.message.toLowerCase() : '';
+    return (
+        message.includes('cors') ||
+        message.includes('failed to fetch') ||
+        message.includes('network') ||
+        message.includes('preflight') ||
+        message.includes('internal')
+    );
+}
+
+async function registerUserWithClientFallback(
+    email: string,
+    password: string,
+    name: string,
+    role: UserProfile['role'],
+    additionalData?: { nif?: string }
+) {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+
+    const now = serverTimestamp();
+    const userProfile: UserProfile = {
+        email,
+        name,
+        role,
+        active: true,
+        disabledAt: null,
+        blocked: false,
+        blockedAt: null,
+        blockedBy: null,
+        createdAt: now,
+        updatedAt: now,
+        ...(additionalData?.nif && { nif: additionalData.nif }),
+    };
+
+    try {
+        await setDoc(doc(db, 'users', uid), userProfile);
+        await setDoc(
+            doc(db, 'profiles', uid),
+            {
+                name,
+                email,
+                role,
+                phone: null,
+                birthDate: null,
+                nationality: null,
+                photoUrl: null,
+                currentLocation: null,
+                arrivalDate: null,
+                registeredAt: now,
+                updatedAt: now,
+            },
+            { merge: true }
+        );
+
+        if (role === 'company') {
+            await setDoc(
+                doc(db, 'companies', uid),
+                {
+                    user_id: uid,
+                    company_name: name,
+                    verified: false,
+                    createdAt: now,
+                    updatedAt: now,
+                },
+                { merge: true }
+            );
+        }
+    } catch (writeError) {
+        try {
+            await userCredential.user.delete();
+        } catch {
+            // Ignora rollback falhado para não mascarar o erro original.
+        }
+        throw writeError;
+    }
+
+    return { user: userCredential.user, profile: userProfile };
+}
+
+function useSecureRegisterFunction(): boolean {
+    return String(env.VITE_USE_SECURE_REGISTER_FUNCTION ?? 'false').toLowerCase() === 'true';
+}
+
 /**
  * Register a new user with email and password
  */
@@ -110,16 +201,28 @@ export async function registerUser(
             { ok: boolean; requestId?: string }
         >(functions, 'registerUserSecure');
 
-        const captchaToken = await getRecaptchaToken('register');
+        if (!useSecureRegisterFunction()) {
+            return await registerUserWithClientFallback(email, password, name, role, additionalData);
+        }
 
-        await callRegister({
-            email,
-            password,
-            name,
-            role,
-            ...(captchaToken ? { captchaToken } : {}),
-            ...(additionalData?.nif ? { nif: additionalData.nif } : {}),
-        });
+        try {
+            const captchaToken = await getRecaptchaToken('register');
+
+            await callRegister({
+                email,
+                password,
+                name,
+                role,
+                ...(captchaToken ? { captchaToken } : {}),
+                ...(additionalData?.nif ? { nif: additionalData.nif } : {}),
+            });
+        } catch (functionError) {
+            if (!isFunctionFallbackEligible(functionError)) {
+                throw functionError;
+            }
+            console.warn('registerUserSecure indisponível. A usar fallback de cadastro no cliente.');
+            return await registerUserWithClientFallback(email, password, name, role, additionalData);
+        }
 
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
