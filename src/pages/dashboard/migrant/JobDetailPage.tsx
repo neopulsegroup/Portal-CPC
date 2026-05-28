@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { addDocument, getDocument, queryDocuments } from '@/integrations/firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { formatJobQualificationSummary } from '@/features/jobs/jobOfferQualifications';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +26,9 @@ interface JobOffer {
   sector: string | null;
   contract_type: string | null;
   work_mode?: string | null;
+  minimum_qualification?: string | null;
+  study_area?: string | null;
+  study_area_other?: string | null;
   salary_range: string | null;
   requirements: string | null;
   required_skills?: string[] | null;
@@ -39,6 +44,7 @@ interface JobOffer {
 export default function JobDetailPage() {
   const { jobId } = useParams();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [job, setJob] = useState<JobOffer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,6 +175,10 @@ export default function JobDetailPage() {
     );
   }
 
+  const qualificationLabel = job
+    ? formatJobQualificationSummary(t, job.minimum_qualification, job.study_area, job.study_area_other)
+    : null;
+
   if (!job) {
     return (
       <div className="text-center py-12">
@@ -223,6 +233,11 @@ export default function JobDetailPage() {
                 <span className="text-sm px-3 py-1 rounded-full border border-border text-foreground">
                   {getWorkModeLabel(job.work_mode)}
                 </span>
+                {qualificationLabel ? (
+                  <span className="text-sm px-3 py-1 rounded-full border border-border text-foreground text-right max-w-[220px]">
+                    {qualificationLabel}
+                  </span>
+                ) : null}
               </div>
             </div>
 
