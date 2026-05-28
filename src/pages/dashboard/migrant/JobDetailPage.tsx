@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { addDocument, getDocument, queryDocuments, updateDocument } from '@/integrations/firebase/firestore';
 import { CVUploadButton } from '@/features/cv/CVUploadButton';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { formatJobQualificationSummary } from '@/features/jobs/jobOfferQualifications';
@@ -48,7 +47,6 @@ export default function JobDetailPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { t } = useLanguage();
   const [job, setJob] = useState<JobOffer | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
@@ -57,6 +55,7 @@ export default function JobDetailPage() {
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [attachedCvUrl, setAttachedCvUrl] = useState<string | null>(null);
+  const [availableForWork, setAvailableForWork] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (jobId) fetchJob();
@@ -75,6 +74,9 @@ export default function JobDetailPage() {
       }
 
       if (user) {
+        const profile = await getDocument<{ availableForWork?: boolean }>('profiles', user.uid);
+        setAvailableForWork(profile?.availableForWork !== false);
+
         const apps = await queryDocuments<{ id: string; migrant_attached_cv_url?: string | null }>(
           'job_applications',
           [

@@ -5,6 +5,8 @@ import { getDocument, queryDocuments, updateDocument } from '@/integrations/fire
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { CVUploadButton } from '@/features/cv/CVUploadButton';
+import { ApplicantProfileUnavailableBadge } from '@/pages/dashboard/company/ApplicantProfileUnavailableBadge';
+import { loadApplicantIdentityMap } from '@/pages/dashboard/company/applicantIdentity';
 import {
   ArrowLeft,
   User,
@@ -73,14 +75,9 @@ export default function JobApplicationsPage() {
       });
 
       if (appsData.length > 0) {
-        // Fetch applicant profiles (nome, email e CV do próprio migrante)
+        // Resolve perfis de forma resiliente (permission-denied não derruba a lista)
         const applicantIds = Array.from(new Set(appsData.map(app => app.applicant_id)));
-        const profileDocs = await Promise.all(applicantIds.map(id => getDocument<{ id: string; name?: string | null; email?: string | null; resumeUrl?: string | null }>('profiles', id)));
-        const profilesById = new Map<string, { name: string; email: string; resumeUrl: string | null }>();
-        applicantIds.forEach((id, idx) => {
-          const p = profileDocs[idx];
-          if (p) profilesById.set(id, { name: p.name || t.get('company.applications.unknownApplicant'), email: p.email || '', resumeUrl: (typeof p.resumeUrl === 'string' && p.resumeUrl.trim()) ? p.resumeUrl.trim() : null });
-        });
+        const profilesById = await loadApplicantIdentityMap(applicantIds, t.get('company.applications.unknownApplicant'));
 
         const applicationsWithProfiles: Application[] = appsData.map(app => {
           const prof = profilesById.get(app.applicant_id);
@@ -93,7 +90,9 @@ export default function JobApplicationsPage() {
             applicantResumeUrl: prof?.resumeUrl ?? null,
             migrantAttachedCvUrl: (typeof app.migrant_attached_cv_url === 'string' && app.migrant_attached_cv_url.trim()) ? app.migrant_attached_cv_url.trim() : null,
             companyAttachedCvUrl: (typeof app.company_attached_cv_url === 'string' && app.company_attached_cv_url.trim()) ? app.company_attached_cv_url.trim() : null,
-            applicant: prof ? { name: prof.name, email: prof.email } : { name: t.get('company.applications.unknownApplicant'), email: '' },
+            applicant: prof
+              ? { name: prof.name, email: prof.email, profileUnavailable: prof.profileUnavailable }
+              : { name: t.get('company.applications.unknownApplicant'), email: '', profileUnavailable: true },
           };
         });
 

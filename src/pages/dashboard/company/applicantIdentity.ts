@@ -3,6 +3,7 @@ import { getDocument } from '@/integrations/firebase/firestore';
 export type ApplicantIdentity = {
   name: string;
   email: string;
+  resumeUrl: string | null;
   /** Perfil inacessível à empresa (ex.: availableForWork desativado). */
   profileUnavailable: boolean;
 };
@@ -23,16 +24,21 @@ export async function loadApplicantIdentityMap(
   await Promise.all(
     uniqueIds.map(async (id) => {
       try {
-        const profile = await getDocument<{ name?: string | null; email?: string | null }>('profiles', id);
+        const profile = await getDocument<{ name?: string | null; email?: string | null; resumeUrl?: string | null }>('profiles', id);
         byId.set(id, {
           name: profile?.name?.trim() || `${unknownApplicantLabel} (${shortId(id)})`,
           email: profile?.email?.trim() || '',
+          resumeUrl:
+            typeof profile?.resumeUrl === 'string' && profile.resumeUrl.trim()
+              ? profile.resumeUrl.trim()
+              : null,
           profileUnavailable: false,
         });
       } catch {
         byId.set(id, {
           name: `${unknownApplicantLabel} (${shortId(id)})`,
           email: '',
+          resumeUrl: null,
           profileUnavailable: true,
         });
       }
