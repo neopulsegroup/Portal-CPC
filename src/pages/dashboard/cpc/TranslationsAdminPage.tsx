@@ -9,6 +9,7 @@ import { getCollection, getDocument, setDocument, updateDocument } from '@/integ
 import { buildTranslationsCsv, parseTranslationsCsvImport } from '@/lib/csvTranslations';
 import { flattenTranslationStringKeys, getTranslationStringAtPath, Language, translations } from '@/lib/i18n';
 import { toast } from 'sonner';
+import { Languages } from 'lucide-react';
 
 type I18nSettingsDoc = { id: string; enabled?: boolean; version?: number };
 type I18nOverrideDoc = { id: string; pt?: string; en?: string; es?: string; fr?: string; updatedAt?: unknown };
@@ -251,17 +252,40 @@ export default function TranslationsAdminPage() {
 
   if (!canManage) {
     return (
-      <div className="cpc-card p-6">
-        <h1 className="text-xl font-semibold">{t.get('cpcTranslations.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-2">{t.get('cpcTranslations.no_permission')}</p>
+      <div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+              <Languages className="h-7 w-7 text-primary shrink-0" aria-hidden />
+              {t.get('cpcTranslations.title')}
+            </h1>
+            <p className="text-muted-foreground mt-1">{t.get('cpcTranslations.subtitle')}</p>
+          </div>
+        </div>
+
+        <div className="cpc-card p-6">
+          <p className="text-sm text-muted-foreground">{t.get('cpcTranslations.no_permission')}</p>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="cpc-card p-6">
-        <p className="text-sm text-muted-foreground">{t.common.loading}</p>
+      <div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+              <Languages className="h-7 w-7 text-primary shrink-0" aria-hidden />
+              {t.get('cpcTranslations.title')}
+            </h1>
+            <p className="text-muted-foreground mt-1">{t.get('cpcTranslations.subtitle')}</p>
+          </div>
+        </div>
+
+        <div className="cpc-card p-6">
+          <p className="text-sm text-muted-foreground">{t.common.loading}</p>
+        </div>
       </div>
     );
   }
@@ -270,35 +294,39 @@ export default function TranslationsAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="cpc-card p-6">
-        <div className="flex items-start justify-between gap-6">
-          <div className="min-w-0">
-            <h1 className="text-xl md:text-2xl font-semibold tracking-tight">{t.get('cpcTranslations.title')}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t.get('cpcTranslations.subtitle')}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0 justify-end">
-            <Button type="button" variant="outline" onClick={handleExportCsv}>
-              {t.get('cpcTranslations.actions.export_csv')}
-            </Button>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              aria-label={t.get('cpcTranslations.csv.import_aria')}
-              onChange={handleImportCsvFileChange}
-            />
-            <Button type="button" variant="outline" onClick={handlePickImportFile}>
-              {t.get('cpcTranslations.actions.import_csv')}
-            </Button>
-            <Button variant="outline" onClick={handleValidate} disabled={validating}>
-              {t.get('cpcTranslations.actions.validate')}
-            </Button>
-            <Button onClick={handlePublish}>
-              {t.get('cpcTranslations.actions.publish', { count: draftCount })}
-            </Button>
-          </div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <Languages className="h-7 w-7 text-primary shrink-0" aria-hidden />
+            {t.get('cpcTranslations.title')}
+          </h1>
+          <p className="text-muted-foreground mt-1">{t.get('cpcTranslations.subtitle')}</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0 justify-end">
+          <Button type="button" variant="outline" onClick={handleExportCsv}>
+            {t.get('cpcTranslations.actions.export_csv')}
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            aria-label={t.get('cpcTranslations.csv.import_aria')}
+            onChange={handleImportCsvFileChange}
+          />
+          <Button type="button" variant="outline" onClick={handlePickImportFile}>
+            {t.get('cpcTranslations.actions.import_csv')}
+          </Button>
+          <Button variant="outline" onClick={handleValidate} disabled={validating}>
+            {t.get('cpcTranslations.actions.validate')}
+          </Button>
+          <Button onClick={handlePublish}>
+            {t.get('cpcTranslations.actions.publish', { count: draftCount })}
+          </Button>
+        </div>
+      </div>
+
+      <div className="cpc-card p-6">
 
         <div className="grid md:grid-cols-3 gap-4 mt-6">
           <div className="space-y-2">

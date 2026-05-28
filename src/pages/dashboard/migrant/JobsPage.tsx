@@ -72,10 +72,15 @@ export default function JobsPage() {
       });
 
       setJobs(jobsWithCompanies);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching jobs:', error);
+      const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code) : '';
       setJobs([]);
-      setLoadError(t.get('dashboard.migrant_jobs.load_error'));
+      if (code === 'permission-denied') {
+        setLoadError(`${t.get('auth.accessDeniedDisabledDescription')} ${t.get('auth.accessDeniedContactAdmin')}`);
+      } else {
+        setLoadError(t.get('dashboard.migrant_jobs.load_error'));
+      }
     } finally {
       setLoading(false);
     }

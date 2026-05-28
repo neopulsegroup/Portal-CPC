@@ -221,6 +221,7 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByText('Administração')).toBeInTheDocument();
     expect(await screen.findByText('Definições')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Mensagens' })).not.toBeInTheDocument();
 
@@ -228,6 +229,7 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
     const links = Array.from(nav.querySelectorAll('a'))
       .map((a) => a.textContent?.trim() ?? '')
       .filter(Boolean);
+    expect(links.at(-3)).toBe('Log de Eventos');
     expect(links.at(-2)).toBe('Perfil');
     expect(links.at(-1)).toBe('Configurações');
 
@@ -242,14 +244,53 @@ describe('CPCDashboard - navegação (inclui Trilhas)', () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByText('Administração')).toBeInTheDocument();
     expect(await screen.findByText('Definições')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Mensagens' })).not.toBeInTheDocument();
     const nav2 = screen.getByRole('navigation');
     const links2 = Array.from(nav2.querySelectorAll('a'))
       .map((a) => a.textContent?.trim() ?? '')
       .filter(Boolean);
+    expect(links2.at(-3)).toBe('Log de Eventos');
     expect(links2.at(-2)).toBe('Perfil');
     expect(links2.at(-1)).toBe('Configurações');
+  });
+
+  it('não mostra a secção Administração para utilizadores não Admin', async () => {
+    authState = {
+      profile: { name: 'Maria', role: 'mediator', email: 'maria@teste.com' },
+      user: { uid: 'u-maria', email: 'maria@teste.com', displayName: 'Maria' },
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc']}>
+        <Routes>
+          <Route path="/dashboard/cpc/*" element={<CPCDashboard />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Definições')).toBeInTheDocument();
+    expect(screen.queryByText('Administração')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Log de Eventos' })).not.toBeInTheDocument();
+  });
+
+  it('redireciona não Admin que acede diretamente a /log-eventos', async () => {
+    authState = {
+      profile: { name: 'Maria', role: 'mediator', email: 'maria@teste.com' },
+      user: { uid: 'u-maria', email: 'maria@teste.com', displayName: 'Maria' },
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/log-eventos']}>
+        <Routes>
+          <Route path="/dashboard/cpc/*" element={<CPCDashboard />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole('heading', { name: /Bem-vindo/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Log de Eventos' })).not.toBeInTheDocument();
   });
 
   it('inclui "Atividades" imediatamente após "Migrantes" no menu principal', async () => {
