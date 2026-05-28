@@ -1464,7 +1464,10 @@
       "statistics": "Estadísticas",
       "profile": "perfil",
       "settings": "Configuraciones",
-      "messages": "Mensagens"
+      "messages": "Mensagens",
+      "administrationSection": "Administración",
+      "settingsSection": "Configuración",
+      "eventLog": "Registro de eventos"
     },
     "profile": {
       "title": "Perfil",
@@ -2285,6 +2288,23 @@
         "subtitle": "Gestión de notificaciones, SMTP e identidad visual de los documentos exportados.",
         "loginRequired": "Inicie sesión para acceder.",
         "noPermission": "No tiene permiso para acceder a esta sección."
+      },
+      "eventLog": {
+        "title": "Registro de eventos",
+        "subtitle": "Historial de acciones y eventos registrados en la plataforma.",
+        "loginRequired": "Inicie sesión para acceder.",
+        "noPermission": "No tiene permiso para acceder a esta sección. Solo Admin.",
+        "loadError": "No se pudo cargar el registro de eventos.",
+        "empty": "Sin eventos registrados.",
+        "searchPlaceholder": "Buscar por acción, usuario o contexto...",
+        "count": "{count} evento(s)",
+        "columns": {
+          "date": "Fecha",
+          "action": "Acción",
+          "actor": "Usuario",
+          "context": "Contexto",
+          "target": "Objetivo"
+        }
       }
     }
   },

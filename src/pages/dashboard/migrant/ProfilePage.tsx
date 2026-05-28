@@ -1927,6 +1927,68 @@ export default function ProfilePage() {
 
         <div className="cpc-card p-6">
           <div className="flex items-start justify-between">
+            <h2 className="text-lg font-semibold">Status Migratório &amp; Integração</h2>
+            <Link to={triageUrl} className="text-sm text-primary hover:underline">
+              Atualizar
+            </Link>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-4">
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Autonomia diária</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.dailyAutonomy.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.dailyAutonomy.label}</span>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Conforto na comunicação</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.communicationComfort.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.communicationComfort.label}</span>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-muted/30 p-4">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Normas sociais</p>
+              <div className="mt-3 flex items-center gap-3">
+                <Progress value={integrationScales.socialNorms.percent} className="h-2 flex-1" />
+                <span className="text-xs font-medium">{integrationScales.socialNorms.label}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t">
+            <p className="font-semibold">Necessidades Identificadas</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {identifiedNeeds.length ? (
+                identifiedNeeds.map((n) => {
+                  const tone =
+                    n.value === 'psychological'
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : n.value === 'employment'
+                        ? 'bg-green-100 text-green-700'
+                        : n.value === 'housing'
+                          ? 'bg-orange-100 text-orange-700'
+                          : n.value === 'health'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-muted text-muted-foreground';
+                  return (
+                    <span key={n.value} className={`text-xs font-medium px-3 py-1 rounded-full ${tone}`}>
+                      {n.label}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="cpc-card p-6">
+          <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Marcações</h2>
@@ -2033,62 +2095,158 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="cpc-card p-6 lg:col-span-2">
           <div className="flex items-start justify-between">
-            <h2 className="text-lg font-semibold">Status Migratório &amp; Integração</h2>
-            <Link to={triageUrl} className="text-sm text-primary hover:underline">
-              Atualizar
-            </Link>
+            <h2 className="text-lg font-semibold">Perfil Profissional</h2>
+            {edit.resumeUrl ? (
+              <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
+                Ver currículo completo
+              </a>
+            ) : (
+              <span className="text-sm text-muted-foreground"> </span>
+            )}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-muted/30 p-4">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Autonomia diária</p>
-              <div className="mt-3 flex items-center gap-3">
-                <Progress value={integrationScales.dailyAutonomy.percent} className="h-2 flex-1" />
-                <span className="text-xs font-medium">{integrationScales.dailyAutonomy.label}</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-muted/30 p-4">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Conforto na comunicação</p>
-              <div className="mt-3 flex items-center gap-3">
-                <Progress value={integrationScales.communicationComfort.percent} className="h-2 flex-1" />
-                <span className="text-xs font-medium">{integrationScales.communicationComfort.label}</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-muted/30 p-4">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Normas sociais</p>
-              <div className="mt-3 flex items-center gap-3">
-                <Progress value={integrationScales.socialNorms.percent} className="h-2 flex-1" />
-                <span className="text-xs font-medium">{integrationScales.socialNorms.label}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t">
-            <p className="font-semibold">Necessidades Identificadas</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {identifiedNeeds.length ? (
-                identifiedNeeds.map((n) => {
-                  const tone =
-                    n.value === 'psychological'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : n.value === 'employment'
-                        ? 'bg-green-100 text-green-700'
-                        : n.value === 'housing'
-                          ? 'bg-orange-100 text-orange-700'
-                          : n.value === 'health'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-muted text-muted-foreground';
-                  return (
-                    <span key={n.value} className={`text-xs font-medium px-3 py-1 rounded-full ${tone}`}>
-                      {n.label}
-                    </span>
-                  );
-                })
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-3">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Currículo (URL)</p>
+              {editMode ? (
+                <Input
+                  value={edit.resumeUrl}
+                  onChange={(e) => setEdit((s) => ({ ...s, resumeUrl: e.target.value }))}
+                  className="mt-2"
+                  placeholder="https://..."
+                />
               ) : (
-                <span className="text-sm text-muted-foreground">—</span>
+                <div className="mt-1 space-y-2">
+                  {!isViewingOtherUser && user?.uid ? (
+                    <Link
+                      to={`/dashboard/migrante/curriculo/ver/${user.uid}`}
+                      className="inline-flex text-sm text-primary hover:underline"
+                    >
+                      {t.get('migrant.profile.documents.viewCvLink')}
+                    </Link>
+                  ) : null}
+                  {edit.resumeUrl ? (
+                    <a
+                      href={edit.resumeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-sm text-muted-foreground hover:text-primary hover:underline"
+                    >
+                      Visualizar documento anexado
+                    </a>
+                  ) : null}
+                  {(isViewingOtherUser && !edit.resumeUrl) || (!user?.uid && !edit.resumeUrl) ? (
+                    <p className="text-sm text-muted-foreground">—</p>
+                  ) : null}
+                </div>
               )}
+            </div>
+
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Escolaridade</p>
+              <p className="mt-2 font-medium">{educationLabel}</p>
+            </div>
+
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Área de interesse</p>
+              {interestAreaLabel ? (
+                <span className="mt-2 inline-flex text-xs font-semibold px-3 py-1 rounded-full bg-muted">
+                  {interestAreaLabel.toUpperCase()}
+                </span>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+
+            <div className="md:col-span-3">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Experiência profissional</p>
+              {editMode ? (
+                <Textarea
+                  value={edit.professionalExperience}
+                  onChange={(e) => setEdit((s) => ({ ...s, professionalExperience: e.target.value }))}
+                  className="mt-2"
+                />
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {edit.professionalExperience?.trim() ? edit.professionalExperience : '—'}
+                </p>
+              )}
+            </div>
+
+            <div className="md:col-span-3">
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Competências</p>
+              {editMode ? (
+                <Textarea value={edit.skills} onChange={(e) => setEdit((s) => ({ ...s, skills: e.target.value }))} className="mt-2" />
+              ) : skillsTokens.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {skillsTokens.map((s) => (
+                    <span key={s} className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+
+            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Título profissional</p>
+                {editMode ? (
+                  <Input value={edit.professionalTitle} onChange={(e) => setEdit((s) => ({ ...s, professionalTitle: e.target.value }))} className="mt-2" />
+                ) : (
+                  <p className="mt-2 font-medium">{edit.professionalTitle?.trim() ? edit.professionalTitle : '—'}</p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Idiomas</p>
+                {editMode ? (
+                  (() => {
+                    const options = ['portuguese', 'english', 'french', 'spanish', 'other'] as const;
+                    const labelMap = new Map(options.map((k) => [t.get(`triage.options.languages.${k}`).toLowerCase(), k]));
+                    const currentTokens = edit.languagesList
+                      .split(/[,\n;]/g)
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const selected = new Set(
+                      currentTokens
+                        .map((tok) => labelMap.get(tok.toLowerCase()))
+                        .filter((v): v is (typeof options)[number] => !!v)
+                    );
+
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {options.map((opt) => {
+                          const label = t.get(`triage.options.languages.${opt}`);
+                          const isSelected = selected.has(opt);
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                const nextSelected = new Set(selected);
+                                if (isSelected) nextSelected.delete(opt);
+                                else nextSelected.add(opt);
+                                const nextLabels = Array.from(nextSelected).map((k) => t.get(`triage.options.languages.${k}`));
+                                setEdit((s) => ({ ...s, languagesList: nextLabels.join(', ') }));
+                              }}
+                              className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                                isSelected ? 'bg-primary/10 text-primary border-primary/50' : 'bg-background hover:bg-muted'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <p className="mt-2 font-medium">{edit.languagesList?.trim() ? edit.languagesList : '—'}</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -2135,163 +2293,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="cpc-card p-6">
-        <div className="flex items-start justify-between">
-          <h2 className="text-lg font-semibold">Perfil Profissional</h2>
-          {edit.resumeUrl ? (
-            <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
-              Ver currículo completo
-            </a>
-          ) : (
-            <span className="text-sm text-muted-foreground"> </span>
-          )}
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-3">
-            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Currículo (URL)</p>
-            {editMode ? (
-              <Input
-                value={edit.resumeUrl}
-                onChange={(e) => setEdit((s) => ({ ...s, resumeUrl: e.target.value }))}
-                className="mt-2"
-                placeholder="https://..."
-              />
-            ) : (
-              <div className="mt-1 space-y-2">
-                {!isViewingOtherUser && user?.uid ? (
-                  <Link
-                    to={`/dashboard/migrante/curriculo/ver/${user.uid}`}
-                    className="inline-flex text-sm text-primary hover:underline"
-                  >
-                    {t.get('migrant.profile.documents.viewCvLink')}
-                  </Link>
-                ) : null}
-                {edit.resumeUrl ? (
-                  <a
-                    href={edit.resumeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block text-sm text-muted-foreground hover:text-primary hover:underline"
-                  >
-                    Visualizar documento anexado
-                  </a>
-                ) : null}
-                {(isViewingOtherUser && !edit.resumeUrl) || (!user?.uid && !edit.resumeUrl) ? (
-                  <p className="text-sm text-muted-foreground">—</p>
-                ) : null}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Escolaridade</p>
-            <p className="mt-2 font-medium">{educationLabel}</p>
-          </div>
-
-          <div>
-            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Área de interesse</p>
-            {interestAreaLabel ? (
-              <span className="mt-2 inline-flex text-xs font-semibold px-3 py-1 rounded-full bg-muted">
-                {interestAreaLabel.toUpperCase()}
-              </span>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">—</p>
-            )}
-          </div>
-
-          <div className="md:col-span-3">
-            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Experiência profissional</p>
-            {editMode ? (
-              <Textarea
-                value={edit.professionalExperience}
-                onChange={(e) => setEdit((s) => ({ ...s, professionalExperience: e.target.value }))}
-                className="mt-2"
-              />
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {edit.professionalExperience?.trim() ? edit.professionalExperience : '—'}
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-3">
-            <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Competências</p>
-            {editMode ? (
-              <Textarea value={edit.skills} onChange={(e) => setEdit((s) => ({ ...s, skills: e.target.value }))} className="mt-2" />
-            ) : skillsTokens.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {skillsTokens.map((s) => (
-                  <span key={s} className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">—</p>
-            )}
-          </div>
-
-          <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Título profissional</p>
-              {editMode ? (
-                <Input value={edit.professionalTitle} onChange={(e) => setEdit((s) => ({ ...s, professionalTitle: e.target.value }))} className="mt-2" />
-              ) : (
-                <p className="mt-2 font-medium">{edit.professionalTitle?.trim() ? edit.professionalTitle : '—'}</p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Idiomas</p>
-              {editMode ? (
-                (() => {
-                  const options = ['portuguese', 'english', 'french', 'spanish', 'other'] as const;
-                  const labelMap = new Map(options.map((k) => [t.get(`triage.options.languages.${k}`).toLowerCase(), k]));
-                  const currentTokens = edit.languagesList
-                    .split(/[,\n;]/g)
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                  const selected = new Set(
-                    currentTokens
-                      .map((tok) => labelMap.get(tok.toLowerCase()))
-                      .filter((v): v is (typeof options)[number] => !!v)
-                  );
-
-                  return (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {options.map((opt) => {
-                        const label = t.get(`triage.options.languages.${opt}`);
-                        const isSelected = selected.has(opt);
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => {
-                              const nextSelected = new Set(selected);
-                              if (isSelected) nextSelected.delete(opt);
-                              else nextSelected.add(opt);
-                              const nextLabels = Array.from(nextSelected).map((k) => t.get(`triage.options.languages.${k}`));
-                              setEdit((s) => ({ ...s, languagesList: nextLabels.join(', ') }));
-                            }}
-                            className={`px-3 py-1.5 rounded-md border text-xs transition-colors ${
-                              isSelected ? 'bg-primary/10 text-primary border-primary/50' : 'bg-background hover:bg-muted'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()
-              ) : (
-                <p className="mt-2 font-medium">{edit.languagesList?.trim() ? edit.languagesList : '—'}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

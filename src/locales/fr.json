@@ -1464,7 +1464,10 @@
       "statistics": "Statistiques",
       "profile": "Profil",
       "settings": "Paramètres",
-      "messages": "Messages"
+      "messages": "Messages",
+      "administrationSection": "Administration",
+      "settingsSection": "Paramètres",
+      "eventLog": "Journal des événements"
     },
     "profile": {
       "title": "Profil",
@@ -2285,6 +2288,23 @@
         "subtitle": "Gestion des notifications, SMTP et identité visuelle des documents exportés.",
         "loginRequired": "Connectez-vous pour y accéder.",
         "noPermission": "Aucune autorisation pour accéder à cette section."
+      },
+      "eventLog": {
+        "title": "Journal des événements",
+        "subtitle": "Historique des actions et événements enregistrés sur la plateforme.",
+        "loginRequired": "Connectez-vous pour y accéder.",
+        "noPermission": "Aucune autorisation pour accéder à cette section. Admin uniquement.",
+        "loadError": "Impossible de charger le journal des événements.",
+        "empty": "Aucun événement enregistré.",
+        "searchPlaceholder": "Rechercher par action, utilisateur ou contexte...",
+        "count": "{count} événement(s)",
+        "columns": {
+          "date": "Date",
+          "action": "Action",
+          "actor": "Utilisateur",
+          "context": "Contexte",
+          "target": "Cible"
+        }
       }
     }
   },

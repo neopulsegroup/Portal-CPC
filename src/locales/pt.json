@@ -1464,7 +1464,10 @@
       "statistics": "Estatísticas",
       "profile": "Perfil",
       "settings": "Configurações",
-      "messages": "Mensagens"
+      "messages": "Mensagens",
+      "administrationSection": "Administração",
+      "settingsSection": "Definições",
+      "eventLog": "Log de Eventos"
     },
     "profile": {
       "title": "Perfil",
@@ -2285,6 +2288,23 @@
         "subtitle": "Gestão de notificações, SMTP e identidade visual dos documentos exportados.",
         "loginRequired": "Inicie sessão para aceder.",
         "noPermission": "Sem permissão para aceder a esta secção."
+      },
+      "eventLog": {
+        "title": "Log de Eventos",
+        "subtitle": "Histórico de ações e eventos registados na plataforma.",
+        "loginRequired": "Inicie sessão para aceder.",
+        "noPermission": "Sem permissão para aceder a esta secção. Apenas Admin.",
+        "loadError": "Não foi possível carregar o log de eventos.",
+        "empty": "Sem eventos registados.",
+        "searchPlaceholder": "Pesquisar por ação, utilizador ou contexto...",
+        "count": "{count} evento(s)",
+        "columns": {
+          "date": "Data",
+          "action": "Ação",
+          "actor": "Utilizador",
+          "context": "Contexto",
+          "target": "Alvo"
+        }
       }
     }
   },

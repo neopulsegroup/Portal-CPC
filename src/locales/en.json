@@ -1464,7 +1464,10 @@
       "statistics": "Statistics",
       "profile": "Profile",
       "settings": "Settings",
-      "messages": "Messages"
+      "messages": "Messages",
+      "administrationSection": "Administration",
+      "settingsSection": "Settings",
+      "eventLog": "Event Log"
     },
     "profile": {
       "title": "Profile",
@@ -2285,6 +2288,23 @@
         "subtitle": "Manage notifications, SMTP and exported document branding.",
         "loginRequired": "Sign in to access this page.",
         "noPermission": "You do not have permission to access this section."
+      },
+      "eventLog": {
+        "title": "Event Log",
+        "subtitle": "History of actions and events recorded on the platform.",
+        "loginRequired": "Sign in to access this page.",
+        "noPermission": "You do not have permission to access this section. Admin only.",
+        "loadError": "Could not load the event log.",
+        "empty": "No events recorded.",
+        "searchPlaceholder": "Search by action, user or context...",
+        "count": "{count} event(s)",
+        "columns": {
+          "date": "Date",
+          "action": "Action",
+          "actor": "User",
+          "context": "Context",
+          "target": "Target"
+        }
       }
     }
   },

@@ -46,6 +46,7 @@ export default function JobDetailPage() {
   const [applying, setApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [availableForWork, setAvailableForWork] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (jobId) fetchJob();
@@ -64,6 +65,9 @@ export default function JobDetailPage() {
       }
 
       if (user) {
+        const profile = await getDocument<{ availableForWork?: boolean }>('profiles', user.uid);
+        setAvailableForWork(profile?.availableForWork !== false);
+
         const apps = await queryDocuments<{ id: string }>(
           'job_applications',
           [
@@ -84,6 +88,14 @@ export default function JobDetailPage() {
 
   async function submitApplication() {
     if (!user || !jobId) return;
+    if (availableForWork === false) {
+      toast({
+        title: 'Candidatura indisponível',
+        description: 'Ative "Disponível para Trabalho" no seu perfil para se candidatar.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setApplying(true);
 
@@ -286,6 +298,11 @@ export default function JobDetailPage() {
             ) : showApplicationForm ? (
               <div className="space-y-4">
                 <h3 className="font-semibold">Candidatar-se</h3>
+                {availableForWork === false ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Para se candidatar, ative a opção <strong>Disponível para Trabalho</strong> no seu perfil.
+                  </div>
+                ) : null}
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">
                     Carta de Apresentação (opcional)
@@ -308,7 +325,7 @@ export default function JobDetailPage() {
                   <Button
                     className="flex-1"
                     onClick={submitApplication}
-                    disabled={applying}
+                    disabled={applying || availableForWork === false}
                   >
                     {applying ? (
                       'A enviar...'
@@ -327,10 +344,16 @@ export default function JobDetailPage() {
                   className="w-full"
                   size="lg"
                   onClick={() => setShowApplicationForm(true)}
+                  disabled={availableForWork === false}
                 >
                   <FileText className="h-5 w-5 mr-2" />
                   Candidatar-se
                 </Button>
+                {availableForWork === false ? (
+                  <p className="text-xs text-amber-700 text-center">
+                    Ative "Disponível para Trabalho" no perfil para candidatar-se.
+                  </p>
+                ) : null}
                 <p className="text-xs text-muted-foreground text-center">
                   A sua candidatura será enviada para a empresa
                 </p>

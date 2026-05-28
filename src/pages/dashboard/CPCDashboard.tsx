@@ -1,4 +1,4 @@
-import { Link, NavLink, Routes, Route, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -39,6 +39,7 @@ import {
   ClipboardList,
   Trash2,
   Search,
+  ScrollText,
 } from 'lucide-react';
 import {
   APP_TIME_ZONE,
@@ -149,10 +150,23 @@ function isInProgressSessionStatus(status?: string | null): boolean {
   return ['in_progress', 'em curso'].includes(normalizeText(status));
 }
 
+function isCpcAdminRole(role?: string | null): boolean {
+  return String(role ?? '').toLowerCase() === 'admin';
+}
+
+function CpcAdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  if (!isCpcAdminRole(profile?.role)) {
+    return <Navigate to="/dashboard/cpc" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function CPCDashboard() {
   const { profile, profileData, user } = useAuth();
   const { t, language } = useLanguage();
   const location = useLocation();
+  const isCpcAdmin = isCpcAdminRole(profile?.role);
 
   const cpcDisplayName = useMemo(() => {
     const profileDocName = typeof profileData?.name === 'string' ? profileData.name.trim() : '';
@@ -1296,11 +1310,13 @@ export default function CPCDashboard() {
     { to: '/dashboard/cpc/trilhas', label: t.get('cpc.menu.trails'), icon: BookOpen },
     { to: '/dashboard/cpc/equipa', label: t.get('cpc.menu.team'), icon: UserCog },
     { to: '/dashboard/cpc/estatisticas', label: t.get('cpc.menu.statistics'), icon: TrendingUp },
-    ...(profile?.role === 'admin'
-      ? [{ to: '/dashboard/cpc/conteudo', label: 'Editor de Conteúdo', icon: FileText }]
-      : []),
+    ...(isCpcAdmin ? [{ to: '/dashboard/cpc/conteudo', label: 'Editor de Conteúdo', icon: FileText }] : []),
     { to: '/dashboard/cpc/traducoes', label: t.get('cpcTranslations.title'), icon: Languages },
   ];
+
+  const sidebarItemsAdministration = isCpcAdmin
+    ? [{ to: '/dashboard/cpc/log-eventos', label: t.get('cpc.menu.eventLog'), icon: ScrollText }]
+    : [];
 
   const sidebarItemsProfile = [
     { to: '/dashboard/cpc/perfil', label: t.get('cpc.menu.profile'), icon: Building2 },
@@ -1333,8 +1349,32 @@ export default function CPCDashboard() {
                   </NavLink>
                 ))}
 
+                {sidebarItemsAdministration.length > 0 ? (
+                  <div className="pt-4 mt-4 border-t">
+                    <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">
+                      {t.get('cpc.menu.administrationSection')}
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {sidebarItemsAdministration.map((item) => (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                          }
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="pt-4 mt-4 border-t">
-                  <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">Definições</p>
+                  <p className="px-2 text-xs font-semibold tracking-widest text-muted-foreground">
+                    {t.get('cpc.menu.settingsSection')}
+                  </p>
                   <div className="mt-2 space-y-1">
                     {sidebarItemsProfile.map((item) => (
                       <NavLink
@@ -1529,6 +1569,14 @@ export default function CPCDashboard() {
                 <Route path="estatisticas" element={<StatisticsPage />} />
                 <Route path="perfil" element={<CPCProfilePage />} />
                 <Route path="configuracoes" element={<CPCSettingsPage />} />
+                <Route
+                  path="log-eventos"
+                  element={
+                    <CpcAdminOnlyRoute>
+                      <EventLogPage />
+                    </CpcAdminOnlyRoute>
+                  }
+                />
                 <Route path="mensagens" element={<CPCMessagesPage />} />
                 <Route path="traducoes" element={<TranslationsAdminPage />} />
                 <Route path="conteudo" element={<ContentEditorPage />} />
@@ -1554,3 +1602,4 @@ import ActivityEditorPage from './cpc/ActivityEditorPage';
 import ActivityDetailsPage from './cpc/ActivityDetailsPage';
 import StatisticsPage from './cpc/StatisticsPage';
 import CPCSettingsPage from './cpc/SettingsPage';
+import EventLogPage from './cpc/EventLogPage';
