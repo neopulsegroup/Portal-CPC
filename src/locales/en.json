@@ -353,6 +353,127 @@
       }
     }
   },
+  "jobApply": {
+    "optionalCv": {
+      "label": "Attach a tailored CV (optional)",
+      "hint": "You can attach a version of your CV specific to this job. PDF, DOC or DOCX, maximum 5 MB."
+    },
+    "submitting": "Submitting application...",
+    "submitted": "Application submitted successfully"
+  },
+  "myApplications": {
+    "personalCv": "Tailored CV for this application",
+    "personalCvAttached": "View attached tailored CV",
+    "cannotAttach": "You cannot attach a CV at this stage of the application."
+  },
+  "applicationDetail": {
+    "cvsAvailable": "Available CVs",
+    "candidateCv": "Candidate CV",
+    "migrantAttachedCv": "CV attached by the candidate for this job",
+    "companyAttachedCv": "CV attached by the company"
+  },
+  "cvUpload": {
+    "button": "Upload CV",
+    "uploading": "Uploading...",
+    "viewUploaded": "View uploaded CV",
+    "hint": "PDF, DOC or DOCX. Maximum {maxSize} MB.",
+    "errors": {
+      "tooLarge": {
+        "title": "File too large",
+        "description": "The file must be at most {maxSize} MB."
+      },
+      "invalidType": {
+        "title": "Unsupported format",
+        "description": "Only PDF, DOC or DOCX are accepted."
+      },
+      "uploadFailed": {
+        "title": "Error uploading CV",
+        "description": "Please try again."
+      }
+    },
+    "success": "CV uploaded successfully"
+  },
+  "needs": {
+    "title": "Needs Profile",
+    "empty": "We haven't identified specific needs yet. Complete the Initial Situation to get a personalised profile.",
+    "category": {
+      "legal": "Legal Support",
+      "housing": "Housing",
+      "employment": "Employment",
+      "language": "Language Support",
+      "psychological": "Psychological Support",
+      "social": "Social Support"
+    },
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "reason": {
+      "legal": {
+        "unregularized": "Legal status not regularised",
+        "in_process": "Legal process ongoing",
+        "urgent_marked": "Flagged legal support as a priority"
+      },
+      "housing": {
+        "none": "No stable housing",
+        "precarious": "Precarious housing",
+        "urgent_marked": "Flagged housing as a priority"
+      },
+      "employment": {
+        "unemployed": "Looking for work",
+        "urgent_marked": "Flagged employment support as a priority"
+      },
+      "language": {
+        "beginner": "Beginner level of Portuguese",
+        "basic": "Basic level of Portuguese",
+        "urgent_marked": "Flagged Portuguese training as a priority"
+      },
+      "psychological": {
+        "urgent_marked": "Flagged psychological support as a priority"
+      },
+      "social": {
+        "basic_needs": "Flagged basic needs as a priority"
+      }
+    }
+  },
+  "firstActions": {
+    "title": "Suggested next steps",
+    "priority": {
+      "urgent": "Urgent",
+      "recommended": "Recommended",
+      "suggested": "Suggested"
+    },
+    "completeTriage": {
+      "title": "Complete the Initial Situation",
+      "description": "Answer the questions to get personalised recommendations."
+    },
+    "bookLegal": {
+      "title": "Book a legal session",
+      "description": "Talk to a lawyer about your situation.",
+      "descriptionInProcess": "Follow-up on the ongoing legal process."
+    },
+    "bookPsychological": {
+      "title": "Book a psychological session",
+      "description": "Talk to a CPC team psychologist."
+    },
+    "bookSocial": {
+      "title": "Urgent social support",
+      "description": "Book a mediation session for immediate support."
+    },
+    "completeCv": {
+      "title": "Complete your resume",
+      "description": "Fill in your professional profile to see relevant offers."
+    },
+    "viewJobs": {
+      "title": "View job offers",
+      "description": "Explore openings available in the Algarve."
+    },
+    "trailPortuguese": {
+      "title": "Enrol in Portuguese",
+      "description": "Start a Portuguese learning track."
+    }
+  },
   "triage": {
     "title": "Initial Situation",
     "subtitle": "Answer a few questions so we can personalize your support.",
@@ -2709,8 +2830,12 @@
           "candidate": "Candidate",
           "email": "Email",
           "date": "Date",
-          "coverLetter": "Cover letter"
-        }
+          "coverLetter": "Cover letter",
+          "candidateCv": "Candidate CV",
+          "attachedCv": "CV attached by the company"
+        },
+        "viewCandidateCv": "View candidate CV",
+        "noCandidateCv": "The candidate did not attach a CV."
       }
     },
     "applicationsHub": {

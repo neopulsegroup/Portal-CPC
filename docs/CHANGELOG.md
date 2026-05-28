@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-05-28 · Correção Sprint B + Extensão para Migrante
+
+### Correções
+- **Bug 1 (CORS):** criado `storage-cors.json` com origens dev + produção. **A aplicar pelo Silva** via `gsutil cors set storage-cors.json gs://cpc-projeto-app.firebasestorage.app` (o agente não tem credenciais gcloud).
+- **Bug 2 (useLanguage):** investigado — a ordem de providers em `App.tsx` já está correta (`LanguageProvider` envolve Auth → Tooltip → Router → rotas) e a home carrega com 0 erros num load fresco. O erro reportado é um **artefacto de HMR** do Vite ao editar ficheiros de contexto ao vivo; resolve-se com hard-reload. **Sem alteração de código** (não havia defeito).
+- **Bug 3.1 (índices):** adicionados a `firestore.indexes.json` os índices `trails(is_active, category)` e `job_offers(company_id, created_at DESC)`. **Deploy pelo Silva.**
+- **Bug 3.2 (regras):** `firestore.rules` — adicionada permissão para o **migrante atualizar o CV da sua própria candidatura** (apenas `migrant_attached_cv_*`). Leitura pela empresa dona da vaga já era permitida via `employerPublisher`/`companyOwnsCompanyId`.
+
+### Nova funcionalidade (Opção C — ambos os pontos de entrada)
+- Migrante anexa CV personalizado **no momento da candidatura** (passo opcional após submeter, em `JobDetailPage`) e **na lista "Minhas Candidaturas"** (`MyApplicationsPage`).
+- Estados elegíveis para anexar/substituir: `submitted`, `reviewing`, `interview`. Estados finais (`accepted`, `rejected`) bloqueiam o upload mas mostram link se houver CV.
+- Gravado em `job_applications/{id}.migrant_attached_cv_url|name|uploaded_at`.
+- Vista da empresa (`JobApplicationsPage`) mostra até **3 CVs**: do perfil do candidato, anexado pelo migrante para a vaga, e anexado pela empresa.
+- Reutiliza 100% a infra da Sprint B (`CVUploadButton`, `uploadCvFile`, audit em `cv_uploads_audit`).
+- i18n `jobApply.*`, `myApplications.*`, `applicationDetail.*` em PT/EN/ES/FR.
+- 7 testes novos (1 uploadCvFile migrante + 3 MyApplicationsPage + 3 JobApplicationsPage).
+
+### Pendências de infraestrutura (Silva)
+1. `gsutil cors set storage-cors.json gs://cpc-projeto-app.firebasestorage.app`
+2. `firebase deploy --only firestore:rules,storage:rules,firestore:indexes`
+3. Aguardar 5-10 min (construção de índices) e fazer smoke test.
+
+**Nota:** os estados reais da candidatura são `submitted | reviewing | interview | accepted | rejected` (não `in_review`/`under_review`/`withdrawn`/`closed` do prompt); campos reais `applicant_id`/`job_id` (não `migrant_uid`/`job_offer_id`). Adaptado em conformidade.
+
+
+## 2026-05-28 · Sprint B · Empresa: importar CV com seletor de arquivo
+
+- **Cenário implementado: A2** — a empresa anexa um CV externo (PDF/DOC/DOCX, máx. 5 MB) a uma candidatura, **complementando** (não substituindo) o CV do próprio migrante.
+- `CVUploadButton` (`src/features/cv/CVUploadButton.tsx`) — seletor de ficheiro com validação client-side (tipo + tamanho), estados de loading, link "Ver CV carregado" e remoção. Totalmente i18n.
+- `uploadCvFile` (`src/features/cv/uploadCvFile.ts`) — upload para Firebase Storage (`cv_uploads/{contextType}/{contextId}/...`) + **audit trail** em `cv_uploads_audit` (conformidade RGPD básica). Validação também server-side-ish via `validateCvFile`.
+- Integração em `JobApplicationsPage` (painel de detalhe da candidatura): mostra o CV do candidato (quando existe) E o upload do CV anexado pela empresa, gravado em `job_applications/{id}.company_attached_cv_url`.
+- Regras de segurança: `firestore.rules` (`cv_uploads_audit`: leitura por uploader/CPC, criação só pelo próprio, sem update/delete) e `storage.rules` (`cv_uploads/...`: leitura autenticada, escrita com limite 5 MB e tipos PDF/DOC/DOCX).
+- i18n `cvUpload.*` + `company.applications.details.{candidateCv,attachedCv,viewCandidateCv,noCandidateCv}` em PT/EN/ES/FR.
+- 11 testes unitários novos (5 uploadCvFile + 6 CVUploadButton).
+
+**Por fazer (requer a tua ação):** deploy das regras (`firebase deploy --only firestore:rules,storage:rules`) — **não foi feito** porque afeta produção e a autenticação Firebase deste ambiente não tem acesso de admin ao projeto. Sem o deploy, o upload real falha em produção até as regras subirem.
+
+
+## 2026-05-28 · Sprint A · Triagem Inteligente
+
+- **Perfil de Necessidades** gerado automaticamente a partir da Situação Inicial (`inferNeedsProfile.ts`)
+  - 6 categorias: jurídico, habitação, emprego, linguístico, psicológico, social
+  - Prioridades alta/média; ordenado por prioridade; `hasUrgentNeeds` para destaque
+  - `NeedsProfileCard` no topo do dashboard do migrante (quando há necessidade urgente) e no perfil pela equipa CPC (ProfilePage, vista de outro utilizador)
+- **Recomendação de primeiras ações** por regras leves (`firstActions.ts`)
+  - Até 5 ações priorizadas (urgent / recommended / suggested)
+  - Ações de "marcar sessão" abrem o `BookingSessionWizardDialog` no dashboard; restantes navegam para rotas reais (`/triagem`, `/dashboard/migrante/trilhas|curriculo|emprego`)
+  - `FirstActionsCard` no topo do dashboard; migrante sem triagem vê só "Completar Situação Inicial"
+- Chaves i18n `needs.*` e `firstActions.*` em PT/EN/ES/FR (traduções manuais)
+- 23 testes unitários novos (13 needs + 10 firstActions)
+- **Versão conceitual:** sem SCAS-R, scores numéricos validados ou fórmulas psicométricas
+
+**Nota de adaptação:** a estrutura real da Situação Inicial diverge da assumida no prompt (coleção `triage/{uid}`, não `users.triage_responses`; tokens em inglês: `not_regularized`/`unemployed_seeking`/`homeless`/`none`; sem `urgent_help` — usa `urgencies` derivado de `identified_needs`/`desired_support`; conclusão via `triage.completed`; CV em `profiles.resumeUrl`; agendamento é diálogo, não rota). As regras foram adaptadas aos valores e rotas reais, com mapeamento de tokens confirmado pelo utilizador.
+
+
 ## 2026-05-27 · Demandas de nível baixo (sprint curta)
 
 - **Triagem (Item 1, parcial):** removidos do fluxo os passos "Preparação Cultural" (6) e "Motivação e Expectativas" (7) inteiros, e a pergunta `arrival_date_pt` do passo "Integração" (8); `legal_status` mantido. Passos "Autonomia" (9) e "Perfil Socioprofissional" (12) **adiados a pedido** (impacto em filtros de idioma/situação laboral por rever). Campos preservados no Firestore; código de leitura a jusante usa optional chaining (não quebra).

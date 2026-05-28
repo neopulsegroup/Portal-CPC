@@ -353,6 +353,127 @@
       }
     }
   },
+  "jobApply": {
+    "optionalCv": {
+      "label": "Joindre un CV personnalisé (facultatif)",
+      "hint": "Vous pouvez joindre une version de votre CV propre à cette offre. PDF, DOC ou DOCX, maximum 5 Mo."
+    },
+    "submitting": "Envoi de la candidature...",
+    "submitted": "Candidature envoyée avec succès"
+  },
+  "myApplications": {
+    "personalCv": "CV personnalisé pour cette candidature",
+    "personalCvAttached": "Voir le CV personnalisé joint",
+    "cannotAttach": "Impossible de joindre un CV à ce stade de la candidature."
+  },
+  "applicationDetail": {
+    "cvsAvailable": "CV disponibles",
+    "candidateCv": "CV du candidat",
+    "migrantAttachedCv": "CV joint par le candidat pour cette offre",
+    "companyAttachedCv": "CV joint par l'entreprise"
+  },
+  "cvUpload": {
+    "button": "Téléverser le CV",
+    "uploading": "Téléversement...",
+    "viewUploaded": "Voir le CV téléversé",
+    "hint": "PDF, DOC ou DOCX. Maximum {maxSize} Mo.",
+    "errors": {
+      "tooLarge": {
+        "title": "Fichier trop volumineux",
+        "description": "Le fichier doit faire au maximum {maxSize} Mo."
+      },
+      "invalidType": {
+        "title": "Format non pris en charge",
+        "description": "Seuls les PDF, DOC ou DOCX sont acceptés."
+      },
+      "uploadFailed": {
+        "title": "Erreur lors du téléversement du CV",
+        "description": "Veuillez réessayer."
+      }
+    },
+    "success": "CV téléversé avec succès"
+  },
+  "needs": {
+    "title": "Profil de Besoins",
+    "empty": "Nous n'avons pas encore identifié de besoins spécifiques. Complétez la Situation Initiale pour obtenir un profil personnalisé.",
+    "category": {
+      "legal": "Aide Juridique",
+      "housing": "Logement",
+      "employment": "Emploi",
+      "language": "Aide Linguistique",
+      "psychological": "Soutien Psychologique",
+      "social": "Aide Sociale"
+    },
+    "priority": {
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible"
+    },
+    "reason": {
+      "legal": {
+        "unregularized": "Situation légale non régularisée",
+        "in_process": "Procédure légale en cours",
+        "urgent_marked": "A signalé l'aide juridique comme prioritaire"
+      },
+      "housing": {
+        "none": "Sans logement stable",
+        "precarious": "Logement précaire",
+        "urgent_marked": "A signalé le logement comme prioritaire"
+      },
+      "employment": {
+        "unemployed": "À la recherche d'un emploi",
+        "urgent_marked": "A signalé l'aide à l'emploi comme prioritaire"
+      },
+      "language": {
+        "beginner": "Niveau débutant en portugais",
+        "basic": "Niveau de base en portugais",
+        "urgent_marked": "A signalé la formation en portugais comme prioritaire"
+      },
+      "psychological": {
+        "urgent_marked": "A signalé le soutien psychologique comme prioritaire"
+      },
+      "social": {
+        "basic_needs": "A signalé les besoins de base comme prioritaires"
+      }
+    }
+  },
+  "firstActions": {
+    "title": "Prochaines étapes suggérées",
+    "priority": {
+      "urgent": "Urgent",
+      "recommended": "Recommandé",
+      "suggested": "Suggéré"
+    },
+    "completeTriage": {
+      "title": "Complétez la Situation Initiale",
+      "description": "Répondez aux questions pour recevoir des recommandations personnalisées."
+    },
+    "bookLegal": {
+      "title": "Réserver une séance juridique",
+      "description": "Parlez à un juriste de votre situation.",
+      "descriptionInProcess": "Suivi de la procédure légale en cours."
+    },
+    "bookPsychological": {
+      "title": "Réserver une séance psychologique",
+      "description": "Parlez à un psychologue de l'équipe CPC."
+    },
+    "bookSocial": {
+      "title": "Aide sociale urgente",
+      "description": "Réservez une séance de médiation pour un soutien immédiat."
+    },
+    "completeCv": {
+      "title": "Compléter le CV",
+      "description": "Remplissez votre profil professionnel pour voir des offres pertinentes."
+    },
+    "viewJobs": {
+      "title": "Voir les offres d'emploi",
+      "description": "Explorez les postes disponibles en Algarve."
+    },
+    "trailPortuguese": {
+      "title": "S'inscrire en Portugais",
+      "description": "Commencez un parcours de formation en portugais."
+    }
+  },
   "triage": {
     "title": "Situation Initiale",
     "subtitle": "Répondez à quelques questions afin que nous puissions personnaliser votre accompagnement.",
@@ -2709,8 +2830,12 @@
           "candidate": "Candidat",
           "email": "E-mail",
           "date": "Date",
-          "coverLetter": "Lettre de motivation"
-        }
+          "coverLetter": "Lettre de motivation",
+          "candidateCv": "CV du candidat",
+          "attachedCv": "CV joint par l'entreprise"
+        },
+        "viewCandidateCv": "Voir le CV du candidat",
+        "noCandidateCv": "Le candidat n'a pas joint de CV."
       }
     },
     "applicationsHub": {
