@@ -1,12 +1,14 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 
-import { isAdminUser } from './permissions';
+import { canManageSystemSettings } from './systemSettingsPermissions';
 import { loadSmtpSettings } from './mailProcessor';
 import { createTransport } from './smtp';
 import { processMailDocument } from './mailProcessor';
 import { registerUserSecure } from './registerUserSecure';
-import { submitContactForm } from './contactResend';
+import { submitContactForm } from './contactForm';
+import { requestPasswordReset } from './sendPasswordReset';
+import { uploadCvSecure } from './uploadCvSecure';
 
 // TASK-08 — Triggers de notificação automática por email.
 // Cada trigger enfileira em `mail/{id}` e é consumido por `onMailCreated`.
@@ -23,6 +25,7 @@ import { onJobOfferCreated } from './onJobOfferCreated';
 // scheduledReminders: cron 15min processa flags e envia 24h/1h antes.
 import { onSessionCreated } from './onSessionCreated';
 import { scheduledReminders } from './scheduledReminders';
+import { applyRecaptchaSettings } from './applyRecaptchaSettings';
 
 export const onMailCreated = onDocumentCreated('mail/{mailId}', async (event) => {
   const mailId = event.params.mailId;
@@ -32,7 +35,7 @@ export const onMailCreated = onDocumentCreated('mail/{mailId}', async (event) =>
 export const testSmtpConnection = onCall(async (request) => {
   const uid = request.auth?.uid ?? null;
   if (!uid) throw new HttpsError('unauthenticated', 'Sessão inválida.');
-  const ok = await isAdminUser(uid);
+  const ok = await canManageSystemSettings(uid);
   if (!ok) throw new HttpsError('permission-denied', 'Sem permissão.');
 
   try {
@@ -50,7 +53,7 @@ export const testSmtpConnection = onCall(async (request) => {
   }
 });
 
-export { registerUserSecure, submitContactForm };
+export { registerUserSecure, submitContactForm, requestPasswordReset, uploadCvSecure, applyRecaptchaSettings };
 
 // TASK-08 — exports dos 5 triggers de notificação.
 export {

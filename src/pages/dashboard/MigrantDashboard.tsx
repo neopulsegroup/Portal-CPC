@@ -40,7 +40,15 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { todayIsoAppCalendar } from '@/lib/appCalendar';
+import { isMigrantUpcomingSession, isSessionPendingApproval } from '@/lib/sessionApproval';
 import { computeMigrantProfileCompletenessPercent } from '@/lib/migrantProfileCompleteness';
+import { useDashboardDisplayName } from '@/hooks/useDashboardDisplayName';
+import {
+  computeMigrantOverallProgressPercent,
+  computeMigrantSessionsProgressPercent,
+  countMigrantCompletedModules,
+  countMigrantCompletedSessions,
+} from '@/lib/migrantHistoryMetrics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
@@ -61,7 +69,14 @@ import SessionsPage from './migrant/SessionsPage';
 import MigrantActivitiesListPage from './migrant/MigrantActivitiesListPage';
 import MigrantActivityDetailPage from './migrant/MigrantActivityDetailPage';
 import MigrantMessagesPage from './migrant/MessagesPage';
+import MigrantJobsAccessGate from './migrant/MigrantJobsAccessGate';
 import BookingSessionWizardDialog from './migrant/BookingSessionWizardDialog';
+import { useMigrantJobsAccess } from '@/hooks/useMigrantJobsAccess';
+import {
+  canAccessMigrantJobs,
+  hasEmployerProfessionalAuthorization,
+  MIGRANT_JOBS_ACCESS_PROFILE_PATH,
+} from '@/lib/migrantJobsAccess';
 
 type MigrantDashboardProfileDoc = {
   id?: string;
@@ -85,6 +100,7 @@ type MigrantDashboardProfileDoc = {
   languagesList?: string | null;
   mainNeeds?: string | null;
   contactPreference?: string | null;
+  authorizeEmployersProfessionalProfile?: boolean | null;
 };
 
 type DashboardNotificationDoc = {
@@ -103,6 +119,37 @@ function normalizeDashboardRole(value?: string | null): string {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function parseNotificationCreatedAtMs(created: unknown): number {
+  if (!created) return 0;
+  if (typeof created === 'string') {
+    const parsed = Date.parse(created);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (typeof created === 'object') {
+    const value = created as { toDate?: () => Date; seconds?: number };
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate();
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    }
+    if (typeof value.seconds === 'number') return value.seconds * 1000;
+  }
+  return 0;
+}
+
+function mapNotificationDoc(d: DashboardNotificationDoc) {
+  const created = d.created_at;
+  const dateMs = parseNotificationCreatedAtMs(created);
+  const date = dateMs > 0 ? new Date(dateMs).toISOString() : new Date().toISOString();
+  return {
+    id: d.id,
+    title: (d.title || 'Notificação').trim(),
+    body: (d.body || '').trim(),
+    date,
+    type: d.type || undefined,
+    href: d.href || undefined,
+  };
 }
 
 function MigrantHome() {
@@ -146,6 +193,7 @@ function MigrantHome() {
   const [employmentPreview, setEmploymentPreview] = useState<
     Array<{ id: string; title: string; subtitle: string }>
   >([]);
+  const [applicationsCount, setApplicationsCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -230,11 +278,11 @@ function MigrantHome() {
     const unsubSessions = subscribeQuery<{ id: string; session_type: string; scheduled_date: string; scheduled_time: string; status: string | null }>({
       collectionName: 'sessions',
       filters: [{ field: 'migrant_id', operator: '==', value: user.uid }],
-      orderByField: { field: 'scheduled_date', direction: 'desc' },
       onNext: (docs) => {
         ready.sessions = true;
         setSessionsError(null);
-        setSessions(docs || []);
+        const sorted = (docs || []).slice().sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
+        setSessions(sorted);
         markReady();
       },
       onError: () => {
@@ -303,28 +351,13 @@ function MigrantHome() {
     const unsubscribe = subscribeQuery<DashboardNotificationDoc>({
       collectionName: 'notifications',
       filters: [{ field: 'recipient_id', operator: '==', value: user.uid }],
-      orderByField: { field: 'created_at', direction: 'desc' },
-      limitCount: 20,
+      // Ordenação client-side: evita índice composto até deploy de firestore.indexes.json.
       onNext: (docs) => {
-        const mapped = docs.map((d) => {
-          const created = d.created_at as { toDate?: () => Date; seconds?: number } | string | null | undefined;
-          const date =
-            created && typeof created === 'object' && typeof created.toDate === 'function'
-              ? created.toDate().toISOString()
-              : created && typeof created === 'object' && typeof created.seconds === 'number'
-                ? new Date(created.seconds * 1000).toISOString()
-                : typeof created === 'string'
-                  ? created
-                  : new Date().toISOString();
-          return {
-            id: d.id,
-            title: (d.title || 'Notificação').trim(),
-            body: (d.body || '').trim(),
-            date,
-            type: d.type || undefined,
-            href: d.href || undefined,
-          };
-        });
+        const mapped = docs
+          .slice()
+          .sort((a, b) => parseNotificationCreatedAtMs(b.created_at) - parseNotificationCreatedAtMs(a.created_at))
+          .slice(0, 20)
+          .map(mapNotificationDoc);
         setDbNotifications(mapped);
       },
       onError: () => setDbNotifications([]),
@@ -332,9 +365,25 @@ function MigrantHome() {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setApplicationsCount(null);
+      return;
+    }
+    const unsubscribe = subscribeQuery<{ id: string }>({
+      collectionName: 'job_applications',
+      filters: [{ field: 'applicant_id', operator: '==', value: user.uid }],
+      onNext: (docs) => setApplicationsCount((docs || []).length),
+      onError: () => setApplicationsCount(0),
+    });
+    return () => unsubscribe();
+  }, [user?.uid]);
+
   const upcomingSessions = useMemo(() => {
     const now = todayIsoAppCalendar();
-    return sessions.filter(s => s.scheduled_date >= now).sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+    return sessions
+      .filter((s) => isMigrantUpcomingSession(s.status, s.scheduled_date, now))
+      .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time));
   }, [sessions]);
 
   const trailsProgressAvg = useMemo(() => {
@@ -343,12 +392,10 @@ function MigrantHome() {
     return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   }, [progress]);
 
-  const sessionsProgress = useMemo(() => {
-    const total = sessions.length;
-    if (total === 0) return 0;
-    const done = sessions.filter((s) => (s.status || '').toLowerCase() === 'completed' || (s.status || '').toLowerCase() === 'concluida' || (s.status || '').toLowerCase() === 'concluída').length;
-    return Math.min(100, Math.round((done / total) * 100));
-  }, [sessions]);
+  const sessionsProgress = useMemo(() => computeMigrantSessionsProgressPercent(sessions), [sessions]);
+
+  const completedSessionsCount = useMemo(() => countMigrantCompletedSessions(sessions), [sessions]);
+  const completedModulesCount = useMemo(() => countMigrantCompletedModules(progress), [progress]);
 
   const profileCompleteness = useMemo(
     () =>
@@ -389,10 +436,16 @@ function MigrantHome() {
       .join(', ') || '—';
   }, [triage, t]);
 
-  const overallProgress = useMemo(() => {
-    const parts = [trailsProgressAvg, sessionsProgress, profileCompleteness, triageProgress];
-    return Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
-  }, [trailsProgressAvg, sessionsProgress, profileCompleteness, triageProgress]);
+  const overallProgress = useMemo(
+    () =>
+      computeMigrantOverallProgressPercent({
+        trailsProgressAvg,
+        sessionsProgress,
+        profileCompleteness,
+        triageProgress,
+      }),
+    [trailsProgressAvg, sessionsProgress, profileCompleteness, triageProgress]
+  );
 
   const needsProfile = useMemo(() => inferNeedsProfile(triage), [triage]);
 
@@ -503,14 +556,28 @@ function MigrantHome() {
     };
   }, [profile?.name, profile, profileDoc]);
 
+  const jobsAccessAlert = useMemo(() => {
+    if (hasEmployerProfessionalAuthorization(profileDoc)) return null;
+
+    return {
+      id: 'jobs-access-alert',
+      title: t.get('dashboard.migrant_jobs.access_alert_title'),
+      body: t.get('dashboard.migrant_jobs.access_alert_missing_authorization'),
+      date: new Date().toISOString(),
+      type: 'warning',
+      href: MIGRANT_JOBS_ACCESS_PROFILE_PATH,
+    };
+  }, [profileDoc, t]);
+
   const visibleNotifications = useMemo(() => {
     const list = [
       ...(profileRequiredAlert ? [profileRequiredAlert] : []),
+      ...(jobsAccessAlert ? [jobsAccessAlert] : []),
       ...dbNotifications,
       ...notifications,
     ];
     return list.slice(0, 4);
-  }, [dbNotifications, notifications, profileRequiredAlert]);
+  }, [dbNotifications, notifications, profileRequiredAlert, jobsAccessAlert]);
 
   function addUrgentRequest() {
     if (!user || !urgentDesc) return;
@@ -647,7 +714,11 @@ function MigrantHome() {
                           <p className="text-sm font-medium">{s.session_type}</p>
                           <p className="text-xs text-muted-foreground">{new Date(s.scheduled_date).toLocaleDateString()} • {s.scheduled_time}</p>
                         </div>
-                        <span className="text-xs text-muted-foreground">{s.status || t.dashboard.status_scheduled}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {isSessionPendingApproval(s.status)
+                            ? t.dashboard.status_pending
+                            : s.status || t.dashboard.status_scheduled}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -767,7 +838,12 @@ function MigrantHome() {
           <div className="cpc-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2"><Briefcase className="h-5 w-5 text-primary" /> {t.dashboard.employment_area}</h2>
-              <Link to="/dashboard/migrante/emprego" className="text-sm text-primary hover:underline">{t.dashboard.view_all}</Link>
+              <Link
+                to={canAccessMigrantJobs(profileDoc) ? '/dashboard/migrante/emprego' : MIGRANT_JOBS_ACCESS_PROFILE_PATH}
+                className="text-sm text-primary hover:underline"
+              >
+                {t.dashboard.view_all}
+              </Link>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
               <Button asChild variant="outline" size="sm">
@@ -777,7 +853,7 @@ function MigrantHome() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard/migrante/emprego">
+                <Link to={canAccessMigrantJobs(profileDoc) ? '/dashboard/migrante/emprego' : MIGRANT_JOBS_ACCESS_PROFILE_PATH}>
                   <Briefcase className="h-4 w-4 mr-2" />
                   {t.dashboard.view_vacancies}
                 </Link>
@@ -794,7 +870,11 @@ function MigrantHome() {
                 employmentPreview.map((job) => (
                   <Link
                     key={job.id}
-                    to={`/dashboard/migrante/emprego/${job.id}`}
+                    to={
+                      canAccessMigrantJobs(profileDoc)
+                        ? `/dashboard/migrante/emprego/${job.id}`
+                        : MIGRANT_JOBS_ACCESS_PROFILE_PATH
+                    }
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted"
                   >
                     <div className="min-w-0">
@@ -870,15 +950,15 @@ function MigrantHome() {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-md bg-muted/50">
                 <p className="text-muted-foreground mb-1">{t.dashboard.sessions_done}</p>
-                <p className="font-semibold text-sm">{sessions.filter(s => s.status === 'completed' || s.status === t.dashboard.status_concluded).length}</p>
+                <p className="font-semibold text-sm">{completedSessionsCount}</p>
               </div>
               <div className="p-3 rounded-md bg-muted/50">
                 <p className="text-muted-foreground mb-1">{t.dashboard.modules_done}</p>
-                <p className="font-semibold text-sm">{progress.reduce((a, b) => a + (b.modules_completed || 0), 0)}</p>
+                <p className="font-semibold text-sm">{completedModulesCount}</p>
               </div>
               <div className="p-3 rounded-md bg-muted/50">
                 <p className="text-muted-foreground mb-1">{t.dashboard.applications}</p>
-                <p className="font-semibold text-sm">—</p>
+                <p className="font-semibold text-sm">{applicationsCount === null ? '—' : applicationsCount}</p>
               </div>
               <div className="p-3 rounded-md bg-muted/50">
                 <p className="text-muted-foreground mb-1">{t.dashboard.progress_report}</p>
@@ -954,6 +1034,9 @@ export default function MigrantDashboard() {
   const location = useLocation();
   const { t } = useLanguage();
   const { profile } = useAuth();
+  const migrantDisplayName = useDashboardDisplayName();
+  const { canAccess: canAccessJobs, loading: jobsAccessLoading } = useMigrantJobsAccess();
+  const jobsMenuPath = !jobsAccessLoading && !canAccessJobs ? MIGRANT_JOBS_ACCESS_PROFILE_PATH : '/dashboard/migrante/emprego';
   const isHome = location.pathname === '/dashboard/migrante' || location.pathname === '/dashboard/migrante/';
   const sidebarItemsMain = [
     { to: '/dashboard/migrante', label: t.get('dashboard.overview'), icon: TrendingUp },
@@ -980,7 +1063,7 @@ export default function MigrantDashboard() {
             <aside className="cpc-card p-4 h-fit lg:sticky lg:top-24">
               <div className="mb-4 px-2">
                 <p className="text-sm text-muted-foreground">{t.get('migrant.menu.title')}</p>
-                <p className="font-semibold">{profile?.name || t.get('cpc.menu.user_fallback')}</p>
+                <p className="font-semibold">{migrantDisplayName || t.get('cpc.menu.user_fallback')}</p>
               </div>
 
               {/* Documentação:
@@ -989,10 +1072,12 @@ export default function MigrantDashboard() {
                 - Visibilidade: secção de definições apenas para utilizadores com perfil migrante.
               */}
               <nav className="space-y-1">
-                {sidebarItemsMain.map((item) => (
+                {sidebarItemsMain.map((item) => {
+                  const to = item.to === '/dashboard/migrante/emprego' ? jobsMenuPath : item.to;
+                  return (
                   <NavLink
                     key={item.to}
-                    to={item.to}
+                    to={to}
                     end={item.to === '/dashboard/migrante'}
                     className={({ isActive }) =>
                       `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
@@ -1001,7 +1086,8 @@ export default function MigrantDashboard() {
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </NavLink>
-                ))}
+                  );
+                })}
 
                 {isMigrant ? (
                   <>
@@ -1032,7 +1118,7 @@ export default function MigrantDashboard() {
                 <div className="mb-8">
                   <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                     {t.get('dashboard.welcome')},{' '}
-                    <span className="text-primary">{profile?.name || t.get('auth.roles.migrant')}</span>
+                    <span className="text-primary">{migrantDisplayName || t.get('auth.roles.migrant')}</span>
                   </h1>
                   <p className="text-sm text-muted-foreground mt-1">
                     {t.get('dashboard.overview_desc')}.
@@ -1046,8 +1132,8 @@ export default function MigrantDashboard() {
                 <Route path="trilhas" element={<TrailsPage />} />
                 <Route path="trilhas/:trailId" element={<TrailDetailPage />} />
                 <Route path="trilhas/:trailId/modulo/:moduleId" element={<ModuleViewerPage />} />
-                <Route path="emprego" element={<JobsPage />} />
-                <Route path="emprego/:jobId" element={<JobDetailPage />} />
+                <Route path="emprego" element={<MigrantJobsAccessGate><JobsPage /></MigrantJobsAccessGate>} />
+                <Route path="emprego/:jobId" element={<MigrantJobsAccessGate><JobDetailPage /></MigrantJobsAccessGate>} />
                 {/* TASK-02 — Minhas Candidaturas */}
                 <Route path="candidaturas" element={<MyApplicationsPage />} />
                 <Route path="atividades" element={<MigrantActivitiesListPage />} />

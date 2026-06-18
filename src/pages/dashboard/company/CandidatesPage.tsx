@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CompanySectionHeader } from '@/components/company/CompanySectionHeader';
 import { Slider } from '@/components/ui/slider';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -30,6 +31,7 @@ import {
   Eye,
   FileText,
   ChevronDown,
+  Users,
 } from 'lucide-react';
 import {
   CandidateFormValues,
@@ -54,7 +56,7 @@ interface CompanyCandidate {
   email: string;
   phone: string;
   desired_role: string;
-  experience: ExperienceLevel;
+  experience: ExperienceLevel | null;
   skills: string[] | null;
   languages: string[] | null;
   job_offer_id: string | null;
@@ -78,6 +80,7 @@ type MigrantProfileAvailability = {
   phone?: string | null;
   professionalTitle?: string | null;
   professionalExperience?: string | null;
+  experienceLevel?: 'junior' | 'mid' | 'senior' | null;
   skills?: string | null;
   languagesList?: string | null;
   registeredAt?: unknown | null;
@@ -163,10 +166,11 @@ function presenceDot(stage: CandidateStage): string {
   return 'bg-emerald-500';
 }
 
-function experienceLabel(exp: ExperienceLevel, t: { get: (k: string) => string }): string {
+function experienceLabel(exp: ExperienceLevel | null, t: { get: (k: string) => string }): string {
   if (exp === 'junior') return t.get('company.candidates.experience.junior');
   if (exp === 'mid') return t.get('company.candidates.experience.mid');
-  return t.get('company.candidates.experience.senior');
+  if (exp === 'senior') return t.get('company.candidates.experience.senior');
+  return '—';
 }
 
 function clampMatch(value: number): number {
@@ -224,7 +228,6 @@ export default function CandidatesPage() {
   const [stats, setStats] = useState({ total: 0, newMonth: 0, ideal: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [jobFilter, setJobFilter] = useState<string>('all');
   const [skillsFilter, setSkillsFilter] = useState('');
   const [experienceFilter, setExperienceFilter] = useState<string>('all');
   const [minMatch, setMinMatch] = useState(70);
@@ -268,14 +271,6 @@ export default function CandidatesPage() {
     void fetchStats(companyId);
     void fetchPage({ companyId, cursor: null, nextPageIndex: 0 });
   }, [companyId]);
-
-  useEffect(() => {
-    if (!companyId) return;
-    setPageIndex(0);
-    setPageCursors([null]);
-    void fetchStats(companyId);
-    void fetchPage({ companyId, cursor: null, nextPageIndex: 0 });
-  }, [jobFilter, experienceFilter, minMatch]);
 
   async function bootstrap() {
     if (!user) return;
@@ -459,13 +454,9 @@ export default function CandidatesPage() {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
-        const expText = (p.professionalExperience || '').toLowerCase();
-        const experience: ExperienceLevel =
-          expText.includes('senior') || expText.includes('sénior')
-            ? 'senior'
-            : expText.includes('junior')
-              ? 'junior'
-              : 'mid';
+        const expLevel = p.experienceLevel;
+        const experience: ExperienceLevel | null =
+          expLevel === 'junior' || expLevel === 'mid' || expLevel === 'senior' ? expLevel : null;
         const registeredAtIso =
           typeof p.registeredAt === 'string'
             ? p.registeredAt
@@ -518,18 +509,23 @@ export default function CandidatesPage() {
     const q = normalizeText(searchQuery);
     const skillsQ = normalizeText(skillsFilter);
     const skillTokens = skillsQ ? skillsQ.split(/\s+/g).filter(Boolean) : [];
-    if (!q && skillTokens.length === 0) return candidates;
+
     return candidates.filter((c) => {
       const name = normalizeText(c.name);
       const role = normalizeText(c.desired_role);
       const skills = (c.skills || []).map((s) => normalizeText(s));
-      const matchMain = !q || name.includes(q) || role.includes(q);
+
+      const matchSearch = !q || name.includes(q) || role.includes(q);
       const matchSkills =
         skillTokens.length === 0 ||
         skillTokens.every((tok) => skills.some((s) => s.includes(tok)));
-      return matchMain && matchSkills;
+      const matchExperience =
+        experienceFilter === 'all' || (c.experience !== null && c.experience === experienceFilter);
+      const matchPct = c.match_percent == null || c.match_percent >= minMatch;
+
+      return matchSearch && matchSkills && matchExperience && matchPct;
     });
-  }, [candidates, searchQuery, skillsFilter]);
+  }, [candidates, searchQuery, skillsFilter, experienceFilter, minMatch]);
 
   const shownFrom = pageIndex * PAGE_SIZE + (filteredCandidates.length ? 1 : 0);
   const shownTo = pageIndex * PAGE_SIZE + filteredCandidates.length;
@@ -720,38 +716,36 @@ export default function CandidatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <div className="text-sm text-muted-foreground">
-            {t.get('company.candidates.breadcrumbs.root')} /{' '}
-            <span className="text-foreground">{t.get('company.candidates.breadcrumbs.current')}</span>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight">{t.get('company.candidates.title')}</h1>
-        </div>
+      <CompanySectionHeader
+        icon={Users}
+        title={t.get('company.candidates.title')}
+        subtitle={t.get('company.candidates.subtitle')}
+        backHref="/dashboard/empresa"
+        backLabel={t.get('company.offers.backToDashboard')}
+      />
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="cpc-card px-5 py-4">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.total')}</p>
-            <div className="mt-2 flex items-baseline gap-3">
-              <p className="text-3xl font-bold">{numberFormatter.format(stats.total)}</p>
-              <span className="text-sm font-semibold text-emerald-600">
-                +{Math.min(99, Math.max(0, Math.round((stats.newMonth / Math.max(1, stats.total)) * 100)))}%
-              </span>
-            </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="cpc-card px-5 py-4">
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.total')}</p>
+          <div className="mt-2 flex items-baseline gap-3">
+            <p className="text-3xl font-bold">{numberFormatter.format(stats.total)}</p>
+            <span className="text-sm font-semibold text-emerald-600">
+              +{Math.min(99, Math.max(0, Math.round((stats.newMonth / Math.max(1, stats.total)) * 100)))}%
+            </span>
           </div>
-          <div className="cpc-card px-5 py-4">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.newMonth')}</p>
-            <div className="mt-2 flex items-baseline gap-3">
-              <p className="text-3xl font-bold">{numberFormatter.format(stats.newMonth)}</p>
-              <span className="text-sm font-semibold text-primary">Fase 1</span>
-            </div>
+        </div>
+        <div className="cpc-card px-5 py-4">
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.newMonth')}</p>
+          <div className="mt-2 flex items-baseline gap-3">
+            <p className="text-3xl font-bold">{numberFormatter.format(stats.newMonth)}</p>
+            <span className="text-sm font-semibold text-primary">Fase 1</span>
           </div>
-          <div className="cpc-card px-5 py-4">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.ideal')}</p>
-            <div className="mt-2 flex items-baseline gap-3">
-              <p className="text-3xl font-bold">{numberFormatter.format(stats.ideal)}</p>
-              <span className="text-sm font-semibold text-primary">★ Top Tier</span>
-            </div>
+        </div>
+        <div className="cpc-card px-5 py-4">
+          <p className="text-xs font-semibold tracking-widest text-muted-foreground">{t.get('company.candidates.kpis.ideal')}</p>
+          <div className="mt-2 flex items-baseline gap-3">
+            <p className="text-3xl font-bold">{numberFormatter.format(stats.ideal)}</p>
+            <span className="text-sm font-semibold text-primary">★ Top Tier</span>
           </div>
         </div>
       </div>
@@ -760,25 +754,17 @@ export default function CandidatesPage() {
         <div className="p-6">
           <div className="grid gap-6 lg:grid-cols-4">
             <div className="space-y-2">
-              <label htmlFor="candidate-filter-job" className="text-xs font-semibold tracking-widest text-muted-foreground">
+              <label htmlFor="candidate-filter-search" className="text-xs font-semibold tracking-widest text-muted-foreground">
                 {t.get('company.candidates.filters.job')}
               </label>
-              <div className="relative">
-                <select
-                  id="candidate-filter-job"
-                  value={jobFilter}
-                  onChange={(e) => setJobFilter(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-xl border border-input bg-muted/30 px-3 pr-10"
-                >
-                  <option value="all">{t.get('company.candidates.filters.job_all')}</option>
-                  {offers.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.title}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
+              <Input
+                id="candidate-filter-search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t.get('company.candidates.search.placeholder')}
+                aria-label={t.get('company.candidates.search.aria')}
+                className="h-11 rounded-xl bg-muted/30"
+              />
             </div>
 
             <div className="space-y-2">

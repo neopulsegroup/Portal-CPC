@@ -1,3 +1,6 @@
+import { getRecaptchaSiteKeyFromEnv } from '@/lib/recaptchaConfig';
+import { loadRecaptchaPublicSettings, resolveRecaptchaSiteKey } from '@/lib/recaptchaRuntime';
+
 let scriptLoadingPromise: Promise<void> | null = null;
 
 declare global {
@@ -9,12 +12,19 @@ declare global {
   }
 }
 
-function getSiteKey(): string {
-  const env = import.meta.env as unknown as Record<string, string | boolean | undefined>;
-  return String(env.VITE_RECAPTCHA_SITE_KEY || env.VITE_FIREBASE_APPCHECK_SITE_KEY || '').trim();
+/** Indica se existe site key (Firestore ou variável de ambiente). */
+export function isRecaptchaSiteKeyConfigured(): boolean {
+  const envKey = getRecaptchaSiteKeyFromEnv();
+  return envKey.length > 0;
 }
 
-function loadRecaptchaScript(siteKey: string): Promise<void> {
+/** Indica se há site key já carregada em runtime (inclui Firestore). */
+export async function isRecaptchaSiteKeyConfiguredAsync(): Promise<boolean> {
+  const siteKey = await resolveRecaptchaSiteKey();
+  return siteKey.length > 0;
+}
+
+async function loadRecaptchaScript(siteKey: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if (window.grecaptcha) return Promise.resolve();
   if (scriptLoadingPromise) return scriptLoadingPromise;
@@ -41,7 +51,7 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
 }
 
 export async function getRecaptchaToken(action: string): Promise<string | null> {
-  const siteKey = getSiteKey();
+  const siteKey = await resolveRecaptchaSiteKey();
   if (!siteKey) return null;
 
   try {
@@ -55,3 +65,21 @@ export async function getRecaptchaToken(action: string): Promise<string | null> 
   }
 }
 
+/**
+ * Obtém token reCAPTCHA v3 para o registo.
+ * Quando a chave pública está configurada, falha com `CAPTCHA_REQUIRED` se o token
+ * não puder ser gerado (bloqueia submissões sem verificação server-side).
+ */
+export async function resolveRegisterRecaptchaToken(): Promise<string | undefined> {
+  const configured = await isRecaptchaSiteKeyConfiguredAsync();
+  if (!configured) {
+    return (await getRecaptchaToken('register')) ?? undefined;
+  }
+  const token = await getRecaptchaToken('register');
+  if (!token) {
+    throw new Error('CAPTCHA_REQUIRED');
+  }
+  return token;
+}
+
+export { loadRecaptchaPublicSettings, clearRecaptchaPublicSettingsCache } from '@/lib/recaptchaRuntime';

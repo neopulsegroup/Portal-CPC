@@ -305,10 +305,21 @@
     "accountCreated": "Conta criada com sucesso!",
     "backToSelection": "Voltar à seleção de perfil",
     "registerAs": "Registar como:",
+    "captcha": {
+      "label": "Verificação de segurança",
+      "instruction": "Escreva os caracteres apresentados na imagem",
+      "placeholder": "Código",
+      "imageAlt": "Imagem com código de verificação",
+      "refresh": "Gerar novo código",
+      "hint": "Esta verificação protege contra registos automáticos e spam.",
+      "success": "Verificação concluída.",
+      "error": "O código não corresponde. Tente novamente.",
+      "required": "Conclua a verificação de segurança para continuar."
+    },
     "loginError": "Email ou palavra-passe incorretos",
     "loginTryAgain": "Não foi possível entrar. Verifique os dados e tente novamente.",
     "registerErrorGeneric": "Não foi possível concluir o cadastro. Verifique os dados ou tente novamente.",
-    "registerErrorEmailInUse": "Este e-mail já está cadastrado. Faça login ou recupere sua senha.",
+    "registerErrorEmailInUse": "Este e-mail já está associado a uma subscrição. Inicie sessão ou utilize outro e-mail.",
     "networkError": "Problema de ligação. Verifique a internet e tente novamente.",
     "tooManyAttempts": "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
     "serviceUnavailable": "Serviço temporariamente indisponível. Tente novamente em instantes.",
@@ -376,7 +387,9 @@
     "button": "Carregar CV",
     "uploading": "A carregar...",
     "viewUploaded": "Ver CV carregado",
-    "hint": "PDF, DOC ou DOCX. Máximo {maxSize} MB.",
+    "hint": "PDF, DOC ou DOCX. Máximo {maxSize} MB. Apenas um CV por utilizador.",
+    "remove": "Remover CV",
+    "removeSuccess": "CV removido com sucesso",
     "errors": {
       "tooLarge": {
         "title": "Ficheiro demasiado grande",
@@ -389,6 +402,10 @@
       "uploadFailed": {
         "title": "Erro ao carregar CV",
         "description": "Tente novamente."
+      },
+      "removeFailed": {
+        "title": "Erro ao remover CV",
+        "description": "Não foi possível remover o CV. Tente novamente."
       }
     },
     "success": "CV carregado com sucesso"
@@ -482,6 +499,12 @@
     "duration": "Duração padrão",
     "duration30": "30 minutos",
     "duration60": "60 minutos",
+    "sessionInterval": "Intervalo entre sessões",
+    "minutesValue": "{count} minutos",
+    "durationManualHint": "Em minutos (entre {min} e {max}). Ex.: 45",
+    "intervalManualHint": "Em minutos (entre {min} e {max}). Ex.: 15",
+    "invalidDuration": "Indique uma duração entre {min} e {max} minutos.",
+    "invalidInterval": "Indique um intervalo entre {min} e {max} minutos.",
     "responsibles": "Responsáveis",
     "active": "Ativa",
     "inactive": "Inativa",
@@ -492,7 +515,8 @@
     "saveError": "Não foi possível guardar a área.",
     "noResponsibles": "Sem responsáveis atribuídos.",
     "selectArea": "Selecione uma área",
-    "areaUnavailable": "Esta área ainda não tem responsáveis disponíveis. Tente novamente mais tarde ou contacte a equipa CPC."
+    "areaUnavailable": "Esta área ainda não tem responsáveis disponíveis. Tente novamente mais tarde ou contacte a equipa CPC.",
+    "noPermission": "Apenas Super Admin e Admin podem gerir as áreas de serviço."
   },
   "triage": {
     "title": "Situação Inicial",
@@ -820,6 +844,10 @@
     "write_message": "Escrever mensagem",
     "send": "Enviar",
     "book_session_action": "Marcar sessão",
+    "booking": {
+      "pendingSuccess": "Pedido enviado",
+      "pendingSuccessDesc": "A equipa CPC irá analisar o seu pedido de marcação. Receberá confirmação após aprovação."
+    },
     "start_trail_action": "Iniciar trilha formativa",
     "complete_cv_action": "Completar CV",
     "history_reports": "Histórico & Relatórios",
@@ -875,7 +903,11 @@
       "time_days_ago": "Há {count} dias",
       "time_weeks_ago": "Há {count} semanas",
       "time_months_ago": "Há {count} meses",
-      "preview_empty": "Sem ofertas ativas para mostrar."
+      "preview_empty": "Sem ofertas ativas para mostrar.",
+      "access_alert_title": "Acesso ao Emprego pendente",
+      "access_alert_body": "Complete o perfil profissional e conceda autorização às empresas para visualizar vagas no menu Emprego.",
+      "access_alert_missing_profile": "Preencha o perfil profissional (título, experiência, competências e idiomas).",
+      "access_alert_missing_authorization": "Conceda autorização para as empresas consultarem o seu perfil profissional."
     }
   },
   "sidebar": {
@@ -1010,7 +1042,24 @@
     },
     "profile": {
       "documents": {
-        "viewCvLink": "ver currículo"
+        "cpcCvLabel": "CURRÍCULO CPC",
+        "externalCvLabel": "CURRÍCULO EXTERNO",
+        "viewCvLink": "ver currículo",
+        "editCpcCvLink": "editar currículo CPC",
+        "manageExternalCvLink": "Gerir currículo externo no perfil"
+      },
+      "experienceLevel": "Experiência",
+      "employerAuthorization": {
+        "title": "Autorização às empresas",
+        "description": "Para aceder ao menu Emprego e candidatar-se a vagas, deve autorizar as empresas às quais se candidata a consultarem o seu perfil profissional na plataforma CPC.",
+        "label": "Autorizo as empresas às quais me candidato a consultarem o meu perfil profissional.",
+        "missingFieldsHint": "Preencha primeiro o Perfil Profissional abaixo (título, experiência, competências e idiomas) para ativar esta autorização.",
+        "enabledTitle": "Autorização concedida",
+        "enabledDescription": "Já pode aceder ao menu Emprego e candidatar-se a vagas.",
+        "disabledTitle": "Autorização revogada",
+        "disabledDescription": "O acesso ao menu Emprego ficará bloqueado até voltar a conceder autorização.",
+        "errorTitle": "Não foi possível atualizar",
+        "errorDescription": "Tente novamente em alguns segundos."
       }
     },
     "curriculum": {
@@ -1598,6 +1647,7 @@
       "migrants": "Migrantes",
       "activities": "Atividades",
       "agenda": "Agenda",
+      "companies": "Empresas",
       "applications": "Candidaturas",
       "offers": "Ofertas",
       "trails": "Trilhas",
@@ -1608,7 +1658,7 @@
       "messages": "Mensagens",
       "administrationSection": "Administração",
       "settingsSection": "Definições",
-      "eventLog": "Log de Eventos"
+      "eventLog": "Logs de Auditoria"
     },
     "profile": {
       "title": "Perfil",
@@ -1700,7 +1750,8 @@
         "completed": "Concluída",
         "cancelled": "Cancelada",
         "in_progress": "Em curso",
-        "scheduled": "Agendada"
+        "scheduled": "Agendada",
+        "pending_approval": "Em aprovação"
       }
     },
     "activities": {
@@ -1786,7 +1837,7 @@
         "start_time": "Início",
         "end_time": "Fim",
         "duration": "Duração",
-        "duration_hint": "Calculada automaticamente",
+        "duration_hint": "Soma automática de todos os intervalos",
         "location": "Local / Link",
         "location_placeholder": "Ex.: CPC Faro ou https://…",
         "consultants": "Consultores",
@@ -1827,6 +1878,10 @@
         "migrants_empty": "Nenhum migrante encontrado.",
         "topics_placeholder": "Adicionar temática…",
         "topics_add": "Adicionar",
+        "add_interval": "Adicionar intervalo",
+        "remove_interval": "Remover",
+        "interval_label": "Intervalo {index}",
+        "intervals_total": "Soma de {count} intervalos",
         "checklist": "Checklist",
         "checklist_title": "Título válido",
         "checklist_time": "Horário válido",
@@ -1899,10 +1954,53 @@
       },
       "header": {
         "today": "Hoje",
+        "previous": "Período anterior",
+        "next": "Período seguinte",
         "filterBy": "Filtrar por",
         "week": "Semana",
         "month": "Mês",
         "newSession": "Nova sessão"
+      },
+      "sessionTypes": {
+        "legal": "Consulta Jurídica",
+        "psychology": "Apoio Psicológico",
+        "mediation": "Mediação",
+        "collective": "Sessão Coletiva"
+      },
+      "calendar": {
+        "loading": "A carregar sessões...",
+        "more": "+{count} mais"
+      },
+      "filter": {
+        "title": "Categoria",
+        "all": "Todas as categorias"
+      },
+      "create": {
+        "title": "Nova sessão",
+        "category": "Categoria",
+        "migrant": "Migrante",
+        "migrantSearch": "Pesquisar migrante...",
+        "migrantPlaceholder": "Selecione o migrante",
+        "loadingMigrants": "A carregar migrantes...",
+        "noMigrants": "Nenhum migrante encontrado",
+        "specialist": "Especialista",
+        "specialistPlaceholder": "Selecione o especialista",
+        "loadingSpecialists": "A carregar especialistas...",
+        "noSpecialists": "Nenhum especialista disponível nesta categoria",
+        "date": "Data",
+        "time": "Hora",
+        "cancel": "Cancelar",
+        "submit": "Criar sessão",
+        "success": "Sessão criada com sucesso.",
+        "error": "Não foi possível criar a sessão.",
+        "validation": "Preencha todos os campos obrigatórios."
+      },
+      "event": {
+        "unknownPerson": "Migrante",
+        "noSpecialist": "Especialista por atribuir",
+        "join": "Entrar na reunião",
+        "cancelSuccess": "Sessão cancelada.",
+        "cancelError": "Não foi possível cancelar a sessão."
       },
       "weekdays": {
         "mon": "SEG",
@@ -2034,7 +2132,15 @@
       },
       "pending": {
         "title": "Pedidos Pendentes",
-        "viewAll": "Ver todos os pedidos"
+        "viewAll": "Ver todos os pedidos",
+        "empty": "Sem pedidos pendentes de aprovação.",
+        "requestSource": "Pedido do migrante",
+        "noPermission": "Apenas Consultores, Admins e Super Admins podem aprovar pedidos.",
+        "statusLabel": "Em aprovação",
+        "approveSuccess": "Pedido aprovado e sessão agendada.",
+        "approveError": "Não foi possível aprovar o pedido.",
+        "declineSuccess": "Pedido recusado.",
+        "declineError": "Não foi possível recusar o pedido."
       },
       "status": {
         "approved": "Aprovado",
@@ -2096,8 +2202,9 @@
       "subtitle": "Gestão da equipa com filtros, perfis e estado de acesso",
       "user_fallback": "Utilizador",
       "roles": {
-        "admin": "Admin",
-        "manager": "Gestor",
+        "admin": "Super Admin",
+        "manager": "Admin",
+        "consultant": "Consultor",
         "coordinator": "Coordenador",
         "mediator": "Mediador",
         "lawyer": "Jurista",
@@ -2157,14 +2264,17 @@
         "email_placeholder": "email@dominio.com",
         "password_placeholder": "Mínimo 6 caracteres"
       },
+      "view_only": "Visualização apenas. Apenas Super Admin e Admin podem gerir utilizadores.",
       "errors": {
         "required_fields": "Preencha nome, email e password.",
         "name_required": "Nome é obrigatório.",
         "load_failed": "Erro ao carregar utilizadores.",
         "create_failed": "Erro ao criar utilizador.",
+        "email_in_use": "Este e-mail já está associado a uma subscrição.",
         "update_failed": "Erro ao atualizar utilizador.",
         "update_state_failed": "Erro ao atualizar estado do utilizador.",
-        "no_permission": "Sem permissão para gerir utilizadores. Apenas Admin."
+        "no_permission": "Sem permissão para gerir utilizadores. Apenas Super Admin e Admin.",
+        "cannot_assign_super_admin": "Apenas Super Admin pode atribuir o perfil Super Admin."
       }
     },
     "migrantsAdmin": {
@@ -2198,6 +2308,20 @@
         "legal": "Jurídico",
         "psychological": "Psicológico",
         "housing": "Habitacional"
+      },
+      "eligibility": {
+        "label": "Perfil de elegibilidade",
+        "profileA": "Perfil A",
+        "profileB": "Perfil B",
+        "unset": "Sem perfil",
+        "set_success_title": "Classificação atualizada",
+        "set_success": "{name}: {profile}.",
+        "cleared_success": "Classificação de {name} removida.",
+        "no_permission_title": "Sem permissão",
+        "no_permission": "Apenas a equipa de gestão (super admin, admin, consultor, coordenador) pode classificar perfis.",
+        "error_title": "Erro ao classificar",
+        "error": "Não foi possível atualizar a classificação.",
+        "page_description": "Classificação interna da equipa de gestão. Perfil A: elegível no âmbito do projeto (residente no Algarve). Perfil B: não elegível. Não visível para o migrante."
       },
       "filters": {
         "search": {
@@ -2234,6 +2358,13 @@
         "registrationYear": {
           "label": "Ano de Registo",
           "all": "Todos os anos"
+        },
+        "eligibility": {
+          "label": "Perfil (A/B)",
+          "all": "Todos",
+          "a": "Perfil A (elegível)",
+          "b": "Perfil B (não elegível)",
+          "unset": "Sem perfil definido"
         }
       },
       "list": {
@@ -2356,6 +2487,45 @@
         "subtitle": "Consulte as candidaturas submetidas por migrantes às ofertas de emprego.",
         "empty": "Sem candidaturas no período"
       },
+      "companies": {
+        "title": "Empresas",
+        "subtitle": "Valide o registo das empresas antes de poderem publicar vagas.",
+        "empty": "Sem empresas para o filtro selecionado",
+        "status_pending": "Pendente",
+        "status_approved": "Validada",
+        "status_rejected": "Rejeitada",
+        "search_placeholder": "Pesquisar por empresa, email, NIF ou área de atividade",
+        "viewDetails": "Ver detalhes da empresa",
+        "confirm_delete": "Deseja excluir a empresa \"{name}\"? Esta ação não pode ser desfeita.",
+        "filters": {
+          "pending": "Pendentes",
+          "approved": "Validadas",
+          "rejected": "Rejeitadas",
+          "all": "Todas"
+        },
+        "actions": {
+          "approve": "Validar",
+          "reject": "Rejeitar",
+          "delete": "Excluir"
+        },
+        "detail": {
+          "back": "Voltar às empresas",
+          "notFound": "Empresa não encontrada",
+          "loadError": "Não foi possível carregar os detalhes da empresa.",
+          "moderationError": "Não foi possível atualizar o estado da empresa.",
+          "deleteError": "Não foi possível excluir a empresa.",
+          "approvedToast": "Empresa validada com sucesso.",
+          "rejectedToast": "Registo da empresa rejeitado.",
+          "deletedToast": "Empresa excluída.",
+          "activityArea": "Área de atividade",
+          "nif": "NIF",
+          "contactName": "Contacto",
+          "registeredAt": "Registo em",
+          "notes": "Notas",
+          "moderation": "Moderação",
+          "moderationHint": "Revise os dados da empresa antes de validar ou rejeitar o registo."
+        }
+      },
       "offers": {
         "title": "Ofertas",
         "empty": "Sem ofertas pendentes",
@@ -2375,12 +2545,54 @@
           "approve": "Validar",
           "reject": "Rejeitar",
           "delete": "Excluir"
+        },
+        "viewDetails": "Ver detalhes da vaga",
+        "detail": {
+          "back": "Voltar às ofertas",
+          "notFound": "Oferta não encontrada",
+          "loadError": "Não foi possível carregar os detalhes da vaga.",
+          "moderationError": "Não foi possível atualizar o estado da vaga.",
+          "deleteError": "Não foi possível excluir a vaga.",
+          "approvedToast": "Vaga validada com sucesso.",
+          "rejectedToast": "Vaga rejeitada.",
+          "deletedToast": "Vaga excluída.",
+          "description": "Descrição",
+          "requirements": "Requisitos",
+          "skills": "Competências",
+          "company": "Sobre a empresa",
+          "moderation": "Moderação",
+          "moderationHint": "Revise as informações da vaga antes de validar ou rejeitar.",
+          "contractTypes": {
+            "full_time": "Tempo inteiro",
+            "part_time": "Part-time",
+            "temporary": "Temporário",
+            "internship": "Estágio"
+          },
+          "workModes": {
+            "on_site": "Presencial",
+            "hybrid": "Híbrido",
+            "remote": "Remoto"
+          }
         }
       },
       "statistics": {
         "title": "Estatísticas",
         "subtitle": "Indicadores e relatórios com filtros temporais e regionais.",
         "loading": "A carregar dados…",
+        "filters": {
+          "year": "Ano",
+          "period": "Período",
+          "periodYear": "Ano completo",
+          "periodQ1": "1º trimestre",
+          "periodQ2": "2º trimestre",
+          "periodQ3": "3º trimestre",
+          "periodQ4": "4º trimestre",
+          "dateFrom": "Data inicial",
+          "dateTo": "Data final",
+          "region": "Região",
+          "regionAll": "Todas as regiões",
+          "clear": "Limpar filtros"
+        },
         "migrantList": {
           "title": "Listagem de Migrantes",
           "count": "{count} migrante(s) no período e filtros selecionados",
@@ -2427,28 +2639,52 @@
       "contentEditor": {
         "title": "Editor de Conteúdo",
         "subtitle": "Selecione uma página no menu lateral e altere os textos visíveis no site público.",
-        "noPermission": "Apenas administradores podem editar o conteúdo público.",
+        "noPermission": "Apenas super administradores podem editar o conteúdo público.",
         "activePage": "Página ativa",
         "route": "Rota"
       },
       "settings": {
         "title": "Configurações",
-        "subtitle": "Gestão de notificações, SMTP e identidade visual dos documentos exportados.",
+        "subtitle": "Gestão de notificações, SMTP, reCAPTCHA e identidade visual dos documentos exportados.",
         "loginRequired": "Inicie sessão para aceder.",
-        "noPermission": "Sem permissão para aceder a esta secção."
+        "noPermission": "Sem permissão para aceder a esta secção. Apenas Super Admin e Admin.",
+        "recaptcha": {
+          "title": "Configuração de reCAPTCHA",
+          "subtitle": "Defina as chaves do Google reCAPTCHA v3 utilizadas no registo público.",
+          "siteKeyLabel": "VITE_RECAPTCHA_SITE_KEY",
+          "siteKeyPlaceholder": "6Lc...",
+          "secretKeyLabel": "RECAPTCHA_SECRET_KEY",
+          "secretKeyPlaceholder": "Cole a secret key",
+          "secretKeyConfiguredPlaceholder": "•••••••• (configurada — deixe vazio para manter)",
+          "showSecret": "Mostrar secret key",
+          "hideSecret": "Ocultar secret key",
+          "minScoreLabel": "RECAPTCHA_MIN_SCORE",
+          "minScoreDefault": "{score} (predefinido)",
+          "minScoreHelp": "Pontuação mínima aceite pelo servidor (0.0 a 1.0). Valor predefinido: 0.5.",
+          "apply": "Aplicar configuração",
+          "applying": "A aplicar...",
+          "toast": {
+            "appliedTitle": "reCAPTCHA atualizado",
+            "appliedDescription": "As definições de reCAPTCHA foram guardadas com sucesso.",
+            "applyErrorTitle": "reCAPTCHA",
+            "applyError": "Não foi possível aplicar a configuração de reCAPTCHA."
+          }
+        }
       },
       "eventLog": {
-        "title": "Log de Eventos",
-        "subtitle": "Histórico de ações e eventos registados na plataforma.",
+        "title": "Logs de Auditoria",
+        "subtitle": "Registo do sistema de cada ação com autor, criticidade e resultado.",
         "loginRequired": "Inicie sessão para aceder.",
-        "noPermission": "Sem permissão para aceder a esta secção. Apenas Admin.",
-        "loadError": "Não foi possível carregar o log de eventos.",
-        "empty": "Sem eventos registados.",
-        "searchPlaceholder": "Pesquisar por ação, utilizador, contexto ou alvo...",
-        "searchFilter": {
-          "label": "Pesquisa"
-        },
-        "count": "{count} evento(s)",
+        "noPermission": "Sem permissão para aceder a esta secção. Apenas Super Admin.",
+        "loadError": "Não foi possível carregar os logs de auditoria.",
+        "empty": "Sem registos de auditoria.",
+        "searchPlaceholder": "Pesquisar por email do autor, ação, recurso...",
+        "refresh": "Atualizar",
+        "total": "Total",
+        "pageSize": "{count} linhas",
+        "showing": "A mostrar {from}-{to} de {total}",
+        "prevPage": "Página anterior",
+        "nextPage": "Página seguinte",
         "unknownActor": "Utilizador desconhecido",
         "scopeFilter": {
           "label": "Filtrar por tipo de utilizador",
@@ -2459,20 +2695,69 @@
             "cpc": "CPC"
           }
         },
-        "userFilter": {
-          "label": "Utilizador",
-          "all": "Todos os utilizadores"
+        "filters": {
+          "action": "Ação",
+          "criticality": "Criticidade",
+          "result": "Resultado",
+          "origin": "Origem",
+          "allActions": "Todas as ações",
+          "allCriticality": "Todas as criticidades",
+          "allResults": "Todos os resultados",
+          "allOrigins": "Todas as origens"
         },
         "dateFilter": {
-          "from": "Data inicial",
-          "to": "Data final"
+          "from": "De",
+          "to": "Até"
         },
         "columns": {
-          "date": "Data",
+          "when": "Quando",
+          "author": "Autor",
           "action": "Ação",
-          "actor": "Utilizador",
-          "context": "Contexto",
-          "target": "Alvo"
+          "criticality": "Criticidade",
+          "result": "Resultado",
+          "request": "Pedido"
+        },
+        "criticality": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "results": {
+          "success": "OK",
+          "warning": "Aviso",
+          "error": "Erro"
+        },
+        "origins": {
+          "app": "app",
+          "http": "http",
+          "function": "function"
+        },
+        "actionKinds": {
+          "read": "Read",
+          "create": "Create",
+          "update": "Update",
+          "delete": "Delete",
+          "execute": "Execute",
+          "access": "Access",
+          "other": "Other"
+        },
+        "detail": {
+          "title": "Registo de auditoria #{id}",
+          "action": "Ação",
+          "resource": "Recurso",
+          "origin": "Origem",
+          "createdAt": "Criado em",
+          "authorEmail": "Email do autor",
+          "authorRole": "Função do autor",
+          "userId": "ID do utilizador",
+          "companyId": "ID da empresa",
+          "http": "HTTP",
+          "httpStatus": "Estado HTTP",
+          "ipAddress": "Endereço IP",
+          "requestId": "ID do pedido",
+          "durationMs": "Duração (ms)",
+          "userAgent": "User agent",
+          "metadata": "Metadados"
         },
         "actions": {
           "unauthorized_attempt": "Tentativa de acesso não autorizado",
@@ -2568,6 +2853,13 @@
       "daysAgo": "Há {count} dias",
       "weeksAgo": "Há {count} semanas"
     },
+    "verification": {
+      "pendingTitle": "Registo em validação",
+      "pendingDescription": "A Equipa de Gestão CPC está a analisar o registo da sua empresa. Só poderá publicar vagas após a validação.",
+      "rejectedTitle": "Registo não aprovado",
+      "rejectedDescription": "O registo da sua empresa não foi aprovado. Contacte a Equipa CPC para mais informações.",
+      "cannotPublish": "A sua empresa ainda não foi validada pela Equipa CPC. Aguarde a aprovação do registo para publicar vagas."
+    },
     "status": {
       "active": "Ativa",
       "in_review": "Em revisão",
@@ -2586,6 +2878,14 @@
       "logoSection": "LOGOTIPO",
       "logoRecommendation": "Recomendado: SVG ou PNG transparente (512×512px).",
       "changeLogo": "Alterar Logotipo",
+      "logo": {
+        "uploading": "A carregar logotipo...",
+        "updatedTitle": "Logotipo atualizado",
+        "updatedDescription": "O logotipo da empresa foi guardado com sucesso.",
+        "uploadError": "Não foi possível carregar o logotipo. Tente novamente.",
+        "invalidFormat": "Formato inválido. Utilize PNG, JPG, WEBP, SVG ou GIF.",
+        "tooLarge": "O ficheiro deve ter no máximo 5 MB."
+      },
       "accountVerification": {
         "title": "Verificação de Conta",
         "description": "As informações legais (Nome e NIF) só podem ser alteradas mediante contacto com o suporte para garantir a segurança fiscal."
@@ -2858,10 +3158,13 @@
           "email": "Email",
           "date": "Data",
           "coverLetter": "Carta de Apresentação",
+          "cpcCv": "Currículo CPC",
           "candidateCv": "CV do candidato",
           "attachedCv": "CV anexado pela empresa"
         },
-        "viewCandidateCv": "Ver CV do candidato",
+        "viewCandidateCpcCv": "Download CV CPC do candidato",
+        "cpcCvUnavailable": "Perfil do candidato indisponível.",
+        "viewCandidateCv": "Download CV do candidato",
         "noCandidateCv": "O candidato não anexou CV."
       }
     },
@@ -2927,7 +3230,7 @@
         "ideal": "MATCHES IDEAIS"
       },
       "filters": {
-        "job": "FILTRAR POR VAGA",
+        "job": "PESQUISAR",
         "job_all": "Todas as Vagas",
         "skills": "COMPETÊNCIAS",
         "skills_placeholder": "Ex: React, Figma...",
@@ -2936,7 +3239,7 @@
         "minMatch": "MÍNIMO MATCH (%)"
       },
       "search": {
-        "placeholder": "Pesquisar por nome ou cargo",
+        "placeholder": "Pesquisar por nome ou título",
         "aria": "Pesquisar candidatos"
       },
       "table": {
@@ -3114,6 +3417,16 @@
         "openInNewWindow": "Abrir CV em nova janela",
         "notAvailable": "Currículo não disponível. Solicite o envio do CV ao candidato.",
         "useDemo": "Usar CV de demonstração"
+      },
+      "externalCv": {
+        "title": "Currículo externo",
+        "download": "Descarregar currículo",
+        "notAvailable": "O candidato ainda não carregou um currículo externo."
+      },
+      "cpcCv": {
+        "title": "Currículo CPC",
+        "download": "Descarregar PDF",
+        "notAvailable": "O candidato ainda não preencheu o currículo CPC na plataforma."
       },
       "sessions": {
         "title": "Marcações",

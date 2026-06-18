@@ -7,10 +7,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useCompanyVerification } from '@/hooks/useCompanyVerification';
+import { CompanyVerificationBanner } from '@/components/company/CompanyVerificationBanner';
+import { CompanySectionHeader } from '@/components/company/CompanySectionHeader';
 import {
   Plus,
+  Briefcase,
   MapPin,
-  ArrowLeft,
   Search,
   Eye,
   Pencil,
@@ -53,6 +56,7 @@ export default function MyJobsPage() {
   const { user, profile, profileData } = useAuth();
   const { language, t } = useLanguage();
   const { toast } = useToast();
+  const { canPublish, status, loading: verificationLoading } = useCompanyVerification();
   const location = useLocation();
   const [companyId, setCompanyId] = useState<string | null>(null);
   /** IDs usados em job_offers.company_id (uid canónico + doc legado, se existir). */
@@ -414,26 +418,25 @@ export default function MyJobsPage() {
 
   return (
     <>
-      <Link
-        to="/dashboard/empresa"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
-      >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        {t.get('company.offers.backToDashboard')}
-      </Link>
+      {!verificationLoading && status !== 'approved' ? <CompanyVerificationBanner status={status} /> : null}
 
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t.get('company.offers.manageTitle')}</h1>
-          <p className="text-muted-foreground mt-1">{t.get('company.offers.manageSubtitle')}</p>
-        </div>
-        <Link to="/dashboard/empresa/nova-oferta" className="shrink-0">
-          <Button className="w-full md:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            {t.get('company.offers.actions.publishNew')}
-          </Button>
-        </Link>
-      </div>
+      <CompanySectionHeader
+        icon={Briefcase}
+        title={t.get('company.offers.manageTitle')}
+        subtitle={t.get('company.offers.manageSubtitle')}
+        backHref="/dashboard/empresa"
+        backLabel={t.get('company.offers.backToDashboard')}
+        actions={
+          canPublish ? (
+            <Link to="/dashboard/empresa/nova-oferta">
+              <Button className="w-full md:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                {t.get('company.offers.actions.publishNew')}
+              </Button>
+            </Link>
+          ) : null
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="cpc-card p-5 border-l-4 border-l-slate-400">
@@ -540,12 +543,14 @@ export default function MyJobsPage() {
             <div className="py-14 text-center">
               <p className="text-lg font-semibold">{t.get('company.offers.empty.title')}</p>
               <p className="text-sm text-muted-foreground mt-2">{t.get('company.offers.empty.subtitle')}</p>
-              <Link to="/dashboard/empresa/nova-oferta" className="inline-block mt-6">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t.get('company.offers.empty.cta')}
-                </Button>
-              </Link>
+              {canPublish ? (
+                <Link to="/dashboard/empresa/nova-oferta" className="inline-block mt-6">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t.get('company.offers.empty.cta')}
+                  </Button>
+                </Link>
+              ) : null}
             </div>
           ) : filteredCount === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">{t.get('company.offers.empty.filtered')}</div>

@@ -305,10 +305,21 @@
     "accountCreated": "Compte créé avec succès !",
     "backToSelection": "Revenir à la sélection du profil",
     "registerAs": "Inscrivez-vous en tant que :",
+    "captcha": {
+      "label": "Vérification de sécurité",
+      "instruction": "Saisissez les caractères affichés dans l'image",
+      "placeholder": "Code",
+      "imageAlt": "Image avec code de vérification",
+      "refresh": "Générer un nouveau code",
+      "hint": "Cette vérification protège contre les inscriptions automatiques et le spam.",
+      "success": "Vérification terminée.",
+      "error": "Le code ne correspond pas. Veuillez réessayer.",
+      "required": "Effectuez la vérification de sécurité pour continuer."
+    },
     "loginError": "Email ou mot de passe incorrect",
     "loginTryAgain": "Impossible d'entrer. Vérifiez les données et réessayez.",
     "registerErrorGeneric": "Impossible de finaliser l'inscription. Vérifiez les données ou réessayez.",
-    "registerErrorEmailInUse": "Cet e-mail est déjà enregistré. Connectez-vous ou récupérez votre mot de passe.",
+    "registerErrorEmailInUse": "Cet e-mail est déjà associé à un compte. Connectez-vous ou utilisez un autre e-mail.",
     "networkError": "Problème de connexion. Vérifiez Internet et réessayez.",
     "tooManyAttempts": "De nombreuses tentatives en peu de temps. Attendez quelques minutes et réessayez.",
     "serviceUnavailable": "Service temporairement indisponible. Veuillez réessayer dans un instant.",
@@ -376,7 +387,9 @@
     "button": "Téléverser le CV",
     "uploading": "Téléversement...",
     "viewUploaded": "Voir le CV téléversé",
-    "hint": "PDF, DOC ou DOCX. Maximum {maxSize} Mo.",
+    "hint": "PDF, DOC ou DOCX. Maximum {maxSize} Mo. Un seul CV par utilisateur.",
+    "remove": "Supprimer le CV",
+    "removeSuccess": "CV supprimé avec succès",
     "errors": {
       "tooLarge": {
         "title": "Fichier trop volumineux",
@@ -389,6 +402,10 @@
       "uploadFailed": {
         "title": "Erreur lors du téléversement du CV",
         "description": "Veuillez réessayer."
+      },
+      "removeFailed": {
+        "title": "Erreur lors de la suppression du CV",
+        "description": "Impossible de supprimer le CV. Veuillez réessayer."
       }
     },
     "success": "CV téléversé avec succès"
@@ -482,6 +499,12 @@
     "duration": "Durée par défaut",
     "duration30": "30 minutes",
     "duration60": "60 minutes",
+    "sessionInterval": "Intervalle entre les séances",
+    "minutesValue": "{count} minutes",
+    "durationManualHint": "En minutes (entre {min} et {max}). Ex. : 45",
+    "intervalManualHint": "En minutes (entre {min} et {max}). Ex. : 15",
+    "invalidDuration": "Indiquez une durée entre {min} et {max} minutes.",
+    "invalidInterval": "Indiquez un intervalle entre {min} et {max} minutes.",
     "responsibles": "Responsables",
     "active": "Active",
     "inactive": "Inactive",
@@ -492,7 +515,8 @@
     "saveError": "Impossible d'enregistrer le domaine.",
     "noResponsibles": "Aucun responsable attribué.",
     "selectArea": "Sélectionnez un domaine",
-    "areaUnavailable": "Ce domaine n'a pas encore de responsables disponibles. Réessayez plus tard ou contactez l'équipe CPC."
+    "areaUnavailable": "Ce domaine n'a pas encore de responsables disponibles. Réessayez plus tard ou contactez l'équipe CPC.",
+    "noPermission": "Seuls Super Admin et Admin peuvent gérer les domaines de service."
   },
   "triage": {
     "title": "Situation Initiale",
@@ -820,6 +844,10 @@
     "write_message": "Écrire message",
     "send": "Envoyer",
     "book_session_action": "Réserver une session",
+    "booking": {
+      "pendingSuccess": "Demande envoyée",
+      "pendingSuccessDesc": "L'équipe CPC analysera votre demande de réservation. Vous recevrez une confirmation après approbation."
+    },
     "start_trail_action": "Commencer la piste d'entraînement",
     "complete_cv_action": "Remplir le CV",
     "history_reports": "Rapports d’historique",
@@ -875,7 +903,11 @@
       "time_days_ago": "jours",
       "time_weeks_ago": "il y a quelques semaines",
       "time_months_ago": "il y a des mois",
-      "preview_empty": "Aucune ouverture active à afficher."
+      "preview_empty": "Aucune ouverture active à afficher.",
+      "access_alert_title": "Accès Emploi en attente",
+      "access_alert_body": "Complétez le profil professionnel et accordez l'autorisation aux entreprises pour voir les offres dans le menu Emploi.",
+      "access_alert_missing_profile": "Renseignez le profil professionnel (titre, expérience, compétences et langues).",
+      "access_alert_missing_authorization": "Accordez l'autorisation aux entreprises de consulter votre profil professionnel."
     }
   },
   "sidebar": {
@@ -1010,7 +1042,24 @@
     },
     "profile": {
       "documents": {
-        "viewCvLink": "voir le curriculum vitae"
+        "cpcCvLabel": "CV CPC",
+        "externalCvLabel": "CV EXTERNE",
+        "viewCvLink": "voir le curriculum vitae",
+        "editCpcCvLink": "modifier le CV CPC",
+        "manageExternalCvLink": "Gérer le CV externe dans le profil"
+      },
+      "experienceLevel": "Expérience",
+      "employerAuthorization": {
+        "title": "Autorisation aux entreprises",
+        "description": "Pour accéder au menu Emploi et postuler aux offres, vous devez autoriser les entreprises auxquelles vous postulez à consulter votre profil professionnel sur la plateforme CPC.",
+        "label": "J'autorise les entreprises auxquelles je postule à consulter mon profil professionnel.",
+        "missingFieldsHint": "Complétez d'abord le Profil professionnel ci-dessous (titre, expérience, compétences et langues) pour activer cette autorisation.",
+        "enabledTitle": "Autorisation accordée",
+        "enabledDescription": "Vous pouvez maintenant accéder au menu Emploi et postuler aux offres.",
+        "disabledTitle": "Autorisation révoquée",
+        "disabledDescription": "L'accès au menu Emploi sera bloqué jusqu'à ce que vous accordiez à nouveau l'autorisation.",
+        "errorTitle": "Mise à jour impossible",
+        "errorDescription": "Veuillez réessayer dans quelques secondes."
       }
     },
     "curriculum": {
@@ -1598,6 +1647,7 @@
       "migrants": "Migrants",
       "activities": "Activités",
       "agenda": "Ordre du jour",
+      "companies": "Entreprises",
       "applications": "Applications",
       "offers": "Offres",
       "trails": "Sentiers",
@@ -1608,7 +1658,7 @@
       "messages": "Messages",
       "administrationSection": "Administration",
       "settingsSection": "Paramètres",
-      "eventLog": "Journal des événements"
+      "eventLog": "Logs d'audit"
     },
     "profile": {
       "title": "Profil",
@@ -1700,7 +1750,8 @@
         "completed": "Complété",
         "cancelled": "Annulé",
         "in_progress": "En cours",
-        "scheduled": "Programmé"
+        "scheduled": "Programmé",
+        "pending_approval": "En attente d'approbation"
       }
     },
     "activities": {
@@ -1786,7 +1837,7 @@
         "start_time": "Commencer",
         "end_time": "Fin",
         "duration": "Durée",
-        "duration_hint": "Calculé automatiquement",
+        "duration_hint": "Somme automatique de tous les intervalles",
         "location": "Localisation / Lien",
         "location_placeholder": "Ex. : CPC Faro ou https://…",
         "consultants": "Consultants",
@@ -1827,6 +1878,10 @@
         "migrants_empty": "Aucun migrant trouvé.",
         "topics_placeholder": "Add topic…",
         "topics_add": "Pour ajouter",
+        "add_interval": "Ajouter un intervalle",
+        "remove_interval": "Supprimer",
+        "interval_label": "Intervalle {index}",
+        "intervals_total": "Somme de {count} intervalles",
         "checklist": "Liste de contrôle",
         "checklist_title": "Titre valide",
         "checklist_time": "Heure valide",
@@ -1899,10 +1954,53 @@
       },
       "header": {
         "today": "Aujourd'hui",
+        "previous": "Période précédente",
+        "next": "Période suivante",
         "filterBy": "Filtrer par",
         "week": "Semaine",
         "month": "Mois",
         "newSession": "Nouvelle séance"
+      },
+      "sessionTypes": {
+        "legal": "Consultation juridique",
+        "psychology": "Soutien psychologique",
+        "mediation": "Médiation",
+        "collective": "Séance collective"
+      },
+      "calendar": {
+        "loading": "Chargement des séances...",
+        "more": "+{count} de plus"
+      },
+      "filter": {
+        "title": "Catégorie",
+        "all": "Toutes les catégories"
+      },
+      "create": {
+        "title": "Nouvelle séance",
+        "category": "Catégorie",
+        "migrant": "Migrant",
+        "migrantSearch": "Rechercher un migrant...",
+        "migrantPlaceholder": "Sélectionnez le migrant",
+        "loadingMigrants": "Chargement des migrants...",
+        "noMigrants": "Aucun migrant trouvé",
+        "specialist": "Spécialiste",
+        "specialistPlaceholder": "Sélectionnez le spécialiste",
+        "loadingSpecialists": "Chargement des spécialistes...",
+        "noSpecialists": "Aucun spécialiste disponible pour cette catégorie",
+        "date": "Date",
+        "time": "Heure",
+        "cancel": "Annuler",
+        "submit": "Créer la séance",
+        "success": "Séance créée avec succès.",
+        "error": "Impossible de créer la séance.",
+        "validation": "Veuillez remplir tous les champs obligatoires."
+      },
+      "event": {
+        "unknownPerson": "Migrant",
+        "noSpecialist": "Spécialiste à attribuer",
+        "join": "Rejoindre la réunion",
+        "cancelSuccess": "Séance annulée.",
+        "cancelError": "Impossible d'annuler la séance."
       },
       "weekdays": {
         "mon": "LUN",
@@ -2033,8 +2131,16 @@
         }
       },
       "pending": {
-        "title": "Commandes en attente",
-        "viewAll": "Voir toutes les commandes"
+        "title": "Demandes en attente",
+        "viewAll": "Voir toutes les demandes",
+        "empty": "Aucune demande en attente d'approbation.",
+        "requestSource": "Demande du migrant",
+        "noPermission": "Seuls les consultants, admins et super admins peuvent approuver les demandes.",
+        "statusLabel": "En attente d'approbation",
+        "approveSuccess": "Demande approuvée et séance planifiée.",
+        "approveError": "Impossible d'approuver la demande.",
+        "declineSuccess": "Demande refusée.",
+        "declineError": "Impossible de refuser la demande."
       },
       "status": {
         "approved": "Approuvé",
@@ -2096,8 +2202,9 @@
       "subtitle": "Gestion d'équipe avec filtres, profils et statut d'accès",
       "user_fallback": "Utilisateur",
       "roles": {
-        "admin": "Administrateur",
-        "manager": "Directeur",
+        "admin": "Super Admin",
+        "manager": "Admin",
+        "consultant": "Consultant",
         "coordinator": "Coordinateur",
         "mediator": "Médiateur",
         "lawyer": "Juriste",
@@ -2157,6 +2264,7 @@
         "email_placeholder": "email@domaine.com",
         "password_placeholder": "Minimum 6 caractères"
       },
+      "view_only": "Consultation uniquement. Seuls Super Admin et Admin peuvent gérer les utilisateurs.",
       "errors": {
         "required_fields": "Remplissez votre nom, email et mot de passe.",
         "name_required": "Le nom est obligatoire.",
@@ -2164,7 +2272,8 @@
         "create_failed": "Erreur lors de la création de l'utilisateur.",
         "update_failed": "Erreur lors de la mise à jour de l'utilisateur.",
         "update_state_failed": "Erreur lors de la mise à jour du statut de l'utilisateur.",
-        "no_permission": "Aucune autorisation pour gérer les utilisateurs. Administrateur uniquement."
+        "no_permission": "Aucune autorisation pour gérer les utilisateurs. Super Admin et Admin uniquement.",
+        "cannot_assign_super_admin": "Seul Super Admin peut attribuer le profil Super Admin."
       }
     },
     "migrantsAdmin": {
@@ -2198,6 +2307,20 @@
         "legal": "Légal",
         "psychological": "Psychologique",
         "housing": "Logement"
+      },
+      "eligibility": {
+        "label": "Profil d'éligibilité",
+        "profileA": "Profil A",
+        "profileB": "Profil B",
+        "unset": "Sans profil",
+        "set_success_title": "Classification mise à jour",
+        "set_success": "{name} : {profile}.",
+        "cleared_success": "Classification de {name} supprimée.",
+        "no_permission_title": "Aucune autorisation",
+        "no_permission": "Seule l'équipe de gestion (super admin, admin, consultant, coordinateur) peut classer les profils.",
+        "error_title": "Erreur de classification",
+        "error": "Impossible de mettre à jour la classification.",
+        "page_description": "Classification interne de l'équipe de gestion. Profil A : éligible dans le cadre du projet (résident en Algarve). Profil B : non éligible. Non visible pour le migrant."
       },
       "filters": {
         "search": {
@@ -2234,6 +2357,13 @@
         "registrationYear": {
           "label": "Année d'inscription",
           "all": "Toutes les années"
+        },
+        "eligibility": {
+          "label": "Profil (A/B)",
+          "all": "Tous",
+          "a": "Profil A (éligible)",
+          "b": "Profil B (non éligible)",
+          "unset": "Aucun profil défini"
         }
       },
       "list": {
@@ -2356,6 +2486,45 @@
         "subtitle": "Consultez les candidatures déposées par les migrants pour connaître les offres d'emploi.",
         "empty": "Aucune candidature pendant la période"
       },
+      "companies": {
+        "title": "Entreprises",
+        "subtitle": "Validez l'inscription des entreprises avant qu'elles puissent publier des offres.",
+        "empty": "Aucune entreprise ne correspond au filtre sélectionné",
+        "status_pending": "En attente",
+        "status_approved": "Validée",
+        "status_rejected": "Rejetée",
+        "search_placeholder": "Rechercher par entreprise, e-mail, NIF ou secteur d'activité",
+        "viewDetails": "Voir les détails de l'entreprise",
+        "confirm_delete": "Voulez-vous supprimer l'entreprise « {name} » ? Cette action est irréversible.",
+        "filters": {
+          "pending": "En attente",
+          "approved": "Validées",
+          "rejected": "Rejetées",
+          "all": "Toutes"
+        },
+        "actions": {
+          "approve": "Valider",
+          "reject": "Rejeter",
+          "delete": "Supprimer"
+        },
+        "detail": {
+          "back": "Retour aux entreprises",
+          "notFound": "Entreprise introuvable",
+          "loadError": "Impossible de charger les détails de l'entreprise.",
+          "moderationError": "Impossible de mettre à jour le statut de l'entreprise.",
+          "deleteError": "Impossible de supprimer l'entreprise.",
+          "approvedToast": "Entreprise validée avec succès.",
+          "rejectedToast": "Inscription de l'entreprise rejetée.",
+          "deletedToast": "Entreprise supprimée.",
+          "activityArea": "Secteur d'activité",
+          "nif": "NIF",
+          "contactName": "Contact",
+          "registeredAt": "Inscription le",
+          "notes": "Notes",
+          "moderation": "Modération",
+          "moderationHint": "Vérifiez les informations de l'entreprise avant de valider ou rejeter l'inscription."
+        }
+      },
       "offers": {
         "title": "Offres",
         "empty": "Aucune offre en attente",
@@ -2375,12 +2544,54 @@
           "approve": "Valider",
           "reject": "Rejeter",
           "delete": "Supprimer"
+        },
+        "viewDetails": "Voir les détails du poste",
+        "detail": {
+          "back": "Retour aux offres",
+          "notFound": "Offre introuvable",
+          "loadError": "Impossible de charger les détails de l'offre.",
+          "moderationError": "Impossible de mettre à jour le statut de l'offre.",
+          "deleteError": "Impossible de supprimer l'offre.",
+          "approvedToast": "Offre validée avec succès.",
+          "rejectedToast": "Offre rejetée.",
+          "deletedToast": "Offre supprimée.",
+          "description": "Description",
+          "requirements": "Exigences",
+          "skills": "Compétences",
+          "company": "À propos de l'entreprise",
+          "moderation": "Modération",
+          "moderationHint": "Vérifiez les informations de l'offre avant de valider ou rejeter.",
+          "contractTypes": {
+            "full_time": "Temps plein",
+            "part_time": "Temps partiel",
+            "temporary": "Temporaire",
+            "internship": "Stage"
+          },
+          "workModes": {
+            "on_site": "Sur site",
+            "hybrid": "Hybride",
+            "remote": "À distance"
+          }
         }
       },
       "statistics": {
         "title": "Statistiques",
         "subtitle": "Indicateurs et rapports avec filtres temporels et régionaux.",
         "loading": "Chargement des données…",
+        "filters": {
+          "year": "Année",
+          "period": "Période",
+          "periodYear": "Année complète",
+          "periodQ1": "1er trimestre",
+          "periodQ2": "2e trimestre",
+          "periodQ3": "3e trimestre",
+          "periodQ4": "4e trimestre",
+          "dateFrom": "Date de début",
+          "dateTo": "Date de fin",
+          "region": "Région",
+          "regionAll": "Toutes les régions",
+          "clear": "Effacer les filtres"
+        },
         "migrantList": {
           "title": "Liste des migrants",
           "count": "{count} migrant(s) pour la période et les filtres sélectionnés",
@@ -2427,28 +2638,52 @@
       "contentEditor": {
         "title": "Éditeur de contenu",
         "subtitle": "Sélectionnez une page dans le menu latéral et modifiez les textes visibles sur le site public.",
-        "noPermission": "Seuls les administrateurs peuvent modifier le contenu public.",
+        "noPermission": "Seuls les super administrateurs peuvent modifier le contenu public.",
         "activePage": "Page active",
         "route": "Route"
       },
       "settings": {
         "title": "Paramètres",
-        "subtitle": "Gestion des notifications, SMTP et identité visuelle des documents exportés.",
+        "subtitle": "Gestion des notifications, SMTP, reCAPTCHA et identité visuelle des documents exportés.",
         "loginRequired": "Connectez-vous pour y accéder.",
-        "noPermission": "Aucune autorisation pour accéder à cette section."
+        "noPermission": "Aucune autorisation pour accéder à cette section. Super Admin et Admin uniquement.",
+        "recaptcha": {
+          "title": "Configuration reCAPTCHA",
+          "subtitle": "Définissez les clés Google reCAPTCHA v3 utilisées pour l'inscription publique.",
+          "siteKeyLabel": "VITE_RECAPTCHA_SITE_KEY",
+          "siteKeyPlaceholder": "6Lc...",
+          "secretKeyLabel": "RECAPTCHA_SECRET_KEY",
+          "secretKeyPlaceholder": "Collez la secret key",
+          "secretKeyConfiguredPlaceholder": "•••••••• (configurée — laissez vide pour conserver)",
+          "showSecret": "Afficher la secret key",
+          "hideSecret": "Masquer la secret key",
+          "minScoreLabel": "RECAPTCHA_MIN_SCORE",
+          "minScoreDefault": "{score} (par défaut)",
+          "minScoreHelp": "Score minimum accepté par le serveur (0.0 à 1.0). Valeur par défaut : 0.5.",
+          "apply": "Appliquer la configuration",
+          "applying": "Application...",
+          "toast": {
+            "appliedTitle": "reCAPTCHA mis à jour",
+            "appliedDescription": "Les paramètres reCAPTCHA ont été enregistrés avec succès.",
+            "applyErrorTitle": "reCAPTCHA",
+            "applyError": "Impossible d'appliquer la configuration reCAPTCHA."
+          }
+        }
       },
       "eventLog": {
-        "title": "Journal des événements",
-        "subtitle": "Historique des actions et événements enregistrés sur la plateforme.",
+        "title": "Logs d'audit",
+        "subtitle": "Enregistrement système de chaque action avec auteur, criticité et résultat.",
         "loginRequired": "Connectez-vous pour y accéder.",
-        "noPermission": "Aucune autorisation pour accéder à cette section. Admin uniquement.",
-        "loadError": "Impossible de charger le journal des événements.",
-        "empty": "Aucun événement enregistré.",
-        "searchPlaceholder": "Rechercher par action, utilisateur, contexte ou cible...",
-        "searchFilter": {
-          "label": "Recherche"
-        },
-        "count": "{count} événement(s)",
+        "noPermission": "Aucune autorisation pour accéder à cette section. Super Admin uniquement.",
+        "loadError": "Impossible de charger les logs d'audit.",
+        "empty": "Aucun enregistrement d'audit.",
+        "searchPlaceholder": "Rechercher par e-mail de l'auteur, action, ressource...",
+        "refresh": "Actualiser",
+        "total": "Total",
+        "pageSize": "{count} lignes",
+        "showing": "Affichage {from}-{to} sur {total}",
+        "prevPage": "Page précédente",
+        "nextPage": "Page suivante",
         "unknownActor": "Utilisateur inconnu",
         "scopeFilter": {
           "label": "Filtrer par type d'utilisateur",
@@ -2459,20 +2694,69 @@
             "cpc": "CPC"
           }
         },
-        "userFilter": {
-          "label": "Utilisateur",
-          "all": "Tous les utilisateurs"
+        "filters": {
+          "action": "Action",
+          "criticality": "Criticité",
+          "result": "Résultat",
+          "origin": "Origine",
+          "allActions": "Toutes les actions",
+          "allCriticality": "Toutes les criticités",
+          "allResults": "Tous les résultats",
+          "allOrigins": "Toutes les origines"
         },
         "dateFilter": {
-          "from": "Date de début",
-          "to": "Date de fin"
+          "from": "De",
+          "to": "À"
         },
         "columns": {
-          "date": "Date",
+          "when": "Quand",
+          "author": "Auteur",
           "action": "Action",
-          "actor": "Utilisateur",
-          "context": "Contexte",
-          "target": "Cible"
+          "criticality": "Criticité",
+          "result": "Résultat",
+          "request": "Requête"
+        },
+        "criticality": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        },
+        "results": {
+          "success": "OK",
+          "warning": "Avertissement",
+          "error": "Erreur"
+        },
+        "origins": {
+          "app": "app",
+          "http": "http",
+          "function": "function"
+        },
+        "actionKinds": {
+          "read": "Read",
+          "create": "Create",
+          "update": "Update",
+          "delete": "Delete",
+          "execute": "Execute",
+          "access": "Access",
+          "other": "Other"
+        },
+        "detail": {
+          "title": "Enregistrement d'audit #{id}",
+          "action": "Action",
+          "resource": "Ressource",
+          "origin": "Origine",
+          "createdAt": "Créé le",
+          "authorEmail": "E-mail de l'auteur",
+          "authorRole": "Fonction de l'auteur",
+          "userId": "ID utilisateur",
+          "companyId": "ID entreprise",
+          "http": "HTTP",
+          "httpStatus": "Statut HTTP",
+          "ipAddress": "Adresse IP",
+          "requestId": "ID de requête",
+          "durationMs": "Durée (ms)",
+          "userAgent": "User agent",
+          "metadata": "Métadonnées"
         },
         "actions": {
           "unauthorized_attempt": "Tentative d'accès non autorisée",
@@ -2568,6 +2852,13 @@
       "daysAgo": "Il y a {count} jours",
       "weeksAgo": "Il y a {count} semaines"
     },
+    "verification": {
+      "pendingTitle": "Inscription en cours de validation",
+      "pendingDescription": "L'équipe de gestion CPC examine l'inscription de votre entreprise. Vous ne pourrez publier des offres qu'après validation.",
+      "rejectedTitle": "Inscription non approuvée",
+      "rejectedDescription": "L'inscription de votre entreprise n'a pas été approuvée. Contactez l'équipe CPC pour plus d'informations.",
+      "cannotPublish": "Votre entreprise n'a pas encore été validée par l'équipe CPC. Attendez l'approbation de l'inscription avant de publier des offres."
+    },
     "status": {
       "active": "Actif",
       "in_review": "En cours de révision",
@@ -2585,6 +2876,14 @@
       "logoSection": "LOGO",
       "logoRecommendation": "Recommandé : SVG ou PNG transparent (512×512px).",
       "changeLogo": "Changer de logo",
+      "logo": {
+        "uploading": "Téléversement du logo...",
+        "updatedTitle": "Logo mis à jour",
+        "updatedDescription": "Le logo de l'entreprise a été enregistré avec succès.",
+        "uploadError": "Impossible de téléverser le logo. Réessayez.",
+        "invalidFormat": "Format invalide. Utilisez PNG, JPG, WEBP, SVG ou GIF.",
+        "tooLarge": "Le fichier doit faire 5 Mo maximum."
+      },
       "accountVerification": {
         "title": "Vérification du compte",
         "description": "Les informations légales (Nom et NIF) ne peuvent être modifiées qu'en contactant le support pour garantir la sécurité fiscale."
@@ -2858,10 +3157,13 @@
           "email": "E-mail",
           "date": "Date",
           "coverLetter": "Lettre de motivation",
+          "cpcCv": "CV CPC",
           "candidateCv": "CV du candidat",
           "attachedCv": "CV joint par l'entreprise"
         },
-        "viewCandidateCv": "Voir le CV du candidat",
+        "viewCandidateCpcCv": "Télécharger le CV CPC du candidat",
+        "cpcCvUnavailable": "Profil du candidat indisponible.",
+        "viewCandidateCv": "Télécharger le CV du candidat",
         "noCandidateCv": "Le candidat n'a pas joint de CV."
       }
     },
@@ -2927,7 +3229,7 @@
         "ideal": "CORRESPONDANCES IDÉALES"
       },
       "filters": {
-        "job": "FILTER PAR POSTE VACANT",
+        "job": "RECHERCHER",
         "job_all": "Tous les postes vacants",
         "skills": "COMPÉTENCES",
         "skills_placeholder": "Ex : Réagissez, Figma...",
@@ -3114,6 +3416,16 @@
         "openInNewWindow": "Ouvrir le CV dans une nouvelle fenêtre",
         "notAvailable": "CV non disponible. Demandez au candidat d'envoyer son CV.",
         "useDemo": "Utiliser un CV de démonstration"
+      },
+      "externalCv": {
+        "title": "CV externe",
+        "download": "Télécharger le CV",
+        "notAvailable": "Le candidat n'a pas encore téléversé de CV externe."
+      },
+      "cpcCv": {
+        "title": "CV CPC",
+        "download": "Télécharger le PDF",
+        "notAvailable": "Le candidat n'a pas encore complété le CV CPC sur la plateforme."
       },
       "sessions": {
         "title": "Rendez-vous",

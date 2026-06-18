@@ -12,8 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PAGE_SCHEMAS } from '@/features/cms/pageSchemas';
-import { addDocument, countDocuments, deleteDocument, getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
+import { countDocuments, deleteDocument, getDocument, queryDocuments, serverTimestamp, setDocument, updateDocument } from '@/integrations/firebase/firestore';
+import { auditTimerStart, writeAuditLog } from '@/lib/auditLog';
 import { registerUser } from '@/integrations/firebase/auth';
+import { mapAuthErrorToMessage } from '@/lib/authErrorMapper';
 import {
   Building2,
   Users,
@@ -24,7 +26,6 @@ import {
   Clock,
   CalendarX,
   FileText,
-  Filter,
   CheckCircle,
   Ban,
   Mail,
@@ -52,10 +53,31 @@ import {
   previousMonthStartEndFromTodayIso,
   weekStartEndIsoMondayInAppCalendar,
 } from '@/lib/appCalendar';
+import { canManageServiceAreas } from '@/lib/cpcRoles';
 import {
   computeMigrantProfileCompletenessPercent,
   type MigrantProfileFieldsForCompleteness,
 } from '@/lib/migrantProfileCompleteness';
+import {
+  canAssignTeamRole,
+  canManageTeamMembers,
+  getAssignableTeamRoles,
+  getVisibleTeamListRoles,
+  normalizeCpcTeamRole,
+  type CpcTeamRole,
+} from '@/lib/cpcRoles';
+import { isMigrantUpcomingSession, isSessionPendingApproval } from '@/lib/sessionApproval';
+import { useDashboardDisplayName } from '@/hooks/useDashboardDisplayName';
+
+type CpcDashboardSessionDoc = {
+  id: string;
+  scheduled_date: string;
+  status: string | null;
+  session_type: string;
+  scheduled_time: string;
+  migrant_id: string;
+  service_label?: string | null;
+};
 
 type RecentMigrantProfileDoc = MigrantProfileFieldsForCompleteness & {
   email?: string | null;
@@ -68,7 +90,6 @@ type FirebaseUserDoc = {
   createdAt?: unknown;
 };
 
-type CpcTeamRole = 'admin' | 'manager' | 'coordinator' | 'mediator' | 'lawyer' | 'psychologist' | 'trainer';
 type CpcTeamUserDoc = {
   id: string;
   name?: string | null;
@@ -76,8 +97,6 @@ type CpcTeamUserDoc = {
   role?: string | null;
   active?: boolean | null;
 };
-
-const CPC_TEAM_ROLES: CpcTeamRole[] = ['admin', 'manager', 'coordinator', 'mediator', 'lawyer', 'psychologist', 'trainer'];
 
 function normalizeText(value?: string | null): string {
   if (!value) return '';
@@ -165,30 +184,22 @@ function CpcAdminOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function CpcServiceAreasAdminRoute({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  if (!canManageServiceAreas(profile?.role)) {
+    return <Navigate to="/dashboard/cpc" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function CPCDashboard() {
-  const { profile, profileData, user } = useAuth();
+  const { profile, user } = useAuth();
   const { t, language } = useLanguage();
   const location = useLocation();
   const isCpcAdmin = isCpcAdminRole(profile?.role);
+  const canAccessServiceAreas = canManageServiceAreas(profile?.role);
 
-  const cpcDisplayName = useMemo(() => {
-    const profileDocName = typeof profileData?.name === 'string' ? profileData.name.trim() : '';
-    const userDocName = typeof profile?.name === 'string' ? profile.name.trim() : '';
-    const authName = typeof user?.displayName === 'string' ? user.displayName.trim() : '';
-    const rawName = profileDocName || userDocName || authName;
-    const rawEmail = typeof profile?.email === 'string' ? profile.email.trim() : '';
-    const authEmail = typeof user?.email === 'string' ? user.email.trim() : '';
-    const email = rawEmail || authEmail;
-    const derivedFromEmail = deriveNameFromEmail(email);
-    const normalizedName = normalizeText(rawName);
-    const normalizedRole = normalizeText(profile?.role ?? null);
-    const isGeneric =
-      normalizedName.length === 0 ||
-      normalizedName === 'cpc' ||
-      normalizedName === normalizedRole ||
-      ['admin', 'administrador', 'equipa', 'staff', 'team'].includes(normalizedName);
-    return isGeneric ? (derivedFromEmail || t.get('cpc.menu.user_fallback')) : rawName;
-  }, [profile?.email, profile?.name, profile?.role, profileData?.name, t, user?.displayName, user?.email]);
+  const cpcDisplayName = useDashboardDisplayName();
 
   const [loading, setLoading] = useState(true);
   const [period] = useState<'today' | 'week' | 'month'>('week');
@@ -213,8 +224,8 @@ export default function CPCDashboard() {
   const [recentMigrants, setRecentMigrants] = useState<
     Array<{ id: string; name: string; subtitle: string; statusLabel: string; statusClassName: string; dateLabel: string }>
   >([]);
-  const [todaySessions, setTodaySessions] = useState<
-    Array<{ id: string; migrant: string; type: string; time: string; status: string; statusRaw?: string | null }>
+  const [upcomingSessions, setUpcomingSessions] = useState<
+    Array<{ id: string; migrant: string; type: string; timeLabel: string; status: string; statusRaw?: string | null }>
   >([]);
   const [messagesPending, setMessagesPending] = useState(0);
   const [sidebarAccordionValue, setSidebarAccordionValue] = useState<string>('');
@@ -237,10 +248,19 @@ export default function CPCDashboard() {
   );
 
   function formatSessionStatusLabel(status?: string | null): string {
+    if (isSessionPendingApproval(status)) return t.get('cpc.sessions.status.pending_approval');
     if (isCompletedSessionStatus(status)) return t.get('cpc.sessions.status.completed');
     if (isCancelledSessionStatus(status)) return t.get('cpc.sessions.status.cancelled');
     if (isInProgressSessionStatus(status)) return t.get('cpc.sessions.status.in_progress');
     return t.get('cpc.sessions.status.scheduled');
+  }
+
+  function formatSessionTimeLabel(scheduledDateIso: string, scheduledTime: string, todayIso: string): string {
+    if (scheduledDateIso === todayIso) return scheduledTime;
+    const [year, month, day] = scheduledDateIso.split('-').map(Number);
+    if (!year || !month || !day) return scheduledTime;
+    const date = new Date(year, month - 1, day);
+    return `${shortDateFormatter.format(date)} · ${scheduledTime}`;
   }
 
   function formatKpiChange(current: number, prev: number): { label: string; className: string } {
@@ -281,19 +301,22 @@ export default function CPCDashboard() {
     const [editRole, setEditRole] = useState<CpcTeamRole>('mediator');
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const [formError, setFormError] = useState('');
-    const isAdmin = profile?.role === 'admin';
-    const hasLoggedUnauthorizedAccess = useRef(false);
+    const actorRole = profile?.role ?? null;
+    const canManageTeam = canManageTeamMembers(actorRole);
+    const assignableRoles = useMemo(() => getAssignableTeamRoles(actorRole), [actorRole]);
+    const visibleTeamRoles = useMemo(() => getVisibleTeamListRoles(), []);
 
     async function logUnauthorizedAttempt(context: string, targetId?: string) {
       const actorId = user?.uid;
       if (!actorId) return;
+      const startedAtMs = auditTimerStart();
       try {
-        await addDocument('audit_logs', {
+        await writeAuditLog({
           action: 'unauthorized_attempt',
           actor_id: actorId,
           target_id: targetId ?? null,
           context,
-          createdAt: serverTimestamp(),
+          startedAtMs,
         });
       } catch {
         return;
@@ -310,14 +333,19 @@ export default function CPCDashboard() {
       try {
         const users = await queryDocuments<CpcTeamUserDoc>('users', []);
         const filtered = users
-          .filter((u): u is CpcTeamUserDoc & { role: CpcTeamRole } => CPC_TEAM_ROLES.includes(normalizeText(u.role) as CpcTeamRole))
-          .map((u) => ({
-            id: u.id,
-            name: u.name || u.email || t.get('cpc.team.user_fallback'),
-            email: u.email || '—',
-            role: normalizeText(u.role) as CpcTeamRole,
-            active: u.active !== false,
-          }))
+          .map((u) => {
+            const role = normalizeCpcTeamRole(u.role);
+            if (!role) return null;
+            return {
+              id: u.id,
+              name: u.name || u.email || t.get('cpc.team.user_fallback'),
+              email: u.email || '—',
+              role,
+              active: u.active !== false,
+            };
+          })
+          .filter((row): row is { id: string; name: string; email: string; role: CpcTeamRole; active: boolean } => row !== null)
+          .filter((row) => row.role !== 'admin')
           .sort((a, b) => a.name.localeCompare(b.name));
         setRows(filtered);
       } catch (error: unknown) {
@@ -333,18 +361,14 @@ export default function CPCDashboard() {
       loadTeam();
     }, []);
 
-    useEffect(() => {
-      if (isAdmin) return;
-      if (!user?.uid) return;
-      if (hasLoggedUnauthorizedAccess.current) return;
-      hasLoggedUnauthorizedAccess.current = true;
-      logUnauthorizedAttempt('cpc.team.page_access');
-    }, [isAdmin, user?.uid]);
-
     async function handleCreateUser() {
-      if (!isAdmin) {
+      if (!canManageTeam) {
         await logUnauthorizedAttempt('cpc.team.create');
         setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
+      if (!canAssignTeamRole(actorRole, role)) {
+        setFormError(t.get('cpc.team.errors.cannot_assign_super_admin'));
         return;
       }
       if (!name.trim() || !email.trim() || !password.trim()) {
@@ -362,7 +386,11 @@ export default function CPCDashboard() {
         setRole('mediator');
         await loadTeam();
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : t.get('cpc.team.errors.create_failed');
+        const message = mapAuthErrorToMessage({
+          error,
+          mode: 'register',
+          t,
+        });
         setFormError(message);
       } finally {
         setSaving(false);
@@ -370,7 +398,7 @@ export default function CPCDashboard() {
     }
 
     function openEdit(user: { id: string; name: string; role: CpcTeamRole }) {
-      if (!isAdmin) {
+      if (!canManageTeam) {
         logUnauthorizedAttempt('cpc.team.edit.open', user.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
@@ -383,9 +411,13 @@ export default function CPCDashboard() {
 
     async function handleSaveEdit() {
       if (!editTarget) return;
-      if (!isAdmin) {
+      if (!canManageTeam) {
         await logUnauthorizedAttempt('cpc.team.edit.save', editTarget.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
+        return;
+      }
+      if (!canAssignTeamRole(actorRole, editRole)) {
+        setFormError(t.get('cpc.team.errors.cannot_assign_super_admin'));
         return;
       }
       if (!editName.trim()) {
@@ -395,11 +427,20 @@ export default function CPCDashboard() {
       setSaving(true);
       setFormError('');
       try {
+        const teamUser = rows.find((r) => r.id === editTarget.id);
         await updateDocument('users', editTarget.id, {
           name: editName.trim(),
           role: editRole,
         });
-        await updateDocument('profiles', editTarget.id, { name: editName.trim() });
+        const profilePayload: Record<string, unknown> = {
+          name: editName.trim(),
+          role: editRole,
+          updatedAt: serverTimestamp(),
+        };
+        if (teamUser?.email && teamUser.email !== '—') {
+          profilePayload.email = teamUser.email;
+        }
+        await setDocument('profiles', editTarget.id, profilePayload, true);
         setEditOpen(false);
         setEditTarget(null);
         await loadTeam();
@@ -412,13 +453,14 @@ export default function CPCDashboard() {
     }
 
     async function toggleActive(teamUser: { id: string; active: boolean }) {
-      if (!isAdmin) {
+      if (!canManageTeam) {
         await logUnauthorizedAttempt('cpc.team.toggle_active', teamUser.id);
         setFormError(t.get('cpc.team.errors.no_permission'));
         return;
       }
       setActionLoadingId(teamUser.id);
       setFormError('');
+      const startedAtMs = auditTimerStart();
       try {
         await updateDocument('users', teamUser.id, {
           active: !teamUser.active,
@@ -426,11 +468,12 @@ export default function CPCDashboard() {
         });
         const actorId = user?.uid;
         if (actorId) {
-          await addDocument('audit_logs', {
+          await writeAuditLog({
             action: teamUser.active ? 'user.deactivated' : 'user.reactivated',
             actor_id: actorId,
             target_id: teamUser.id,
-            createdAt: serverTimestamp(),
+            context: 'cpc_team',
+            startedAtMs,
           });
         }
         await loadTeam();
@@ -468,11 +511,11 @@ export default function CPCDashboard() {
                 <UserCog className="h-7 w-7 text-primary" /> {t.get('cpc.team.title')}
             </h1>
               <p className="text-muted-foreground mt-1">{t.get('cpc.team.subtitle')}</p>
-              {!isAdmin ? (
-                <p className="text-sm mt-2 text-amber-700">{t.get('cpc.team.errors.no_permission')}</p>
+              {!canManageTeam ? (
+                <p className="text-sm mt-2 text-muted-foreground">{t.get('cpc.team.view_only')}</p>
               ) : null}
           </div>
-          {isAdmin ? (
+          {canManageTeam ? (
             <Button onClick={() => setOpen(true)} className="inline-flex items-center gap-2">
               <Plus className="h-4 w-4" />
               {t.get('cpc.team.actions.add')}
@@ -484,12 +527,12 @@ export default function CPCDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <Label>{t.get('cpc.team.search.label')}</Label>
-              <div className="flex items-center gap-2 mt-1">
-                  <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.get('cpc.team.search.placeholder')} />
-                <Button variant="outline" className="gap-2">
-                    <Filter className="h-4 w-4" /> {t.get('cpc.team.actions.filter')}
-                </Button>
-              </div>
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t.get('cpc.team.search.placeholder')}
+                  className="mt-1"
+                />
             </div>
             <div>
                 <Label>{t.get('cpc.team.role.label')}</Label>
@@ -499,7 +542,7 @@ export default function CPCDashboard() {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">{t.get('cpc.team.role.all')}</SelectItem>
-                  {CPC_TEAM_ROLES.map((item) => (
+                  {visibleTeamRoles.map((item) => (
                     <SelectItem key={item} value={item}>
                         {getRoleLabel(item)}
                     </SelectItem>
@@ -586,7 +629,7 @@ export default function CPCDashboard() {
                   </div>
 
                   <div className="flex flex-col items-stretch gap-2 w-full lg:w-56">
-                    {isAdmin ? (
+                    {canManageTeam ? (
                       <>
                         <Button
                           variant="outline"
@@ -616,10 +659,13 @@ export default function CPCDashboard() {
         <Dialog
           open={open}
           onOpenChange={(next) => {
-            if (next && !isAdmin) {
+            if (next && !canManageTeam) {
               logUnauthorizedAttempt('cpc.team.create.open');
               setFormError(t.get('cpc.team.errors.no_permission'));
               return;
+            }
+            if (next && assignableRoles.length > 0 && !assignableRoles.includes(role)) {
+              setRole(assignableRoles[0]);
             }
             setOpen(next);
           }}
@@ -648,7 +694,7 @@ export default function CPCDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="z-[10050]" position="popper">
-                    {CPC_TEAM_ROLES.map((item) => (
+                    {assignableRoles.map((item) => (
                       <SelectItem key={item} value={item}>
                         {getRoleLabel(item)}
                       </SelectItem>
@@ -667,7 +713,7 @@ export default function CPCDashboard() {
         <Dialog
           open={editOpen}
           onOpenChange={(next) => {
-            if (next && !isAdmin) {
+            if (next && !canManageTeam) {
               logUnauthorizedAttempt('cpc.team.edit.open');
               setFormError(t.get('cpc.team.errors.no_permission'));
               return;
@@ -691,7 +737,7 @@ export default function CPCDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="z-[10050]" position="popper">
-                    {CPC_TEAM_ROLES.map((item) => (
+                    {assignableRoles.map((item) => (
                       <SelectItem key={item} value={item}>
                         {getRoleLabel(item)}
                       </SelectItem>
@@ -814,7 +860,6 @@ export default function CPCDashboard() {
     };
 
     const [loadingList, setLoadingList] = useState(true);
-    const [processingId, setProcessingId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending_review' | 'active' | 'rejected'>('pending_review');
     const [searchQuery, setSearchQuery] = useState('');
     const [rows, setRows] = useState<OfferRow[]>([]);
@@ -876,36 +921,6 @@ export default function CPCDashboard() {
     useEffect(() => {
       void fetchAll();
     }, []);
-
-    async function handleSetStatus(row: OfferRow, nextStatus: 'active' | 'rejected') {
-      setProcessingId(row.id);
-      try {
-        await updateDocument('job_offers', row.id, {
-          status: nextStatus,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: user?.uid || null,
-        });
-        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: nextStatus } : r)));
-      } catch (error) {
-        console.error('Error moderating offer status:', error);
-      } finally {
-        setProcessingId(null);
-      }
-    }
-
-    async function handleDelete(row: OfferRow) {
-      const ok = window.confirm(t.get('cpc.pages.offers.confirm_delete', { title: row.title }));
-      if (!ok) return;
-      setProcessingId(row.id);
-      try {
-        await deleteDocument('job_offers', row.id);
-        setRows((prev) => prev.filter((r) => r.id !== row.id));
-      } catch (error) {
-        console.error('Error deleting offer:', error);
-      } finally {
-        setProcessingId(null);
-      }
-    }
 
     const filteredRows = useMemo(() => {
       let out = [...rows];
@@ -989,10 +1004,12 @@ export default function CPCDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredRows.map((r) => {
-                const rowBusy = processingId === r.id;
-                return (
-                  <div key={r.id} className="cpc-card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {filteredRows.map((r) => (
+                  <Link
+                    key={r.id}
+                    to={`/dashboard/cpc/ofertas/${r.id}`}
+                    className="cpc-card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:border-primary/40 transition-colors"
+                  >
                     <div className="min-w-0">
                       <p className="font-medium truncate">{r.title}</p>
                       <p className="text-sm text-muted-foreground truncate">
@@ -1001,39 +1018,13 @@ export default function CPCDashboard() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {r.created_at ? new Date(r.created_at).toLocaleDateString(locale) : '—'}
                       </p>
+                      <p className="text-xs text-primary mt-2">{t.get('cpc.pages.offers.viewDetails')}</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end shrink-0">
                       {statusBadge(r.status)}
-                      <Button
-                        size="sm"
-                        onClick={() => handleSetStatus(r, 'active')}
-                        disabled={rowBusy || r.status === 'active'}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        {t.get('cpc.pages.offers.actions.approve')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleSetStatus(r, 'rejected')}
-                        disabled={rowBusy || r.status === 'rejected'}
-                      >
-                        <Ban className="h-4 w-4 mr-2" />
-                        {t.get('cpc.pages.offers.actions.reject')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(r)}
-                        disabled={rowBusy}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {t.get('cpc.pages.offers.actions.delete')}
-                      </Button>
                     </div>
-                  </div>
-                );
-            })}
+                  </Link>
+                ))}
             {filteredRows.length === 0 && (
               <div className="cpc-card p-12 text-center text-muted-foreground">{t.get('cpc.pages.offers.empty')}</div>
             )}
@@ -1066,13 +1057,8 @@ export default function CPCDashboard() {
         const prevStartISO = period === 'today' ? prevDayIso : period === 'week' ? prevWeekStartIso : prevMonthStartIso;
         const prevEndISO = period === 'today' ? prevDayIso : period === 'week' ? prevWeekEndIso : prevMonthEndIso;
 
-        const [firebaseMigrants, allSessionsRaw, companiesTotalCount, offersActiveCount, offersPendingCount, applicationsTotalCount, progressRaw, triageRaw, applicationsPeriodCountRaw, applicationsPrevCountRaw] = await Promise.all([
+        const [firebaseMigrants, companiesTotalCount, offersActiveCount, offersPendingCount, applicationsTotalCount, progressRaw, triageRaw, applicationsPeriodCountRaw, applicationsPrevCountRaw] = await Promise.all([
           queryDocuments<FirebaseUserDoc>('users', [{ field: 'role', operator: 'in', value: ['migrant', 'Migrant', 'MIGRANT'] }]),
-          queryDocuments<{ id: string; scheduled_date: string; status: string | null; session_type: string; scheduled_time: string; migrant_id: string }>(
-            'sessions',
-            [],
-            { field: 'scheduled_date', direction: 'asc' }
-          ),
           countDocuments('companies', []),
           countDocuments('job_offers', [{ field: 'status', operator: '==', value: 'active' }]),
           countDocuments('job_offers', [{ field: 'status', operator: '==', value: 'pending_review' }]),
@@ -1088,6 +1074,17 @@ export default function CPCDashboard() {
             { field: 'created_at', operator: '<=', value: prevEndISO },
           ]),
         ]);
+
+        let allSessionsRaw: CpcDashboardSessionDoc[] = [];
+        try {
+          allSessionsRaw = await queryDocuments<CpcDashboardSessionDoc>('sessions', []);
+          allSessionsRaw = allSessionsRaw.slice().sort((a, b) => {
+            const byDate = a.scheduled_date.localeCompare(b.scheduled_date);
+            return byDate !== 0 ? byDate : a.scheduled_time.localeCompare(b.scheduled_time);
+          });
+        } catch (sessionsError) {
+          console.error('Failed to load CPC dashboard sessions:', sessionsError);
+        }
 
         const migrantDates = firebaseMigrants
           .map((u) => parseUnknownDate(u.createdAt))
@@ -1175,10 +1172,10 @@ export default function CPCDashboard() {
         });
         setRecentMigrants(recentList);
 
-        const todaySessTyped = allSessions
-          .filter((s) => s.scheduled_date === todayISO)
-          .sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
-        const migrantIds = Array.from(new Set(todaySessTyped.map(s => s.migrant_id).filter(Boolean)));
+        const upcomingSessTyped = allSessions
+          .filter((s) => isMigrantUpcomingSession(s.status, s.scheduled_date, todayISO))
+          .slice(0, 6);
+        const migrantIds = Array.from(new Set(upcomingSessTyped.map((s) => s.migrant_id).filter(Boolean)));
         const migrantMap: Record<string, string> = {};
         if (migrantIds.length) {
           const migrantProfiles = await Promise.all(migrantIds.map((id) => getDocument<{ name?: string | null }>('profiles', id)));
@@ -1186,15 +1183,15 @@ export default function CPCDashboard() {
             migrantMap[id] = migrantProfiles[idx]?.name || id;
           });
         }
-        const todayList = todaySessTyped.map((s) => ({
+        const upcomingList = upcomingSessTyped.map((s) => ({
           id: s.id,
           migrant: migrantMap[s.migrant_id] || s.migrant_id,
-          type: s.session_type,
-          time: s.scheduled_time,
+          type: (typeof s.service_label === 'string' && s.service_label.trim()) || s.session_type,
+          timeLabel: formatSessionTimeLabel(s.scheduled_date, s.scheduled_time, todayISO),
           status: formatSessionStatusLabel(s.status),
           statusRaw: s.status,
         }));
-        setTodaySessions(todayList);
+        setUpcomingSessions(upcomingList);
 
         try {
           let pendingChats = 0;
@@ -1298,6 +1295,7 @@ export default function CPCDashboard() {
   ]);
 
   const getStatusColor = (status?: string | null) => {
+    if (isSessionPendingApproval(status)) return 'bg-amber-100 text-amber-800';
     if (isCompletedSessionStatus(status)) return 'bg-green-100 text-green-700';
     if (isInProgressSessionStatus(status)) return 'bg-blue-100 text-blue-700';
     if (isCancelledSessionStatus(status)) return 'bg-rose-100 text-rose-700';
@@ -1309,19 +1307,21 @@ export default function CPCDashboard() {
     { to: '/dashboard/cpc/migrantes', label: t.get('cpc.menu.migrants'), icon: Users },
     { to: '/dashboard/cpc/atividades', label: t.get('cpc.menu.activities'), icon: ClipboardList },
     { to: '/dashboard/cpc/agenda', label: t.get('cpc.menu.agenda'), icon: Calendar },
+    { to: '/dashboard/cpc/empresas', label: t.get('cpc.menu.companies'), icon: Building2 },
     { to: '/dashboard/cpc/candidaturas', label: t.get('cpc.menu.applications'), icon: FileText },
     { to: '/dashboard/cpc/ofertas', label: t.get('cpc.menu.offers'), icon: Briefcase },
     { to: '/dashboard/cpc/trilhas', label: t.get('cpc.menu.trails'), icon: BookOpen },
     { to: '/dashboard/cpc/equipa', label: t.get('cpc.menu.team'), icon: UserCog },
     { to: '/dashboard/cpc/estatisticas', label: t.get('cpc.menu.statistics'), icon: TrendingUp },
-    ...(isCpcAdmin ? [{ to: '/dashboard/cpc/conteudo', label: 'Editor de Conteúdo', icon: FileText }] : []),
-    ...(isCpcAdmin ? [{ to: '/dashboard/cpc/areas-servico', label: t.get('serviceAreas.title'), icon: UserCog }] : []),
     { to: '/dashboard/cpc/traducoes', label: t.get('cpcTranslations.title'), icon: Languages },
   ];
 
-  const sidebarItemsAdministration = isCpcAdmin
-    ? [{ to: '/dashboard/cpc/log-eventos', label: t.get('cpc.menu.eventLog'), icon: ScrollText }]
-    : [];
+  const sidebarItemsAdministration = [
+    ...(canAccessServiceAreas
+      ? [{ to: '/dashboard/cpc/areas-servico', label: t.get('serviceAreas.title'), icon: Wrench }]
+      : []),
+    ...(isCpcAdmin ? [{ to: '/dashboard/cpc/log-eventos', label: t.get('cpc.menu.eventLog'), icon: ScrollText }] : []),
+  ];
 
   const sidebarItemsProfile = [
     { to: '/dashboard/cpc/perfil', label: t.get('cpc.menu.profile'), icon: Building2 },
@@ -1535,7 +1535,7 @@ export default function CPCDashboard() {
                           </Link>
                         </div>
 
-                        {todaySessions.length === 0 ? (
+                        {upcomingSessions.length === 0 ? (
                           <div className="mt-6 rounded-2xl bg-muted/40 p-8 flex items-center justify-between gap-6">
                             <div className="flex items-center gap-4 min-w-0">
                               <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1552,14 +1552,14 @@ export default function CPCDashboard() {
                           </div>
                         ) : (
                           <div className="mt-4 space-y-3">
-                            {todaySessions.map((session) => (
+                            {upcomingSessions.map((session) => (
                               <div key={session.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-muted/40">
                                 <div className="min-w-0">
                                   <p className="font-semibold truncate">{session.migrant}</p>
                                   <p className="text-sm text-muted-foreground truncate">{session.type}</p>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <p className="font-semibold">{session.time}</p>
+                                  <p className="font-semibold">{session.timeLabel}</p>
                                   <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(session.statusRaw)}`}>{session.status}</span>
                                 </div>
                               </div>
@@ -1619,8 +1619,11 @@ export default function CPCDashboard() {
                 <Route path="atividades/:activityId" element={<ActivityDetailsPage />} />
                 <Route path="atividades/:activityId/editar" element={<ActivityEditorPage />} />
                 <Route path="agenda" element={<TeamAgendaPage />} />
+                <Route path="empresas" element={<CompaniesAdminPage />} />
+                <Route path="empresas/:companyId" element={<CpcCompanyDetailPage />} />
                 <Route path="candidaturas" element={<CandidaturasDetalhadas />} />
                 <Route path="ofertas" element={<OfertasAguardandoAprovacao />} />
+                <Route path="ofertas/:jobId" element={<CpcJobOfferDetailPage />} />
                 <Route path="trilhas" element={<TrailsAdminPage />} />
                 <Route path="trilhas/:trailId" element={<TrailEditorPage />} />
                 <Route path="equipa" element={<EquipaPage />} />
@@ -1638,7 +1641,14 @@ export default function CPCDashboard() {
                 <Route path="mensagens" element={<CPCMessagesPage />} />
                 <Route path="traducoes" element={<TranslationsAdminPage />} />
                 <Route path="conteudo" element={<ContentEditorPage />} />
-                <Route path="areas-servico" element={<ServiceAreasAdminPage />} />
+                <Route
+                  path="areas-servico"
+                  element={
+                    <CpcServiceAreasAdminRoute>
+                      <ServiceAreasAdminPage />
+                    </CpcServiceAreasAdminRoute>
+                  }
+                />
               </Routes>
             </div>
           </div>
@@ -1659,6 +1669,9 @@ import CPCMessagesPage from './cpc/MessagesPage';
 import ActivitiesPage from './cpc/ActivitiesPage';
 import ActivityEditorPage from './cpc/ActivityEditorPage';
 import ActivityDetailsPage from './cpc/ActivityDetailsPage';
+import CpcJobOfferDetailPage from './cpc/CpcJobOfferDetailPage';
+import CompaniesAdminPage from './cpc/CompaniesAdminPage';
+import CpcCompanyDetailPage from './cpc/CpcCompanyDetailPage';
 import StatisticsPage from './cpc/StatisticsPage';
 import CPCSettingsPage from './cpc/SettingsPage';
 import EventLogPage from './cpc/EventLogPage';

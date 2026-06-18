@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { addDocument, deleteDocument, getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
+import { deleteDocument, getDocument, queryDocuments, serverTimestamp, updateDocument } from '@/integrations/firebase/firestore';
+import { auditTimerStart, writeAuditLog } from '@/lib/auditLog';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,9 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  UserCheck,
+  UserX,
+  UserMinus,
 } from 'lucide-react';
 import { todayIsoAppCalendar } from '@/lib/appCalendar';
 import { defaultBranding, fetchDocumentBranding } from '@/lib/documentBranding';
@@ -51,6 +55,13 @@ import {
   type MigrantRegionFilter,
 } from '@/lib/migrantRegion';
 import { isSortOption, SORT_STORAGE_KEY, sortMigrants, type SortOption } from './sortMigrants';
+import {
+  MIGRANT_CLASSIFICATIONS_COLLECTION,
+  normalizeEligibilityProfile,
+  type EligibilityFilter,
+  type EligibilityProfile,
+} from '@/lib/migrantEligibility';
+import { CPC_MANAGEMENT_ROLES, CPC_TEAM_ROLES } from '@/lib/cpcRoles';
 
 type TriageAnswers = Record<string, unknown>;
 
@@ -75,9 +86,13 @@ type MigrantRow = {
   region: MigrantRegion;
   /** Ano em que o migrante entrou no programa CIBEA. `null` se não definido. */
   registration_year: number | null;
+  /** Classificação interna de elegibilidade (Perfil A/B) ou `null` se ainda não definida. */
+  eligibility_profile: EligibilityProfile | null;
   /** Timestamp de criação do registo (Firestore Timestamp, ISO string, ou null). */
   created_at: unknown;
 };
+
+type ClassificationDoc = { id: string; eligibility_profile?: string | null };
 
 type UserDoc = { id: string; name?: string | null; email?: string | null; role?: string | null; nif?: string | null; blocked?: boolean | null; active?: boolean | null; createdAt?: unknown };
 type ProfileDoc = {
@@ -175,6 +190,7 @@ export default function MigrantsAdminPage() {
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'juridico' | 'psicologico' | 'habitacional'>('all');
   const [triageFilter, setTriageFilter] = useState<'all' | 'complete' | 'incomplete'>('all');
   const [registrationYearFilter, setRegistrationYearFilter] = useState<'all' | number>('all');
+  const [eligibilityFilter, setEligibilityFilter] = useState<EligibilityFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>(() => {
     try {
       const stored = typeof window !== 'undefined' ? window.localStorage.getItem(SORT_STORAGE_KEY) : null;
@@ -326,7 +342,7 @@ export default function MigrantsAdminPage() {
   }
 
   async function handleExport(format: 'csv' | 'xlsx' | 'pdf') {
-    if (!profile || !['admin', 'manager', 'coordinator', 'mediator', 'lawyer', 'psychologist', 'trainer'].includes(profile.role)) {
+    if (!profile || !(CPC_TEAM_ROLES as readonly string[]).includes(profile.role)) {
       toast({
         title: t.get('cpc.migrantsAdmin.export.no_permission.title'),
         description: t.get('cpc.migrantsAdmin.export.no_permission.description'),
@@ -568,7 +584,7 @@ export default function MigrantsAdminPage() {
         }));
         const userIds = profileList.map((p) => p.user_id);
 
-        const [profileDocs, triageDocs, sessionDocs, progressDocs] = await Promise.all([
+        const [profileDocs, triageDocs, sessionDocs, progressDocs, classificationDocs] = await Promise.all([
           Promise.all(
             userIds.map(async (uid) => {
               try {
@@ -593,7 +609,16 @@ export default function MigrantsAdminPage() {
           ),
           queryDocuments<SessionDoc>('sessions', [{ field: 'status', operator: '==', value: 'Agendada' }]),
           queryDocuments<ProgressDoc>('user_trail_progress', []),
+          queryDocuments<ClassificationDoc>(MIGRANT_CLASSIFICATIONS_COLLECTION, []).catch((error) => {
+            console.error('Error loading migrant classifications:', error);
+            return [] as ClassificationDoc[];
+          }),
         ]);
+
+        const classificationMap: Record<string, EligibilityProfile | null> = {};
+        classificationDocs.forEach((doc) => {
+          classificationMap[doc.id] = normalizeEligibilityProfile(doc.eligibility_profile);
+        });
 
         const profileMap: Record<string, ProfileDoc> = {};
         profileDocs.forEach((p) => {
@@ -653,6 +678,7 @@ export default function MigrantsAdminPage() {
               Number.isFinite(profileMap[p.user_id]?.registrationYear as number)
                 ? (profileMap[p.user_id]?.registrationYear as number)
                 : null,
+            eligibility_profile: classificationMap[p.user_id] ?? null,
             created_at: p.created_at,
           };
         });
@@ -685,6 +711,7 @@ export default function MigrantsAdminPage() {
     const current = rows.find((r) => r.user_id === uid)?.blocked === true;
     const next = !current;
     setBlockingUserId(uid);
+    const startedAtMs = auditTimerStart();
     try {
       await updateDocument('users', uid, {
         blocked: next,
@@ -692,11 +719,12 @@ export default function MigrantsAdminPage() {
         blockedBy: next ? (user?.uid ?? null) : null,
       });
       if (user?.uid) {
-        await addDocument('audit_logs', {
+        await writeAuditLog({
           action: next ? 'user.blocked' : 'user.unblocked',
           actor_id: user.uid,
           target_id: uid,
-          createdAt: serverTimestamp(),
+          context: 'migrant_admin',
+          startedAtMs,
         });
       }
       setRows((prev) => prev.map((r) => (r.user_id === uid ? { ...r, blocked: next } : r)));
@@ -719,7 +747,7 @@ export default function MigrantsAdminPage() {
     if (!deleteTarget) return;
     const uid = deleteTarget.user_id;
     const name = deleteTarget.name || t.get('cpc.migrantsAdmin.fallback_migrant');
-    const allowedRoles: Array<string> = ['admin', 'manager', 'coordinator'];
+    const allowedRoles: Array<string> = [...CPC_MANAGEMENT_ROLES];
     if (!profile || !allowedRoles.includes(profile.role)) {
       toast({
         title: t.get('cpc.migrantsAdmin.delete.no_permission.title'),
@@ -790,9 +818,12 @@ export default function MigrantsAdminPage() {
         (triageFilter === 'incomplete' && !r.triage_completed);
       const matchYear =
         registrationYearFilter === 'all' || r.registration_year === registrationYearFilter;
-      return matchQuery && matchLegal && matchWork && matchRegion && matchUrg && matchTriage && matchYear;
+      const matchEligibility =
+        eligibilityFilter === 'all' ||
+        (eligibilityFilter === 'unset' ? r.eligibility_profile === null : r.eligibility_profile === eligibilityFilter);
+      return matchQuery && matchLegal && matchWork && matchRegion && matchUrg && matchTriage && matchYear && matchEligibility;
     });
-  }, [rows, query, legalFilter, workFilter, regionFilter, urgencyFilter, triageFilter, registrationYearFilter]);
+  }, [rows, query, legalFilter, workFilter, regionFilter, urgencyFilter, triageFilter, registrationYearFilter, eligibilityFilter]);
 
   const filteredSorted = useMemo(() => sortMigrants(filtered, sortBy), [filtered, sortBy]);
 
@@ -806,7 +837,7 @@ export default function MigrantsAdminPage() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [query, legalFilter, workFilter, regionFilter, urgencyFilter, triageFilter, registrationYearFilter, pageSize]);
+  }, [query, legalFilter, workFilter, regionFilter, urgencyFilter, triageFilter, registrationYearFilter, eligibilityFilter, pageSize]);
 
   useEffect(() => {
     setPageIndex((p) => {
@@ -865,8 +896,8 @@ export default function MigrantsAdminPage() {
       </div>
 
       <div className="cpc-card p-6 mb-6 overflow-x-auto">
-        <div className="grid w-full min-w-[60rem] grid-cols-7 gap-4">
-          <div className="min-w-0">
+        <div className="grid w-full min-w-[60rem] grid-cols-6 gap-4">
+          <div className="col-span-2 min-w-0">
             <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.search.label')}</Label>
             <Input
               value={query}
@@ -925,7 +956,10 @@ export default function MigrantsAdminPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="min-w-0">
+        </div>
+
+        <div className="mt-4 grid w-full min-w-[60rem] grid-cols-6 gap-4">
+          <div className="col-start-4 min-w-0">
             <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.triage.label')}</Label>
             <Select value={triageFilter} onValueChange={(v) => setTriageFilter(v as typeof triageFilter)}>
               <SelectTrigger className="mt-1 h-11 text-base">
@@ -954,6 +988,18 @@ export default function MigrantsAdminPage() {
                     {year}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0">
+            <Label className="line-clamp-2">{t.get('cpc.migrantsAdmin.filters.eligibility.label')}</Label>
+            <Select value={eligibilityFilter} onValueChange={(v) => setEligibilityFilter(v as EligibilityFilter)}>
+              <SelectTrigger className="mt-1 h-11 text-base"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t.get('cpc.migrantsAdmin.filters.eligibility.all')}</SelectItem>
+                <SelectItem value="A">{t.get('cpc.migrantsAdmin.filters.eligibility.a')}</SelectItem>
+                <SelectItem value="B">{t.get('cpc.migrantsAdmin.filters.eligibility.b')}</SelectItem>
+                <SelectItem value="unset">{t.get('cpc.migrantsAdmin.filters.eligibility.unset')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1039,11 +1085,24 @@ export default function MigrantsAdminPage() {
             <div key={r.user_id} className="cpc-card p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-semibold">{r.name}</h3>
                     {r.blocked ? (
                       <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">{t.get('cpc.migrantsAdmin.badges.blocked')}</span>
                     ) : null}
+                    {r.eligibility_profile === 'A' ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-flex items-center gap-1">
+                        <UserCheck className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.profileA')}
+                      </span>
+                    ) : r.eligibility_profile === 'B' ? (
+                      <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 inline-flex items-center gap-1">
+                        <UserX className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.profileB')}
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground inline-flex items-center gap-1">
+                        <UserMinus className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.unset')}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">{r.email}</p>
                   <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2 mt-3 text-sm text-muted-foreground">
@@ -1092,16 +1151,19 @@ export default function MigrantsAdminPage() {
       )}
 
       <Dialog open={!!selectedTriage} onOpenChange={(open) => { if (!open) setSelectedTriage(null); }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{t.get('cpc.migrantsAdmin.triageDialog.title', { name: selectedTriage?.name || t.get('cpc.migrantsAdmin.fallback_migrant') })}</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto pr-1">
             {(selectedTriage?.triage_answers && Object.keys(selectedTriage.triage_answers).length > 0) ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {Object.entries(selectedTriage.triage_answers).map(([key, value]) => (
-                  <div key={key} className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground">{answerLabel(key)}</p>
+                  <div
+                    key={key}
+                    className="rounded-lg border p-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 items-start"
+                  >
+                    <p className="text-sm text-muted-foreground">{answerLabel(key)}</p>
                     <p className="text-sm font-medium break-words">{answerValue(key, value)}</p>
                   </div>
                 ))}

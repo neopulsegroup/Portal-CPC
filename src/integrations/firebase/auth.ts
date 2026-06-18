@@ -2,21 +2,21 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
-    sendPasswordResetEmail,
     User,
 } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './client';
 import { functions } from './functionsClient';
-import { getRecaptchaToken } from '@/lib/recaptcha';
+import { isRecaptchaSiteKeyConfigured, resolveRegisterRecaptchaToken } from '@/lib/recaptcha';
+import { normalizeRegisterEmail } from '@/lib/normalizeRegisterEmail';
 import { resolvePasswordResetContinueUrl } from '@/lib/passwordResetContinueUrl';
 const env = import.meta.env as unknown as Record<string, string | boolean | undefined>;
 
 export interface UserProfile {
     email: string;
     name: string;
-    role: 'migrant' | 'company' | 'admin' | 'mediator' | 'lawyer' | 'psychologist' | 'manager' | 'coordinator' | 'trainer';
+    role: 'migrant' | 'company' | 'admin' | 'mediator' | 'lawyer' | 'psychologist' | 'manager' | 'consultant' | 'coordinator' | 'trainer';
     nif?: string;
     active?: boolean | null;
     disabledAt?: unknown | null;
@@ -30,7 +30,7 @@ export interface UserProfile {
 function normalizeRole(role: unknown): UserProfile['role'] {
     if (typeof role !== 'string') return role as UserProfile['role'];
     const v = role.toLowerCase();
-    const allowed: Array<UserProfile['role']> = ['migrant', 'company', 'admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'trainer'];
+    const allowed: Array<UserProfile['role']> = ['migrant', 'company', 'admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'consultant', 'coordinator', 'trainer'];
     return (allowed.includes(v as UserProfile['role']) ? v : role) as UserProfile['role'];
 }
 
@@ -76,6 +76,7 @@ function mapRegisterAuthError(error: unknown): string {
     if (code === 'auth/network-request-failed') return 'NETWORK_ERROR';
     if (code === 'auth/too-many-requests') return 'RATE_LIMITED';
     if (code === 'auth/internal-error' || code === 'auth/app-not-authorized') return 'AUTH_PROVIDER_UNAVAILABLE';
+    if (error instanceof Error && error.message === 'CAPTCHA_REQUIRED') return 'CAPTCHA_REQUIRED';
     return 'REGISTER_FAILED';
 }
 
@@ -182,7 +183,17 @@ async function registerUserWithClientFallback(
 }
 
 function useSecureRegisterFunction(): boolean {
-    return String(env.VITE_USE_SECURE_REGISTER_FUNCTION ?? 'false').toLowerCase() === 'true';
+    const explicit = String(env.VITE_USE_SECURE_REGISTER_FUNCTION ?? '').trim().toLowerCase();
+    if (explicit === 'true') return true;
+    if (explicit === 'false') return false;
+    // Em produção, o registo passa sempre pela Cloud Function segura.
+    return env.PROD === true;
+}
+
+function allowClientRegisterFallback(): boolean {
+    if (env.PROD === true) return false;
+    if (isRecaptchaSiteKeyConfigured()) return false;
+    return String(env.VITE_ALLOW_CLIENT_REGISTER_FALLBACK ?? 'true').toLowerCase() === 'true';
 }
 
 /**
@@ -192,9 +203,11 @@ export async function registerUser(
     email: string,
     password: string,
     name: string,
-    role: 'migrant' | 'company' | 'admin' | 'mediator' | 'lawyer' | 'psychologist' | 'manager' | 'coordinator' | 'trainer' = 'migrant',
+    role: 'migrant' | 'company' | 'admin' | 'mediator' | 'lawyer' | 'psychologist' | 'manager' | 'consultant' | 'coordinator' | 'trainer' = 'migrant',
     additionalData?: { nif?: string; activityArea?: string }
 ) {
+    const normalizedEmail = normalizeRegisterEmail(email);
+    const trimmedName = name.trim();
     try {
         const callRegister = httpsCallable<
             {
@@ -210,35 +223,38 @@ export async function registerUser(
         >(functions, 'registerUserSecure');
 
         if (!useSecureRegisterFunction()) {
-            return await registerUserWithClientFallback(email, password, name, role, additionalData);
+            if (!allowClientRegisterFallback()) {
+                throw new Error('CAPTCHA_REQUIRED');
+            }
+            return await registerUserWithClientFallback(normalizedEmail, password, trimmedName, role, additionalData);
         }
 
         try {
-            const captchaToken = await getRecaptchaToken('register');
+            const captchaToken = await resolveRegisterRecaptchaToken();
 
             await callRegister({
-                email,
+                email: normalizedEmail,
                 password,
-                name,
+                name: trimmedName,
                 role,
                 ...(captchaToken ? { captchaToken } : {}),
                 ...(additionalData?.nif ? { nif: additionalData.nif } : {}),
                 ...(additionalData?.activityArea ? { activityArea: additionalData.activityArea } : {}),
             });
         } catch (functionError) {
-            if (!isFunctionFallbackEligible(functionError)) {
+            if (!allowClientRegisterFallback() || !isFunctionFallbackEligible(functionError)) {
                 throw functionError;
             }
             console.warn('registerUserSecure indisponível. A usar fallback de cadastro no cliente.');
-            return await registerUserWithClientFallback(email, password, name, role, additionalData);
+            return await registerUserWithClientFallback(normalizedEmail, password, trimmedName, role, additionalData);
         }
 
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
         const user = userCredential.user;
         const profile = await getUserProfile(user.uid);
         const userProfile: UserProfile = profile ?? {
-            email,
-            name,
+            email: normalizedEmail,
+            name: trimmedName,
             role,
             active: true,
             disabledAt: null,
@@ -282,7 +298,11 @@ export async function logoutUser() {
 }
 
 /**
- * Send password reset email
+ * Send password reset email.
+ *
+ * Em vez do envio nativo do Firebase Auth, chama a Cloud Function
+ * `requestPasswordReset`, que gera o link via Admin SDK e o envia pelo
+ * SMTP configurado em `system_settings/smtp` (caixa geral@portalcpc.com).
  */
 export async function resetPassword(email: string) {
     const normalized = email.trim().toLowerCase();
@@ -291,7 +311,11 @@ export async function resetPassword(email: string) {
     const continueUrl = resolvePasswordResetContinueUrl();
 
     try {
-        await sendPasswordResetEmail(auth, normalized, { url: continueUrl });
+        const callReset = httpsCallable<{ email: string; continueUrl?: string }, { ok: boolean }>(
+            functions,
+            'requestPasswordReset'
+        );
+        await callReset({ email: normalized, continueUrl });
     } catch (error: unknown) {
         console.error('Error sending password reset email:', error);
         throw new Error(getErrorMessage(error, 'Error sending password reset email'));

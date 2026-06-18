@@ -45,13 +45,13 @@ export function mapAuthErrorToMessage(args: MapAuthErrorArgs): string {
     case 'INVALID_CREDENTIALS':
       return t.get('auth.loginError');
     case 'USER_ALREADY_EXISTS':
-      return secureRegistrationMessage ? t.get('auth.registerErrorGeneric') : t.get('auth.registerErrorEmailInUse');
+      return t.get('auth.registerErrorEmailInUse');
     case 'WEAK_PASSWORD':
       return t.get('auth.passwordLengthError');
     case 'VALIDATION_FAILED':
       return mode === 'register' ? t.get('auth.registerErrorGeneric') : t.get('auth.loginTryAgain');
     case 'CAPTCHA_REQUIRED':
-      return t.get('auth.registerErrorGeneric');
+      return t.get('auth.captcha.required');
     case 'NETWORK_ERROR':
       return t.get('auth.networkError');
     case 'RATE_LIMITED':

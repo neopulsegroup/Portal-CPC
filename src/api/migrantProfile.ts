@@ -54,11 +54,13 @@ export type MigrantProfileDoc = {
   resumeUrl?: string | null;
   professionalTitle?: string | null;
   professionalExperience?: string | null;
+  experienceLevel?: 'junior' | 'mid' | 'senior' | null;
   skills?: string | null;
   languagesList?: string | null;
   mainNeeds?: string | null;
   contactPreference?: 'email' | 'phone' | null;
   availableForWork?: boolean | null;
+  authorizeEmployersProfessionalProfile?: boolean | null;
 };
 
 export type MigrantTriageDoc = {
@@ -134,20 +136,36 @@ export async function fetchMigrantProfile(uid: string): Promise<MigrantProfileRe
       resumeUrl: profileFs?.resumeUrl ?? null,
       professionalTitle: profileFs?.professionalTitle ?? null,
       professionalExperience: profileFs?.professionalExperience ?? null,
+      experienceLevel:
+        profileFs?.experienceLevel === 'junior' ||
+        profileFs?.experienceLevel === 'mid' ||
+        profileFs?.experienceLevel === 'senior'
+          ? profileFs.experienceLevel
+          : null,
       skills: profileFs?.skills ?? null,
       languagesList: profileFs?.languagesList ?? null,
       mainNeeds: profileFs?.mainNeeds ?? null,
       contactPreference: profileFs?.contactPreference ?? null,
       availableForWork: typeof profileFs?.availableForWork === 'boolean' ? profileFs.availableForWork : null,
+      authorizeEmployersProfessionalProfile:
+        typeof profileFs?.authorizeEmployersProfessionalProfile === 'boolean'
+          ? profileFs.authorizeEmployersProfessionalProfile
+          : null,
     };
   })();
 
   const triage = await safe(() => getDocument<MigrantTriageDoc>('triage', uid), null);
 
-  const sessions = await safe(
-    () => queryDocuments<MigrantSession>('sessions', [{ field: 'migrant_id', operator: '==', value: uid }], { field: 'scheduled_date', direction: 'desc' }),
-    []
-  );
+  const sessions = await safe(async () => {
+    const docs = await queryDocuments<MigrantSession>('sessions', [
+      { field: 'migrant_id', operator: '==', value: uid },
+    ]);
+    return (docs || []).slice().sort((a, b) => {
+      const byDate = b.scheduled_date.localeCompare(a.scheduled_date);
+      if (byDate !== 0) return byDate;
+      return b.scheduled_time.localeCompare(a.scheduled_time);
+    });
+  }, []);
 
   const progress = await safe(
     () => queryDocuments<TrailProgress>('user_trail_progress', [{ field: 'user_id', operator: '==', value: uid }]),

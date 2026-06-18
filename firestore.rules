@@ -49,6 +49,7 @@ service cloud.firestore {
       return rawRole in ['admin', 'administrador'] ? 'admin'
         : rawRole in ['cpc', 'staff', 'equipa', 'team'] ? 'admin'
         : rawRole in ['manager', 'gestor'] ? 'manager'
+        : rawRole in ['consultant', 'consultor'] ? 'consultant'
         : rawRole in ['coordinator', 'coordenador'] ? 'coordinator'
         : rawRole in ['mediator', 'mediador'] ? 'mediator'
         : rawRole in ['lawyer', 'jurista'] ? 'lawyer'
@@ -64,7 +65,7 @@ service cloud.firestore {
     }
 
     function isCpcStaff() {
-      return isAccountEnabled() && userRole() in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'trainer'];
+      return isAccountEnabled() && userRole() in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'consultant', 'coordinator', 'trainer'];
     }
 
     function isEditingOtherProfile(userId) {
@@ -106,7 +107,25 @@ service cloud.firestore {
     }
 
     function canManageCpcTeam() {
-      return isAccountEnabled() && userRole() in ['admin', 'manager', 'coordinator'];
+      return isAccountEnabled() && userRole() in ['admin', 'manager', 'consultant', 'coordinator'];
+    }
+
+    function canManageTeamUsers() {
+      return isAccountEnabled() && userRole() in ['admin', 'manager'];
+    }
+
+    function managerCanManageTeamUser() {
+      return hasRole('manager')
+        && resource.data.role != 'admin'
+        && request.resource.data.role != 'admin';
+    }
+
+    function profileRoleNotAdmin() {
+      return !('role' in resource.data) || resource.data.role != 'admin';
+    }
+
+    function profileRoleNotBeingSetToAdmin() {
+      return !('role' in request.resource.data) || request.resource.data.role != 'admin';
     }
 
     function isCompany() {
@@ -122,7 +141,7 @@ service cloud.firestore {
     }
 
     function isCpcRoleName(role) {
-      return role in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'trainer'];
+      return role in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'consultant', 'coordinator', 'trainer'];
     }
 
     function roleByUserId(uid) {
@@ -144,6 +163,7 @@ service cloud.firestore {
       return rawRole in ['admin', 'administrador'] ? 'admin'
         : rawRole in ['cpc', 'staff', 'equipa', 'team'] ? 'admin'
         : rawRole in ['manager', 'gestor'] ? 'manager'
+        : rawRole in ['consultant', 'consultor'] ? 'consultant'
         : rawRole in ['coordinator', 'coordenador'] ? 'coordinator'
         : rawRole in ['mediator', 'mediador'] ? 'mediator'
         : rawRole in ['lawyer', 'jurista'] ? 'lawyer'
@@ -236,7 +256,7 @@ service cloud.firestore {
     function cpcStaffProfileFallbackWhenNoUserDoc() {
       return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
-        && userRole() in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'coordinator', 'trainer'];
+        && userRole() in ['admin', 'mediator', 'lawyer', 'psychologist', 'manager', 'consultant', 'coordinator', 'trainer'];
     }
     function canEditCmsContent() {
       return isAccountEnabled() && userRole() == 'admin';
@@ -286,11 +306,42 @@ service cloud.firestore {
         );
     }
 
+    function companyIsVerifiedForPublishing(companyId) {
+      return companyId is string
+        && companyId.size() > 0
+        && exists(/databases/$(database)/documents/companies/$(companyId))
+        && companyDoc(companyId).data.get('verified', false) == true;
+    }
+
+    function employerCompanySelfUpdateAllowed(companyId) {
+      return isAuthenticated() && (
+        resource.data.user_id == request.auth.uid
+        || (
+          companyId == request.auth.uid
+          && !(resource.data.keys().hasAll(['user_id']))
+        )
+        || (
+          employerPublisher()
+          && !(resource.data.keys().hasAll(['user_id']))
+          && request.resource.data.user_id == request.auth.uid
+        )
+      );
+    }
+
+    function companyModerationFieldsUnchanged() {
+      return request.resource.data.get('verified', resource.data.get('verified', false)) == resource.data.get('verified', false)
+        && request.resource.data.get('rejected', resource.data.get('rejected', false)) == resource.data.get('rejected', false)
+        && request.resource.data.get('reviewed_at', resource.data.get('reviewed_at', null)) == resource.data.get('reviewed_at', null)
+        && request.resource.data.get('reviewed_by', resource.data.get('reviewed_by', null)) == resource.data.get('reviewed_by', null);
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if (isAuthenticated() && isOwner(userId)) || isCpcStaff();
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if (isAccountEnabled() && hasRole('admin')) || (
+        isAccountEnabled() && managerCanManageTeamUser()
+      ) || (
         isAccountEnabled() && isOwner(userId) &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.active == resource.data.active &&
@@ -307,9 +358,12 @@ service cloud.firestore {
       allow read: if isOwner(userId) ||
         (isAccountEnabled() && isCpcStaff()) ||
         (employerPublisher() && resource.data.availableForWork == true);
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if (isAuthenticated() && request.auth.uid == userId)
+        || (isAccountEnabled() && hasRole('admin'))
+        || (isAccountEnabled() && hasRole('manager') && profileRoleNotBeingSetToAdmin());
       allow update: if isOwner(userId) ||
         (isAccountEnabled() && hasRole('admin')) ||
+        (isAccountEnabled() && hasRole('manager') && profileRoleNotAdmin() && profileRoleNotBeingSetToAdmin()) ||
         (isCpcStaff() && isEditingOtherProfile(userId) && isValidMigrantPersonalInfoForCpc());
       allow delete: if isAccountEnabled() && hasRole('admin');
     }
@@ -319,6 +373,15 @@ service cloud.firestore {
       allow read: if isOwner(userId) || (isAccountEnabled() && isCpcStaff());
       allow write: if isOwner(userId);
       allow delete: if isAccountEnabled() && hasRole('admin');
+    }
+
+    // Classificação interna de elegibilidade (Perfil A/B).
+    // Uso exclusivo da equipa de gestão CPC; invisível para o próprio migrante.
+    match /migrant_classifications/{userId} {
+      allow read: if isAccountEnabled() && isCpcStaff();
+      allow create, update: if canManageCpcTeam()
+        && request.resource.data.eligibility_profile in ['A', 'B'];
+      allow delete: if canManageCpcTeam();
     }
 
     match /i18n/{docId} {
@@ -342,20 +405,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if (isAuthenticated() && request.auth.uid == companyId && request.resource.data.user_id == request.auth.uid) || isCpcStaff();
       // Atualizar perfil próprio; corrigir user_id em legado (sem campo ou só em companies/{uid}).
-      allow update: if isCpcStaff() || (
-        isAuthenticated() && (
-          resource.data.user_id == request.auth.uid
-          || (
-            companyId == request.auth.uid
-            && !(resource.data.keys().hasAll(['user_id']))
-          )
-          || (
-            employerPublisher()
-            && !(resource.data.keys().hasAll(['user_id']))
-            && request.resource.data.user_id == request.auth.uid
-          )
-        )
-      );
+      allow update: if isCpcStaff() || (employerCompanySelfUpdateAllowed(companyId) && companyModerationFieldsUnchanged());
       allow delete: if isCpcStaff();
     }
 
@@ -369,7 +419,8 @@ service cloud.firestore {
         );
       allow create: if employerPublisher()
         && request.resource.data.company_id is string
-        && companyOwnsCompanyId(request.resource.data.company_id);
+        && companyOwnsCompanyId(request.resource.data.company_id)
+        && companyIsVerifiedForPublishing(request.resource.data.company_id);
       allow update: if isCpcStaff() ||
         (employerPublisher() && companyOwnsCompanyId(resource.data.company_id));
       allow delete: if isCpcStaff();
@@ -403,7 +454,12 @@ service cloud.firestore {
       allow update: if isAccountEnabled()
         && resource.data.applicant_id == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['migrant_attached_cv_url', 'migrant_attached_cv_name', 'migrant_attached_cv_uploaded_at']);
+             .hasOnly([
+               'migrant_attached_cv_url',
+               'migrant_attached_cv_name',
+               'migrant_attached_cv_uploaded_at',
+               'updatedAt'
+             ]);
       allow delete: if isCpcStaff();
     }
 
@@ -556,18 +612,36 @@ service cloud.firestore {
 
     match /audit_logs/{logId} {
       allow read: if isAccountEnabled() && hasRole('admin');
+      function isAuditRequestContextValid() {
+        return (!('ip_address' in request.resource.data) || request.resource.data.ip_address is string)
+          && (!('user_agent' in request.resource.data) || request.resource.data.user_agent is string)
+          && (!('duration_ms' in request.resource.data) || request.resource.data.duration_ms is number)
+          && (!('origin' in request.resource.data) || request.resource.data.origin is string);
+      }
       function isUnauthorizedAttemptLog() {
         return isAuthenticated()
           && request.resource.data.action == 'unauthorized_attempt'
           && request.resource.data.actor_id == request.auth.uid
           && request.resource.data.keys().hasAll(['action', 'actor_id', 'context', 'createdAt'])
-          && request.resource.data.keys().hasOnly(['action', 'actor_id', 'context', 'createdAt', 'target_id'])
+          && request.resource.data.keys().hasOnly([
+            'action',
+            'actor_id',
+            'context',
+            'createdAt',
+            'target_id',
+            'ip_address',
+            'user_agent',
+            'duration_ms',
+            'origin'
+          ])
           && (request.resource.data.context is string)
-          && request.resource.data.context.size() <= 200;
+          && request.resource.data.context.size() <= 200
+          && isAuditRequestContextValid();
       }
 
       allow create: if isAuthenticated()
         && request.resource.data.actor_id == request.auth.uid
+        && isAuditRequestContextValid()
         && (
           isCpcStaff() ||
           isUnauthorizedAttemptLog()
@@ -576,8 +650,10 @@ service cloud.firestore {
     }
 
     match /system_settings/{docId} {
-      allow read: if (docId == 'contact') || (isAccountEnabled() && hasRole('admin'));
-      allow create, update, delete: if isAccountEnabled() && hasRole('admin');
+      allow read: if (docId == 'contact')
+        || (docId == 'recaptcha_public')
+        || (isAccountEnabled() && userRole() in ['admin', 'manager']);
+      allow create, update, delete: if isAccountEnabled() && userRole() in ['admin', 'manager'];
     }
 
     match /contact_messages/{messageId} {
@@ -631,12 +707,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Áreas de serviço (Jurídico / Psicológico / Mediação): responsáveis e duração padrão.
-    // Leitura: qualquer utilizador autenticado (o migrante precisa para agendar).
-    // Escrita: apenas admin (gestão na ServiceAreasAdminPage).
+    // Escrita: Super Admin ou Admin (gestão na ServiceAreasAdminPage).
     match /service_areas/{areaId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAccountEnabled() && hasRole('admin');
+      allow create, update, delete: if canManageTeamUsers();
+    }
+
+    // Registo único por e-mail (escrita apenas via Admin SDK nas Cloud Functions).
+    match /registered_emails/{emailId} {
+      allow read, write: if false;
     }
 
     // Default deny

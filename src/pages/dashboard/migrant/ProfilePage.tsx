@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AlertCircle, Calendar, BookOpen, CheckCircle2, Clock, User, Camera, Download, Loader2, ClipboardList } from 'lucide-react';
+import { AlertCircle, Calendar, BookOpen, CheckCircle2, Clock, User, Camera, Download, Loader2, ClipboardList, UserCheck, UserMinus, UserX } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { PhoneInput, formatPhoneValueForDisplay } from '@/components/ui/phone-input';
 import { fetchMigrantProfile, type MigrantProfileDoc, type MigrantProfileResponse } from '@/api/migrantProfile';
 import { inferNeedsProfile } from '@/features/needs/inferNeedsProfile';
 import { NeedsProfileCard } from '@/features/needs/NeedsProfileCard';
+import { CVUploadButton } from '@/features/cv/CVUploadButton';
+import { deleteMigrantUserCvFiles, deleteProfileExternalCvFiles } from '@/features/cv/deleteCvFile';
 import { updateDocument } from '@/integrations/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { storage } from '@/integrations/firebase/client';
@@ -27,9 +30,22 @@ import {
   embedBrandingImagesForPdfLib,
 } from '@/lib/pdfLibDocumentBranding';
 import { APP_TIME_ZONE, todayIsoAppCalendar } from '@/lib/appCalendar';
+import { isMigrantUpcomingSession, isSessionPendingApproval } from '@/lib/sessionApproval';
 import { cepDigitsPortugal, formatPortugalCepDigits, lookupAddressFromPortugalCep } from '@/lib/portugalCepLookup';
 import { formatActivityDurationShort, formatActivityStatusListLabel } from '@/features/activities/model';
 import { loadParticipantActivitiesForUser } from '@/features/activities/participantActivityList';
+import {
+  ELIGIBILITY_PROFILE_OPTIONS,
+  canManageMigrantEligibility,
+  loadMigrantEligibilityClassification,
+  saveMigrantEligibilityClassification,
+  type EligibilityProfile,
+} from '@/lib/migrantEligibility';
+import { CPC_TEAM_ROLES } from '@/lib/cpcRoles';
+import {
+  getMissingProfessionalFieldsForJobs,
+  MIGRANT_JOBS_ACCESS_PROFILE_HASH,
+} from '@/lib/migrantJobsAccess';
 
 function readProfileExtrasFromStorage(userKey: string): Partial<MigrantProfileDoc> | null {
   const extrasRaw =
@@ -59,6 +75,7 @@ function mergeProfileWithExtrasForUser(p: MigrantProfileDoc, userKey: string): M
     resumeUrl: p.resumeUrl || extras?.resumeUrl || null,
     professionalTitle: p.professionalTitle || extras?.professionalTitle || null,
     professionalExperience: p.professionalExperience || extras?.professionalExperience || null,
+    experienceLevel: p.experienceLevel || extras?.experienceLevel || null,
     skills: p.skills || extras?.skills || null,
     languagesList: p.languagesList || extras?.languagesList || null,
     contactPreference: p.contactPreference || extras?.contactPreference || null,
@@ -104,6 +121,22 @@ function extractYearFromRegisteredAt(value: unknown): number | null {
   return null;
 }
 
+type ExperienceLevel = 'junior' | 'mid' | 'senior';
+
+const EXPERIENCE_LEVELS: ExperienceLevel[] = ['junior', 'mid', 'senior'];
+
+function parseExperienceLevel(value: unknown): ExperienceLevel | '' {
+  if (value === 'junior' || value === 'mid' || value === 'senior') return value;
+  return '';
+}
+
+function experienceLevelLabel(level: ExperienceLevel | '', t: { get: (k: string) => string }): string | null {
+  if (level === 'junior') return t.get('company.candidates.experience.junior');
+  if (level === 'mid') return t.get('company.candidates.experience.mid');
+  if (level === 'senior') return t.get('company.candidates.experience.senior');
+  return null;
+}
+
 type ProfileEditFormState = {
   name: string;
   phone: string;
@@ -112,6 +145,7 @@ type ProfileEditFormState = {
   resumeUrl: string;
   professionalTitle: string;
   professionalExperience: string;
+  experienceLevel: ExperienceLevel | '';
   skills: string;
   languagesList: string;
   contactPreference: 'email' | 'phone';
@@ -142,6 +176,7 @@ function buildEditStateFromMergedProfile(res: MigrantProfileResponse, merged: Mi
     resumeUrl: merged?.resumeUrl || '',
     professionalTitle: merged?.professionalTitle || '',
     professionalExperience: merged?.professionalExperience || '',
+    experienceLevel: parseExperienceLevel(merged?.experienceLevel),
     skills: merged?.skills || '',
     languagesList: merged?.languagesList || '',
     contactPreference: (merged?.contactPreference as 'email' | 'phone') || 'email',
@@ -166,6 +201,7 @@ function buildEditStateFromMergedProfile(res: MigrantProfileResponse, merged: Mi
 export default function ProfilePage() {
   const { user, profile: authProfile, refreshProfile } = useAuth();
   const { migrantId } = useParams<{ migrantId?: string }>();
+  const location = useLocation();
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -179,6 +215,8 @@ export default function ProfilePage() {
   const [exportingTriagem, setExportingTriagem] = useState(false);
   const [updatingAvailability, setUpdatingAvailability] = useState(false);
   const [availableForWork, setAvailableForWork] = useState(false);
+  const [authorizeEmployersProfessionalProfile, setAuthorizeEmployersProfessionalProfile] = useState(false);
+  const [updatingEmployerAuthorization, setUpdatingEmployerAuthorization] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
   const PHOTO_ALLOWED_MIME = useMemo(() => new Set(['image/jpeg', 'image/png', 'image/gif']), []);
@@ -203,6 +241,7 @@ export default function ProfilePage() {
     resumeUrl: string;
     professionalTitle: string;
     professionalExperience: string;
+    experienceLevel: ExperienceLevel | '';
     skills: string;
     languagesList: string;
     contactPreference: 'email' | 'phone';
@@ -220,6 +259,7 @@ export default function ProfilePage() {
     resumeUrl: '',
     professionalTitle: '',
     professionalExperience: '',
+    experienceLevel: '',
     skills: '',
     languagesList: '',
     contactPreference: 'email',
@@ -240,6 +280,8 @@ export default function ProfilePage() {
   const cepLookupSeq = useRef(0);
   const [cepLookupStatus, setCepLookupStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [cepLookupMessage, setCepLookupMessage] = useState<string | null>(null);
+  const [eligibilityProfile, setEligibilityProfile] = useState<EligibilityProfile | null>(null);
+  const [savingEligibility, setSavingEligibility] = useState(false);
 
   const targetUserId = migrantId || user?.uid || null;
   const isViewingOtherUser = !!(migrantId && user?.uid && migrantId !== user.uid);
@@ -251,9 +293,77 @@ export default function ProfilePage() {
     return (
       isViewingOtherUser &&
       typeof role === 'string' &&
-      ['admin', 'manager', 'coordinator', 'mediator', 'lawyer', 'psychologist', 'trainer'].includes(role)
+      (CPC_TEAM_ROLES as readonly string[]).includes(role)
     );
   }, [authProfile?.role, isViewingOtherUser]);
+  const canClassifyEligibility = isViewingOtherUser && canManageMigrantEligibility(authProfile?.role);
+
+  useEffect(() => {
+    if (!targetUserId || !isViewingOtherUser) {
+      setEligibilityProfile(null);
+      return;
+    }
+    let cancelled = false;
+    void loadMigrantEligibilityClassification(targetUserId)
+      .then((value) => {
+        if (!cancelled) setEligibilityProfile(value);
+      })
+      .catch(() => {
+        if (!cancelled) setEligibilityProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isViewingOtherUser, targetUserId]);
+
+  async function handleEligibilityChange(next: EligibilityProfile | null) {
+    if (!targetUserId || !canClassifyEligibility) {
+      toast({
+        title: t.get('cpc.migrantsAdmin.eligibility.no_permission_title'),
+        description: t.get('cpc.migrantsAdmin.eligibility.no_permission'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (eligibilityProfile === next) return;
+
+    const migrantName = edit.name || data?.profile?.name || data?.userProfile?.name || t.get('cpc.migrantsAdmin.fallback_migrant');
+    setSavingEligibility(true);
+    try {
+      await saveMigrantEligibilityClassification({
+        userId: targetUserId,
+        next,
+        actorId: user?.uid ?? null,
+      });
+      setEligibilityProfile(next);
+      if (next === null) {
+        toast({
+          title: t.get('cpc.migrantsAdmin.eligibility.set_success_title'),
+          description: t.get('cpc.migrantsAdmin.eligibility.cleared_success', { name: migrantName }),
+        });
+      } else {
+        const profileLabel = t.get(
+          next === 'A' ? 'cpc.migrantsAdmin.eligibility.profileA' : 'cpc.migrantsAdmin.eligibility.profileB',
+        );
+        toast({
+          title: t.get('cpc.migrantsAdmin.eligibility.set_success_title'),
+          description: t.get('cpc.migrantsAdmin.eligibility.set_success', { name: migrantName, profile: profileLabel }),
+        });
+      }
+    } catch (error: unknown) {
+      const rawMessage = error instanceof Error ? error.message : '';
+      const message = rawMessage.includes('Missing or insufficient permissions')
+        ? t.get('cpc.migrantsAdmin.delete.error.permission_denied')
+        : rawMessage || t.get('cpc.migrantsAdmin.eligibility.error');
+      toast({
+        title: t.get('cpc.migrantsAdmin.eligibility.error_title'),
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingEligibility(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -388,6 +498,10 @@ export default function ProfilePage() {
   }, [data?.progress]);
 
   const profileDoc: MigrantProfileDoc | null = data?.profile || null;
+  const missingJobsProfessionalFields = useMemo(
+    () => getMissingProfessionalFieldsForJobs(profileDoc),
+    [profileDoc]
+  );
   const triage = data?.triage || null;
   const needsProfile = useMemo(() => inferNeedsProfile(triage), [triage]);
   const triageAnswers = useMemo(() => {
@@ -479,6 +593,11 @@ export default function ProfilePage() {
     return translateOption('professional_interests', first);
   }, [triageAnswers.professional_interests, translateOption]);
 
+  const experienceLevelDisplay = useMemo(
+    () => experienceLevelLabel(edit.experienceLevel, t),
+    [edit.experienceLevel, t]
+  );
+
   const skillsTokens = useMemo(() => {
     const tokens = (edit.skills || '')
       .split(',')
@@ -498,8 +617,11 @@ export default function ProfilePage() {
   }, [edit.contactPreference]);
 
   const upcomingSessions = useMemo(() => {
-    const now = todayIsoAppCalendar();
-    return sessionsSorted.filter((s) => s.scheduled_date >= now).slice(0, 3);
+    const today = todayIsoAppCalendar();
+    return sessionsSorted
+      .filter((s) => isMigrantUpcomingSession(s.status, s.scheduled_date, today))
+      .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date) || a.scheduled_time.localeCompare(b.scheduled_time))
+      .slice(0, 3);
   }, [sessionsSorted]);
 
   const featuredTrail = useMemo(() => {
@@ -512,6 +634,17 @@ export default function ProfilePage() {
     const next = profileDoc?.availableForWork === true;
     setAvailableForWork(next);
   }, [profileDoc?.availableForWork]);
+
+  useEffect(() => {
+    setAuthorizeEmployersProfessionalProfile(profileDoc?.authorizeEmployersProfessionalProfile === true);
+  }, [profileDoc?.authorizeEmployersProfessionalProfile]);
+
+  useEffect(() => {
+    if (location.hash !== `#${MIGRANT_JOBS_ACCESS_PROFILE_HASH}`) return;
+    const el = document.getElementById(MIGRANT_JOBS_ACCESS_PROFILE_HASH);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash, loading]);
 
   const normalizeCepInput = useCallback((raw: string) => {
     return raw.replace(/[^\d-]/g, '').slice(0, 14);
@@ -668,6 +801,7 @@ export default function ProfilePage() {
         resumeUrl: edit.resumeUrl || null,
         professionalTitle: edit.professionalTitle || null,
         professionalExperience: edit.professionalExperience || null,
+        experienceLevel: edit.experienceLevel || null,
         skills: edit.skills || null,
         languagesList: edit.languagesList || null,
         contactPreference: edit.contactPreference || null,
@@ -728,6 +862,32 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleExternalCvUpload(url: string) {
+    if (!targetUserId || !user) return;
+    await updateDocument('profiles', targetUserId, { resumeUrl: url });
+    setEdit((s) => ({ ...s, resumeUrl: url }));
+    setData((prev) => {
+      if (!prev?.profile) return prev;
+      return { ...prev, profile: { ...prev.profile, resumeUrl: url } };
+    });
+    if (targetUserId === user.uid) void refreshProfile();
+  }
+
+  async function handleExternalCvRemove() {
+    if (!targetUserId || !user || isViewingOtherUser) return;
+    await Promise.all([
+      deleteProfileExternalCvFiles(targetUserId, edit.resumeUrl || null),
+      deleteMigrantUserCvFiles(targetUserId, edit.resumeUrl || null),
+    ]);
+    await updateDocument('profiles', targetUserId, { resumeUrl: null });
+    setEdit((s) => ({ ...s, resumeUrl: '' }));
+    setData((prev) => {
+      if (!prev?.profile) return prev;
+      return { ...prev, profile: { ...prev.profile, resumeUrl: null } };
+    });
+    if (targetUserId === user.uid) void refreshProfile();
+  }
+
   async function handleToggleAvailability(nextChecked: boolean) {
     if (!targetUserId || isViewingOtherUser || updatingAvailability) return;
     const previous = availableForWork;
@@ -760,6 +920,44 @@ export default function ProfilePage() {
       });
     } finally {
       setUpdatingAvailability(false);
+    }
+  }
+
+  async function handleToggleEmployerAuthorization(nextChecked: boolean) {
+    if (!targetUserId || isViewingOtherUser || updatingEmployerAuthorization) return;
+    const previous = authorizeEmployersProfessionalProfile;
+    setAuthorizeEmployersProfessionalProfile(nextChecked);
+    setUpdatingEmployerAuthorization(true);
+    try {
+      await updateDocument('profiles', targetUserId, { authorizeEmployersProfessionalProfile: nextChecked });
+      setData((prev) => {
+        if (!prev?.profile) return prev;
+        return {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            authorizeEmployersProfessionalProfile: nextChecked,
+          },
+        };
+      });
+      toast({
+        title: nextChecked
+          ? t.get('migrant.profile.employerAuthorization.enabledTitle')
+          : t.get('migrant.profile.employerAuthorization.disabledTitle'),
+        description: nextChecked
+          ? t.get('migrant.profile.employerAuthorization.enabledDescription')
+          : t.get('migrant.profile.employerAuthorization.disabledDescription'),
+      });
+      if (targetUserId === user?.uid) void refreshProfile();
+    } catch {
+      setAuthorizeEmployersProfessionalProfile(previous);
+      toast({
+        title: t.get('migrant.profile.employerAuthorization.errorTitle'),
+        description: t.get('migrant.profile.employerAuthorization.errorDescription'),
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingEmployerAuthorization(false);
     }
   }
 
@@ -1398,7 +1596,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       {isViewingOtherUser && needsProfile.items.length > 0 ? (
-        <NeedsProfileCard profile={needsProfile} />
+        <NeedsProfileCard profile={needsProfile} layout="grid" />
       ) : null}
       <div className="cpc-card p-6">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -1460,7 +1658,24 @@ export default function ProfilePage() {
                   <h1 className="text-xl md:text-2xl font-bold truncate">{edit.name || '—'}</h1>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground truncate">{profileDoc.email || '—'}</p>
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <p className="text-sm text-muted-foreground truncate">{profileDoc.email || '—'}</p>
+                {isViewingOtherUser && canExportCpcData ? (
+                  eligibilityProfile === 'A' ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 inline-flex items-center gap-1 shrink-0">
+                      <UserCheck className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.profileA')}
+                    </span>
+                  ) : eligibilityProfile === 'B' ? (
+                    <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 inline-flex items-center gap-1 shrink-0">
+                      <UserX className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.profileB')}
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground inline-flex items-center gap-1 shrink-0">
+                      <UserMinus className="h-3 w-3" /> {t.get('cpc.migrantsAdmin.eligibility.unset')}
+                    </span>
+                  )
+                ) : null}
+              </div>
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {legalStatusLabel ? (
@@ -1591,6 +1806,41 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {canClassifyEligibility ? (
+          <div className="mt-6 pt-6 border-t grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <div className="md:col-span-2 space-y-1 min-w-0">
+              <h2 className="text-lg font-semibold">{t.get('cpc.migrantsAdmin.eligibility.label')}</h2>
+              <p className="text-sm text-muted-foreground">{t.get('cpc.migrantsAdmin.eligibility.page_description')}</p>
+            </div>
+            <div className="md:col-span-1 min-w-0">
+              <Label htmlFor="migrant-eligibility-profile">{t.get('cpc.migrantsAdmin.eligibility.label')}</Label>
+              <Select
+                value={eligibilityProfile ?? 'unset'}
+                onValueChange={(v) => void handleEligibilityChange(v === 'unset' ? null : (v as EligibilityProfile))}
+                disabled={savingEligibility}
+              >
+                <SelectTrigger id="migrant-eligibility-profile" className="mt-2 w-full">
+                  {savingEligibility ? (
+                    <span className="inline-flex items-center gap-2 text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" /> {t.get('common.loading')}
+                    </span>
+                  ) : (
+                    <SelectValue />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">{t.get('cpc.migrantsAdmin.eligibility.unset')}</SelectItem>
+                  {ELIGIBILITY_PROFILE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {t.get(option === 'A' ? 'cpc.migrantsAdmin.eligibility.profileA' : 'cpc.migrantsAdmin.eligibility.profileB')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2011,7 +2261,12 @@ export default function ProfilePage() {
                   <div key={s.id} className="flex items-center justify-between rounded-lg bg-background/70 border px-4 py-3">
                     <div>
                       <p className="font-medium text-sm">{s.session_type}</p>
-                      <p className="text-xs text-muted-foreground">Status: {s.status || '—'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Status:{' '}
+                        {isSessionPendingApproval(s.status)
+                          ? t.dashboard.status_pending
+                          : s.status || t.dashboard.status_scheduled}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium">{new Date(s.scheduled_date).toLocaleDateString('pt-PT')}</p>
@@ -2098,59 +2353,139 @@ export default function ProfilePage() {
         ) : null}
       </div>
 
+      {!isViewingOtherUser ? (
+        <div
+          id={MIGRANT_JOBS_ACCESS_PROFILE_HASH}
+          className="cpc-card scroll-mt-24 border border-amber-200/80 bg-amber-50/40 p-6"
+        >
+          <h2 className="text-lg font-semibold">{t.get('migrant.profile.employerAuthorization.title')}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t.get('migrant.profile.employerAuthorization.description')}</p>
+          {missingJobsProfessionalFields.length > 0 ? (
+            <p className="mt-3 text-sm text-amber-800">{t.get('migrant.profile.employerAuthorization.missingFieldsHint')}</p>
+          ) : null}
+          <label className="mt-4 flex items-start gap-3 rounded-xl border bg-background/80 p-4 cursor-pointer">
+            <Checkbox
+              checked={authorizeEmployersProfessionalProfile}
+              disabled={updatingEmployerAuthorization || missingJobsProfessionalFields.length > 0}
+              onCheckedChange={(checked) => {
+                void handleToggleEmployerAuthorization(checked === true);
+              }}
+              className="mt-0.5"
+            />
+            <span className="text-sm leading-relaxed">{t.get('migrant.profile.employerAuthorization.label')}</span>
+          </label>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="cpc-card p-6 lg:col-span-2">
           <div className="flex items-start justify-between">
             <h2 className="text-lg font-semibold">Perfil Profissional</h2>
-            {edit.resumeUrl ? (
-              <a href={edit.resumeUrl} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
-                Ver currículo completo
-              </a>
-            ) : (
-              <span className="text-sm text-muted-foreground"> </span>
-            )}
           </div>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-3">
-              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Currículo (URL)</p>
-              {editMode ? (
-                <Input
-                  value={edit.resumeUrl}
-                  onChange={(e) => setEdit((s) => ({ ...s, resumeUrl: e.target.value }))}
-                  className="mt-2"
-                  placeholder="https://..."
-                />
-              ) : (
-                <div className="mt-1 space-y-2">
-                  {!isViewingOtherUser && user?.uid ? (
-                    <Link
-                      to={`/dashboard/migrante/curriculo/ver/${user.uid}`}
-                      className="inline-flex text-sm text-primary hover:underline"
-                    >
-                      {t.get('migrant.profile.documents.viewCvLink')}
-                    </Link>
-                  ) : null}
-                  {edit.resumeUrl ? (
+            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-[11px] tracking-wider text-muted-foreground uppercase">
+                  {t.get('migrant.profile.documents.cpcCvLabel')}
+                </p>
+                <div className="mt-2 space-y-2">
+                  {targetUserId ? (
+                    <>
+                      <Link
+                        to={`/dashboard/migrante/curriculo/ver/${targetUserId}`}
+                        className="inline-flex text-sm text-primary hover:underline"
+                      >
+                        {t.get('migrant.profile.documents.viewCvLink')}
+                      </Link>
+                      {!isViewingOtherUser ? (
+                        <Link
+                          to="/dashboard/migrante/curriculo"
+                          className="block text-sm text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          {t.get('migrant.profile.documents.editCpcCvLink')}
+                        </Link>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">—</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] tracking-wider text-muted-foreground uppercase">
+                  {t.get('migrant.profile.documents.externalCvLabel')}
+                </p>
+                <div className="mt-2">
+                  {!isViewingOtherUser && user?.uid && targetUserId ? (
+                    <CVUploadButton
+                      contextId={targetUserId}
+                      contextType="migrant"
+                      uploaderUid={user.uid}
+                      currentUrl={edit.resumeUrl?.trim() || undefined}
+                      onUploadComplete={(url) => handleExternalCvUpload(url)}
+                      onRemove={() => handleExternalCvRemove()}
+                      disabled={!user?.uid}
+                    />
+                  ) : edit.resumeUrl?.trim() ? (
                     <a
                       href={edit.resumeUrl}
                       target="_blank"
-                      rel="noreferrer"
-                      className="block text-sm text-muted-foreground hover:text-primary hover:underline"
+                      rel="noopener noreferrer"
+                      className="inline-flex text-sm text-primary hover:underline"
                     >
-                      Visualizar documento anexado
+                      {t.get('cvUpload.viewUploaded')}
                     </a>
-                  ) : null}
-                  {(isViewingOtherUser && !edit.resumeUrl) || (!user?.uid && !edit.resumeUrl) ? (
+                  ) : (
                     <p className="text-sm text-muted-foreground">—</p>
-                  ) : null}
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">Escolaridade</p>
               <p className="mt-2 font-medium">{educationLabel}</p>
+            </div>
+
+            <div>
+              <p className="text-[11px] tracking-wider text-muted-foreground uppercase">
+                {t.get('migrant.profile.experienceLevel')}
+              </p>
+              {editMode && !isViewingOtherUser ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {EXPERIENCE_LEVELS.map((level) => {
+                    const label = experienceLevelLabel(level, t) || level;
+                    const isSelected = edit.experienceLevel === level;
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() =>
+                          setEdit((s) => ({
+                            ...s,
+                            experienceLevel: isSelected ? '' : level,
+                          }))
+                        }
+                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : experienceLevelDisplay ? (
+                <span className="mt-2 inline-flex text-xs font-semibold px-3 py-1 rounded-full bg-muted">
+                  {experienceLevelDisplay.toUpperCase()}
+                </span>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">—</p>
+              )}
             </div>
 
             <div>

@@ -9,6 +9,7 @@ const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const firebase_admin_1 = __importDefault(require("firebase-admin"));
 const admin_1 = require("./admin");
+const recaptchaSettings_1 = require("./recaptchaSettings");
 const ALLOWED_ROLES = [
     'migrant',
     'company',
@@ -17,6 +18,7 @@ const ALLOWED_ROLES = [
     'lawyer',
     'psychologist',
     'manager',
+    'consultant',
     'coordinator',
     'trainer',
 ];
@@ -49,6 +51,51 @@ function getClientIp(rawRequest) {
 }
 function hashValue(value) {
     return (0, node_crypto_1.createHash)('sha256').update(value).digest('hex').slice(0, 24);
+}
+function registeredEmailDocId(email) {
+    return hashValue(email);
+}
+async function assertEmailNotAlreadyRegistered(email, requestId) {
+    const auth = (0, admin_1.getAdminApp)().auth();
+    try {
+        await auth.getUserByEmail(email);
+        firebase_functions_1.logger.warn('register_email_exists_auth', { requestId });
+        throw new https_1.HttpsError('already-exists', 'Não foi possível concluir o cadastro.', {
+            error: 'USER_ALREADY_EXISTS',
+            requestId,
+        });
+    }
+    catch (error) {
+        if (error instanceof https_1.HttpsError)
+            throw error;
+        const code = error.code;
+        if (code === 'auth/user-not-found') {
+            // E-mail disponível no Firebase Auth.
+        }
+        else if (code === 'auth/invalid-email') {
+            throw new https_1.HttpsError('invalid-argument', 'Não foi possível concluir o cadastro.', {
+                error: 'VALIDATION_FAILED',
+                requestId,
+            });
+        }
+        else {
+            throw error;
+        }
+    }
+    const db = (0, admin_1.getFirestore)();
+    const registryRef = db.collection('registered_emails').doc(registeredEmailDocId(email));
+    const [registrySnap, usersSnap, profilesSnap] = await Promise.all([
+        registryRef.get(),
+        db.collection('users').where('email', '==', email).limit(1).get(),
+        db.collection('profiles').where('email', '==', email).limit(1).get(),
+    ]);
+    if (registrySnap.exists || !usersSnap.empty || !profilesSnap.empty) {
+        firebase_functions_1.logger.warn('register_email_exists_firestore', { requestId });
+        throw new https_1.HttpsError('already-exists', 'Não foi possível concluir o cadastro.', {
+            error: 'USER_ALREADY_EXISTS',
+            requestId,
+        });
+    }
 }
 function normalizeEmail(value) {
     return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -125,9 +172,19 @@ async function assertRateLimit(ip, email, requestId) {
     });
 }
 async function verifyCaptchaIfConfigured(captchaToken, requestId) {
-    const secret = process.env.RECAPTCHA_SECRET_KEY;
-    if (!secret)
+    const runtime = await (0, recaptchaSettings_1.loadRecaptchaRuntimeConfig)();
+    const secret = runtime.secretKey;
+    const captchaRequired = process.env.RECAPTCHA_REQUIRED !== 'false';
+    if (!secret) {
+        if (captchaRequired && process.env.NODE_ENV === 'production') {
+            firebase_functions_1.logger.error('captcha_secret_missing_in_production', { requestId });
+            throw new https_1.HttpsError('failed-precondition', 'Não foi possível concluir o cadastro.', {
+                error: 'CAPTCHA_REQUIRED',
+                requestId,
+            });
+        }
         return;
+    }
     const token = typeof captchaToken === 'string' ? captchaToken.trim() : '';
     if (!token) {
         throw new https_1.HttpsError('failed-precondition', 'Não foi possível concluir o cadastro.', {
@@ -151,10 +208,18 @@ async function verifyCaptchaIfConfigured(captchaToken, requestId) {
         });
     }
     const body = (await response.json());
-    const minScore = Number(process.env.RECAPTCHA_MIN_SCORE || 0.5);
+    const minScore = runtime.minScore;
     const score = typeof body.score === 'number' ? body.score : 0;
+    const action = typeof body.action === 'string' ? body.action.trim() : '';
+    if (action && action !== 'register') {
+        firebase_functions_1.logger.warn('captcha_action_mismatch', { requestId, action });
+        throw new https_1.HttpsError('permission-denied', 'Não foi possível concluir o cadastro.', {
+            error: 'REGISTRATION_FAILED',
+            requestId,
+        });
+    }
     if (!body.success || score < minScore) {
-        firebase_functions_1.logger.warn('captcha_failed', { requestId, score, minScore });
+        firebase_functions_1.logger.warn('captcha_failed', { requestId, score, minScore, action: action || null });
         throw new https_1.HttpsError('permission-denied', 'Não foi possível concluir o cadastro.', {
             error: 'REGISTRATION_FAILED',
             requestId,
@@ -213,6 +278,7 @@ exports.registerUserSecure = (0, https_1.onCall)({
         const { email, name, password, role, nif, activityArea } = validatePayload(payload, requestId);
         await assertRateLimit(ip, email, requestId);
         await verifyCaptchaIfConfigured(payload.captchaToken, requestId);
+        await assertEmailNotAlreadyRegistered(email, requestId);
         const auth = (0, admin_1.getAdminApp)().auth();
         const created = await auth.createUser({
             email,
@@ -250,6 +316,12 @@ exports.registerUserSecure = (0, https_1.onCall)({
         const batch = db.batch();
         batch.set(db.doc(`users/${created.uid}`), userDoc, { merge: false });
         batch.set(db.doc(`profiles/${created.uid}`), profileDoc, { merge: true });
+        batch.set(db.doc(`registered_emails/${registeredEmailDocId(email)}`), {
+            email,
+            uid: created.uid,
+            role,
+            createdAt: now,
+        }, { merge: false });
         if (role === 'company') {
             batch.set(db.doc(`companies/${created.uid}`), {
                 user_id: created.uid,

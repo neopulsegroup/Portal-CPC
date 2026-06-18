@@ -1,16 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledReminders = exports.onSessionCreated = exports.onJobOfferCreated = exports.onApplicationStatusChanged = exports.onApplicationCreated = exports.onCompanyCreated = exports.onMigrantCreated = exports.submitContactForm = exports.registerUserSecure = exports.testSmtpConnection = exports.onMailCreated = void 0;
+exports.scheduledReminders = exports.onSessionCreated = exports.onJobOfferCreated = exports.onApplicationStatusChanged = exports.onApplicationCreated = exports.onCompanyCreated = exports.onMigrantCreated = exports.applyRecaptchaSettings = exports.uploadCvSecure = exports.requestPasswordReset = exports.submitContactForm = exports.registerUserSecure = exports.testSmtpConnection = exports.onMailCreated = void 0;
 const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
-const permissions_1 = require("./permissions");
+const systemSettingsPermissions_1 = require("./systemSettingsPermissions");
 const mailProcessor_1 = require("./mailProcessor");
 const smtp_1 = require("./smtp");
 const mailProcessor_2 = require("./mailProcessor");
 const registerUserSecure_1 = require("./registerUserSecure");
 Object.defineProperty(exports, "registerUserSecure", { enumerable: true, get: function () { return registerUserSecure_1.registerUserSecure; } });
-const contactResend_1 = require("./contactResend");
-Object.defineProperty(exports, "submitContactForm", { enumerable: true, get: function () { return contactResend_1.submitContactForm; } });
+const contactForm_1 = require("./contactForm");
+Object.defineProperty(exports, "submitContactForm", { enumerable: true, get: function () { return contactForm_1.submitContactForm; } });
+const sendPasswordReset_1 = require("./sendPasswordReset");
+Object.defineProperty(exports, "requestPasswordReset", { enumerable: true, get: function () { return sendPasswordReset_1.requestPasswordReset; } });
+const uploadCvSecure_1 = require("./uploadCvSecure");
+Object.defineProperty(exports, "uploadCvSecure", { enumerable: true, get: function () { return uploadCvSecure_1.uploadCvSecure; } });
 // TASK-08 — Triggers de notificação automática por email.
 // Cada trigger enfileira em `mail/{id}` e é consumido por `onMailCreated`.
 // Falha de envio não bloqueia operação principal; apenas log estruturado.
@@ -32,6 +36,8 @@ const onSessionCreated_1 = require("./onSessionCreated");
 Object.defineProperty(exports, "onSessionCreated", { enumerable: true, get: function () { return onSessionCreated_1.onSessionCreated; } });
 const scheduledReminders_1 = require("./scheduledReminders");
 Object.defineProperty(exports, "scheduledReminders", { enumerable: true, get: function () { return scheduledReminders_1.scheduledReminders; } });
+const applyRecaptchaSettings_1 = require("./applyRecaptchaSettings");
+Object.defineProperty(exports, "applyRecaptchaSettings", { enumerable: true, get: function () { return applyRecaptchaSettings_1.applyRecaptchaSettings; } });
 exports.onMailCreated = (0, firestore_1.onDocumentCreated)('mail/{mailId}', async (event) => {
     const mailId = event.params.mailId;
     await (0, mailProcessor_2.processMailDocument)(mailId);
@@ -40,7 +46,7 @@ exports.testSmtpConnection = (0, https_1.onCall)(async (request) => {
     const uid = request.auth?.uid ?? null;
     if (!uid)
         throw new https_1.HttpsError('unauthenticated', 'Sessão inválida.');
-    const ok = await (0, permissions_1.isAdminUser)(uid);
+    const ok = await (0, systemSettingsPermissions_1.canManageSystemSettings)(uid);
     if (!ok)
         throw new https_1.HttpsError('permission-denied', 'Sem permissão.');
     try {

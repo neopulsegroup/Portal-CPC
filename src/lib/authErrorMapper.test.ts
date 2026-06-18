@@ -12,6 +12,7 @@ const messages: Record<string, string> = {
   'auth.networkError': 'Problema de ligação',
   'auth.tooManyAttempts': 'Muitas tentativas',
   'auth.serviceUnavailable': 'Serviço indisponível',
+  'auth.captcha.required': 'Conclua a verificação de segurança para continuar.',
   'common.error': 'Erro',
 };
 
@@ -20,7 +21,7 @@ const t = {
 };
 
 describe('mapAuthErrorToMessage', () => {
-  it('não expõe erro técnico de provider no registo', () => {
+  it('informa quando o e-mail já está registado', () => {
     const message = mapAuthErrorToMessage({
       error: new Error('Firebase: Error (auth/email-already-in-use).'),
       mode: 'register',
@@ -28,7 +29,7 @@ describe('mapAuthErrorToMessage', () => {
       secureRegistrationMessage: true,
     });
 
-    expect(message).toBe('Não foi possível concluir o cadastro');
+    expect(message).toBe('Este e-mail já está cadastrado');
     expect(message.toLowerCase()).not.toContain('firebase');
     expect(message.toLowerCase()).not.toContain('auth/');
   });
@@ -61,6 +62,16 @@ describe('mapAuthErrorToMessage', () => {
     });
 
     expect(message).toBe('Não foi possível concluir o cadastro');
+  });
+
+  it('mapeia CAPTCHA_REQUIRED para mensagem de verificação', () => {
+    const message = mapAuthErrorToMessage({
+      error: new Error('CAPTCHA_REQUIRED'),
+      mode: 'register',
+      t,
+    });
+
+    expect(message).toBe('Conclua a verificação de segurança para continuar.');
   });
 });
 

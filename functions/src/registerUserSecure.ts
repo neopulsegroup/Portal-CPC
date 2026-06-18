@@ -4,6 +4,7 @@ import { logger } from 'firebase-functions';
 import admin from 'firebase-admin';
 
 import { getAdminApp, getFirestore } from './admin';
+import { loadRecaptchaRuntimeConfig } from './recaptchaSettings';
 
 type RegisterRole =
   | 'migrant'
@@ -13,6 +14,7 @@ type RegisterRole =
   | 'lawyer'
   | 'psychologist'
   | 'manager'
+  | 'consultant'
   | 'coordinator'
   | 'trainer';
 
@@ -39,6 +41,7 @@ const ALLOWED_ROLES: RegisterRole[] = [
   'lawyer',
   'psychologist',
   'manager',
+  'consultant',
   'coordinator',
   'trainer',
 ];
@@ -74,6 +77,52 @@ function getClientIp(rawRequest: { headers?: Record<string, unknown>; ip?: strin
 
 function hashValue(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 24);
+}
+
+function registeredEmailDocId(email: string): string {
+  return hashValue(email);
+}
+
+async function assertEmailNotAlreadyRegistered(email: string, requestId: string) {
+  const auth = getAdminApp().auth();
+
+  try {
+    await auth.getUserByEmail(email);
+    logger.warn('register_email_exists_auth', { requestId });
+    throw new HttpsError('already-exists', 'Não foi possível concluir o cadastro.', {
+      error: 'USER_ALREADY_EXISTS',
+      requestId,
+    });
+  } catch (error: unknown) {
+    if (error instanceof HttpsError) throw error;
+    const code = (error as { code?: string }).code;
+    if (code === 'auth/user-not-found') {
+      // E-mail disponível no Firebase Auth.
+    } else if (code === 'auth/invalid-email') {
+      throw new HttpsError('invalid-argument', 'Não foi possível concluir o cadastro.', {
+        error: 'VALIDATION_FAILED',
+        requestId,
+      });
+    } else {
+      throw error;
+    }
+  }
+
+  const db = getFirestore();
+  const registryRef = db.collection('registered_emails').doc(registeredEmailDocId(email));
+  const [registrySnap, usersSnap, profilesSnap] = await Promise.all([
+    registryRef.get(),
+    db.collection('users').where('email', '==', email).limit(1).get(),
+    db.collection('profiles').where('email', '==', email).limit(1).get(),
+  ]);
+
+  if (registrySnap.exists || !usersSnap.empty || !profilesSnap.empty) {
+    logger.warn('register_email_exists_firestore', { requestId });
+    throw new HttpsError('already-exists', 'Não foi possível concluir o cadastro.', {
+      error: 'USER_ALREADY_EXISTS',
+      requestId,
+    });
+  }
 }
 
 function normalizeEmail(value: unknown): string {
@@ -168,8 +217,20 @@ async function assertRateLimit(ip: string, email: string, requestId: string) {
 }
 
 async function verifyCaptchaIfConfigured(captchaToken: unknown, requestId: string) {
-  const secret = process.env.RECAPTCHA_SECRET_KEY;
-  if (!secret) return;
+  const runtime = await loadRecaptchaRuntimeConfig();
+  const secret = runtime.secretKey;
+  const captchaRequired = process.env.RECAPTCHA_REQUIRED !== 'false';
+
+  if (!secret) {
+    if (captchaRequired && process.env.NODE_ENV === 'production') {
+      logger.error('captcha_secret_missing_in_production', { requestId });
+      throw new HttpsError('failed-precondition', 'Não foi possível concluir o cadastro.', {
+        error: 'CAPTCHA_REQUIRED',
+        requestId,
+      });
+    }
+    return;
+  }
 
   const token = typeof captchaToken === 'string' ? captchaToken.trim() : '';
   if (!token) {
@@ -197,12 +258,21 @@ async function verifyCaptchaIfConfigured(captchaToken: unknown, requestId: strin
     });
   }
 
-  const body = (await response.json()) as { success?: boolean; score?: number };
-  const minScore = Number(process.env.RECAPTCHA_MIN_SCORE || 0.5);
+  const body = (await response.json()) as { success?: boolean; score?: number; action?: string };
+  const minScore = runtime.minScore;
   const score = typeof body.score === 'number' ? body.score : 0;
+  const action = typeof body.action === 'string' ? body.action.trim() : '';
+
+  if (action && action !== 'register') {
+    logger.warn('captcha_action_mismatch', { requestId, action });
+    throw new HttpsError('permission-denied', 'Não foi possível concluir o cadastro.', {
+      error: 'REGISTRATION_FAILED',
+      requestId,
+    });
+  }
 
   if (!body.success || score < minScore) {
-    logger.warn('captcha_failed', { requestId, score, minScore });
+    logger.warn('captcha_failed', { requestId, score, minScore, action: action || null });
     throw new HttpsError('permission-denied', 'Não foi possível concluir o cadastro.', {
       error: 'REGISTRATION_FAILED',
       requestId,
@@ -271,6 +341,7 @@ export const registerUserSecure = onCall(
       const { email, name, password, role, nif, activityArea } = validatePayload(payload, requestId);
       await assertRateLimit(ip, email, requestId);
       await verifyCaptchaIfConfigured(payload.captchaToken, requestId);
+      await assertEmailNotAlreadyRegistered(email, requestId);
 
       const auth = getAdminApp().auth();
       const created = await auth.createUser({
@@ -311,6 +382,16 @@ export const registerUserSecure = onCall(
       const batch = db.batch();
       batch.set(db.doc(`users/${created.uid}`), userDoc, { merge: false });
       batch.set(db.doc(`profiles/${created.uid}`), profileDoc, { merge: true });
+      batch.set(
+        db.doc(`registered_emails/${registeredEmailDocId(email)}`),
+        {
+          email,
+          uid: created.uid,
+          role,
+          createdAt: now,
+        },
+        { merge: false }
+      );
       if (role === 'company') {
         batch.set(
           db.doc(`companies/${created.uid}`),

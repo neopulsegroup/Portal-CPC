@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth, UserRole } from '@/contexts/AuthContext';
 import { mapAuthErrorToMessage } from '@/lib/authErrorMapper';
+import HumanVerificationCaptcha from '@/components/auth/HumanVerificationCaptcha';
 import { toast } from 'sonner';
 import { User, Building2, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import logo from '@/assets/logo.png';
@@ -70,6 +71,8 @@ export default function Auth() {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(initialRole);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -85,6 +88,25 @@ export default function Auth() {
   const { t } = useLanguage();
   const { login, register, isAuthenticated, profile, triage, isLoading: authLoading, accessIssue, clearAccessIssue } = useAuth();
   const navigate = useNavigate();
+
+  // /entrar e /registar partilham este componente — sincronizar estado com a URL.
+  useEffect(() => {
+    const onRegisterPath = location.pathname === '/registar';
+    const registerFromQuery = searchParams.get('mode') === 'register';
+    const nextMode: AuthMode = onRegisterPath || registerFromQuery ? 'register' : 'login';
+    setMode(nextMode);
+
+    if (nextMode === 'register') {
+      const roleParam = searchParams.get('role');
+      if (roleParam === 'migrant' || roleParam === 'company') {
+        setSelectedRole(roleParam);
+      } else if (onRegisterPath) {
+        setSelectedRole(null);
+      }
+    } else {
+      setSelectedRole(null);
+    }
+  }, [location.pathname, searchParams]);
 
   useEffect(() => {
     if (isAuthenticated && profile && !authLoading) {
@@ -132,6 +154,13 @@ export default function Auth() {
           setIsLoading(false);
           return;
         }
+        // CAPTCHA: barreira anti-bot/spam obrigatória no registo.
+        if (!captchaVerified) {
+          toast.error(t.get('auth.captcha.required'));
+          setCaptchaResetSignal((n) => n + 1);
+          setIsLoading(false);
+          return;
+        }
         // TASK-05: validar e resolver activity_area apenas para empresa.
         let activityAreaResolved: string | undefined;
         if (selectedRole === 'company') {
@@ -176,6 +205,11 @@ export default function Auth() {
       }
     } catch (error: unknown) {
       console.error('Auth error:', error);
+      // Regenera o desafio após falha no registo (boa prática anti-replay).
+      if (mode === 'register') {
+        setCaptchaVerified(false);
+        setCaptchaResetSignal((n) => n + 1);
+      }
       toast.error(
         mapAuthErrorToMessage({
           error,
@@ -188,6 +222,12 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
+
+  // Reinicia o CAPTCHA ao mudar de perfil ou alternar entre login/registo.
+  useEffect(() => {
+    setCaptchaVerified(false);
+    setCaptchaResetSignal((n) => n + 1);
+  }, [selectedRole, mode]);
 
   if (authLoading) {
     return (
@@ -234,7 +274,8 @@ export default function Auth() {
             <p className="text-center text-sm text-muted-foreground">
               {t.auth.hasAccount}{' '}
               <button
-                onClick={() => setMode('login')}
+                type="button"
+                onClick={() => navigate('/entrar')}
                 className="text-primary hover:underline font-medium"
               >
                 {t.auth.login}
@@ -408,7 +449,15 @@ export default function Auth() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {mode === 'register' && (
+                <HumanVerificationCaptcha
+                  verified={captchaVerified}
+                  onVerifiedChange={setCaptchaVerified}
+                  resetSignal={captchaResetSignal}
+                />
+              )}
+
+              <Button type="submit" className="w-full" disabled={isLoading || (mode === 'register' && !captchaVerified)}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -425,10 +474,8 @@ export default function Auth() {
                 <>
                   {t.auth.noAccount}{' '}
                   <button
-                    onClick={() => {
-                      setMode('register');
-                      setSelectedRole(null);
-                    }}
+                    type="button"
+                    onClick={() => navigate('/registar')}
                     className="text-primary hover:underline font-medium"
                   >
                     {t.auth.register}
@@ -438,7 +485,8 @@ export default function Auth() {
                 <>
                   {t.auth.hasAccount}{' '}
                   <button
-                    onClick={() => setMode('login')}
+                    type="button"
+                    onClick={() => navigate('/entrar')}
                     className="text-primary hover:underline font-medium"
                   >
                     {t.auth.login}
