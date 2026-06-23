@@ -1,5 +1,10 @@
-import { getRecaptchaSiteKeyFromEnv } from '@/lib/recaptchaConfig';
-import { loadRecaptchaPublicSettings, resolveRecaptchaSiteKey } from '@/lib/recaptchaRuntime';
+import { getHcaptchaToken, prefetchHcaptcha } from '@/lib/hcaptcha';
+import {
+  isCaptchaEnabledAsync,
+  loadRecaptchaPublicSettings,
+  resolveCaptchaProvider,
+  resolveRecaptchaSiteKey,
+} from '@/lib/recaptchaRuntime';
 
 let scriptLoadingPromise: Promise<void> | null = null;
 
@@ -12,16 +17,9 @@ declare global {
   }
 }
 
-/** Indica se existe site key (Firestore ou variável de ambiente). */
-export function isRecaptchaSiteKeyConfigured(): boolean {
-  const envKey = getRecaptchaSiteKeyFromEnv();
-  return envKey.length > 0;
-}
-
-/** Indica se há site key já carregada em runtime (inclui Firestore). */
+/** Indica se o CAPTCHA de registo está ativo no Firestore. */
 export async function isRecaptchaSiteKeyConfiguredAsync(): Promise<boolean> {
-  const siteKey = await resolveRecaptchaSiteKey();
-  return siteKey.length > 0;
+  return isCaptchaEnabledAsync();
 }
 
 async function loadRecaptchaScript(siteKey: string): Promise<void> {
@@ -65,21 +63,55 @@ export async function getRecaptchaToken(action: string): Promise<string | null> 
   }
 }
 
+async function getCaptchaTokenForRegister(): Promise<string | null> {
+  const settings = await loadRecaptchaPublicSettings();
+  if (!settings.enabled || !settings.siteKey) return null;
+
+  if (settings.provider === 'hcaptcha') {
+    return getHcaptchaToken(settings.siteKey);
+  }
+
+  return getRecaptchaToken('register');
+}
+
+/** Pré-carrega o script/widget do provedor configurado (best-effort). */
+export async function prefetchRegisterCaptcha(): Promise<void> {
+  const settings = await loadRecaptchaPublicSettings();
+  if (!settings.enabled || !settings.siteKey) return;
+
+  if (settings.provider === 'hcaptcha') {
+    await prefetchHcaptcha(settings.siteKey);
+    return;
+  }
+
+  try {
+    await loadRecaptchaScript(settings.siteKey);
+  } catch {
+    // Prefetch é best-effort.
+  }
+}
+
 /**
- * Obtém token reCAPTCHA v3 para o registo.
- * Quando a chave pública está configurada, falha com `CAPTCHA_REQUIRED` se o token
- * não puder ser gerado (bloqueia submissões sem verificação server-side).
+ * Obtém token CAPTCHA para o registo.
+ * Quando o CAPTCHA está ativo, falha com `CAPTCHA_REQUIRED` se o token não puder ser gerado.
  */
 export async function resolveRegisterRecaptchaToken(): Promise<string | undefined> {
-  const configured = await isRecaptchaSiteKeyConfiguredAsync();
-  if (!configured) {
-    return (await getRecaptchaToken('register')) ?? undefined;
+  const settings = await loadRecaptchaPublicSettings();
+  if (!settings.enabled || !settings.siteKey) {
+    return undefined;
   }
-  const token = await getRecaptchaToken('register');
+
+  const token = await getCaptchaTokenForRegister();
   if (!token) {
+    if (import.meta.env.DEV) {
+      console.warn('[captcha] Falha ao gerar token', {
+        provider: settings.provider,
+        siteKeyConfigured: Boolean(settings.siteKey),
+      });
+    }
     throw new Error('CAPTCHA_REQUIRED');
   }
   return token;
 }
 
-export { loadRecaptchaPublicSettings, clearRecaptchaPublicSettingsCache } from '@/lib/recaptchaRuntime';
+export { loadRecaptchaPublicSettings, clearRecaptchaPublicSettingsCache, resolveCaptchaProvider } from '@/lib/recaptchaRuntime';
