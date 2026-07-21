@@ -259,6 +259,30 @@
         { "fieldPath": "module_id", "order": "ASCENDING" },
         { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "trail_module_comments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "module_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "trail_module_comments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "module_id", "order": "ASCENDING" },
+        { "fieldPath": "user_id", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pdi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participant_id", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

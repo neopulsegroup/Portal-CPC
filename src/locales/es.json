@@ -9,6 +9,267 @@
     "dashboard": "Panel",
     "logout": "Cerrar sesión"
   },
+  "scas": {
+    "title": "Cuestionario de Adaptación Sociocultural",
+    "shortTitle": "Cuestionario de Adaptación",
+    "intro": "Para cada situación, indique cuán competente se siente. No hay respuestas correctas o incorrectas.",
+    "languageLabel": "Idioma del cuestionario",
+    "domains": {
+      "D1": "Habilidades Interpersonales y Comunicación",
+      "D2": "Adaptación al Entorno Social",
+      "D3": "Habilidades Prácticas en el Contexto Portugués",
+      "D4": "Adaptación en el Trabajo y el Estudio"
+    },
+    "scale": {
+      "1": "Nada competente",
+      "2": "Poco competente",
+      "3": "Moderadamente competente",
+      "4": "Muy competente",
+      "5": "Extremadamente competente"
+    },
+    "scaleHint": {
+      "low": "Nada competente",
+      "high": "Extremadamente competente"
+    },
+    "items": {
+      "1": "Construir y mantener relaciones con personas en Portugal.",
+      "2": "Gestionar mis responsabilidades profesionales o académicas.",
+      "3": "Interactuar en situaciones y eventos sociales.",
+      "4": "Mantener mis pasatiempos e intereses.",
+      "5": "Adaptarme al entorno y la dinámica de mi vecindario.",
+      "6": "Interpretar y responder adecuadamente a los gestos y expresiones faciales de las personas.",
+      "7": "Trabajar o estudiar eficazmente con compañeros.",
+      "8": "Acceder a los servicios comunitarios que necesito.",
+      "9": "Adaptarme a la densidad y el ritmo de la zona donde vivo.",
+      "10": "Comprender y hablar portugués.",
+      "11": "Adaptar la velocidad y la forma en que hablo de manera culturalmente adecuada.",
+      "12": "Obtener y aprovechar la retroalimentación de los compañeros para mejorar mi desempeño.",
+      "13": "Interpretar y responder adecuadamente a las emociones de las personas.",
+      "14": "Participar en actividades y eventos comunitarios.",
+      "15": "Orientarme y encontrar los lugares que necesito.",
+      "16": "Interactuar con personas del sexo opuesto.",
+      "17": "Expresar mis ideas a los compañeros de manera culturalmente adecuada.",
+      "18": "Lidiar con la burocracia portuguesa.",
+      "19": "Adaptarme al ritmo de vida en Portugal.",
+      "20": "Leer y escribir en portugués.",
+      "21": "Adaptar mi comportamiento a las normas sociales, reglas, actitudes y costumbres locales."
+    },
+    "moments": {
+      "T0": "Evaluación inicial",
+      "T_TRILHA": "Tras completar una ruta",
+      "T_PDI": "Tras completar el plan",
+      "T_ADICIONAL": "Reevaluación adicional"
+    },
+    "mode": {
+      "AUTONOMO": "Autónomo",
+      "ASSISTIDO": "Asistido"
+    },
+    "recommendation": {
+      "obrigatoria": "Obligatoria",
+      "recomendada": "Recomendada",
+      "opcional": "Opcional"
+    },
+    "migrant": {
+      "ctaT0Title": "Complete su evaluación inicial",
+      "ctaT0Description": "Antes de continuar, responda al cuestionario de adaptación sociocultural. Ayuda al equipo a preparar su plan.",
+      "ctaTrailTitle": "Evaluación tras la ruta",
+      "ctaTrailDescription": "Completó una ruta. Responda algunas preguntas sobre ese tema.",
+      "ctaPdiTitle": "Evaluación final del plan",
+      "ctaPdiDescription": "Completó todas las rutas de su plan. Responda nuevamente el cuestionario completo.",
+      "start": "Empezar",
+      "continue": "Continuar",
+      "progress": "{answered} de {total} respondidas",
+      "submit": "Enviar respuestas",
+      "submitting": "Enviando...",
+      "saveDraft": "Guardar y continuar después",
+      "confirmTitle": "Confirmar envío",
+      "confirmBody": "Una vez enviadas, las respuestas no se pueden modificar.",
+      "confirmCancel": "Revisar respuestas",
+      "confirmSubmit": "Enviar definitivamente",
+      "incompleteWarning": "Responda todas las preguntas antes de enviar.",
+      "thanksTitle": "¡Gracias!",
+      "thanksBody": "Sus respuestas se registraron correctamente.",
+      "lockedNotice": "Esta evaluación ya fue enviada y no se puede modificar.",
+      "back": "Volver"
+    },
+    "cpc": {
+      "sectionTitle": "Evaluación SCAS",
+      "sectionSubtitle": "Historial inmutable de adaptación sociocultural.",
+      "noData": "Sin evaluaciones SCAS registradas.",
+      "moment": "Momento",
+      "date": "Fecha",
+      "mode": "Modo",
+      "language": "Idioma",
+      "assistedBy": "Asistido por {name}",
+      "global": "Global",
+      "variation": "Variación T0 → T-PDI",
+      "metaReached": "Meta alcanzada (≥20%)",
+      "internalAlert": "Alarma interna (15–20%)",
+      "belowTarget": "Por debajo de la meta (<15%)",
+      "pendingFinal": "A la espera de la evaluación final",
+      "readOnly": "Solo lectura",
+      "assistedFill": "Rellenar en nombre del participante",
+      "pdiTitle": "Plan de Desarrollo Individual",
+      "pdiSubtitle": "Rutas propuestas a partir del SCAS inicial. Valide o ajuste antes de enviar.",
+      "pdiGenerate": "Generar propuesta a partir del T0",
+      "pdiSave": "Guardar plan",
+      "pdiNoT0": "Se requiere un T0 completo para generar la propuesta.",
+      "pdiState": "Estado",
+      "pdiTrail": "Ruta",
+      "exportTitle": "Exportar SCAS",
+      "exportCsv": "Exportar CSV (T0 vs T-PDI)",
+      "exportAssessmentPdfAria": "Descargar PDF de esta evaluación",
+      "pdfError": "No se pudo generar el PDF de la evaluación.",
+      "pdfParticipant": "Participante",
+      "pdfScores": "Puntuaciones por dominio",
+      "pdfResponses": "Respuestas por ítem",
+      "pdfItem": "Respuesta",
+      "pdfTrail": "Ruta"
+    },
+    "dashboard": {
+      "title": "Impacto SCAS",
+      "subtitle": "Progreso hacia la meta EMPIS (70/100 con mejora ≥20%).",
+      "participantsWithImprovement": "Participantes con mejora ≥20%",
+      "goalProgress": "Progreso de la meta",
+      "withFinalAssessment": "Con evaluación final",
+      "internalAlerts": "En alarma interna"
+    },
+    "errors": {
+      "notEligible": "No es posible iniciar esta evaluación en este momento.",
+      "alreadySubmitted": "Esta evaluación ya fue enviada.",
+      "incomplete": "Faltan respuestas obligatorias.",
+      "generic": "No se pudo completar la operación. Inténtelo de nuevo."
+    }
+  },
+  "pdi": {
+    "shortTitle": "Plan de Desarrollo",
+    "sections": {
+      "trilhas": "Rutas recomendadas",
+      "apoios": "Apoyos personalizados",
+      "objetivos": "Objetivos y notas",
+      "declaracao": "Declaración y aceptación"
+    },
+    "fields": {
+      "version": "Versión",
+      "status": "Estado",
+      "scoreGlobal": "Puntuación global",
+      "targetGlobal": "Meta global"
+    },
+    "status": {
+      "DRAFT_GENERATED": "Propuesta generada",
+      "IN_REVIEW": "En revisión",
+      "VALIDATED": "Validado — pendiente de aceptación",
+      "ACCEPTED": "Aceptado",
+      "SUPERSEDED": "Archivado"
+    },
+    "trailState": {
+      "OBRIGATORIA": "Obligatoria",
+      "RECOMENDADA": "Recomendada",
+      "OPCIONAL": "Opcional",
+      "NAO_INCLUIDA": "No incluida"
+    },
+    "apoios": {
+      "JURIDICO": "Apoyo jurídico",
+      "NECESSIDADES_BASICAS": "Necesidades básicas",
+      "PSICOLOGICO": "Apoyo psicológico",
+      "SOCIOPROFISSIONAL": "Apoyo socioprofesional",
+      "OUTRO": "Otro apoyo"
+    },
+    "cpc": {
+      "title": "Plan de Desarrollo Individual",
+      "subtitle": "Generación automática desde SCAS T0, revisión, validación y envío al participante.",
+      "generate": "Generar desde T0",
+      "saved": "Plan guardado.",
+      "generated": "Propuesta de PDI creada.",
+      "sent": "Plan validado y enviado al participante.",
+      "validateSend": "Validar y enviar",
+      "save": "Guardar cambios",
+      "revise": "Crear nueva versión",
+      "revised": "Nueva versión del PDI creada.",
+      "reviseTitle": "Revisión del plan",
+      "reviseReason": "Motivo de la revisión (obligatorio)",
+      "noPdi": "Sin PDI activo. Genere una propuesta tras el SCAS T0.",
+      "noTrilhas": "Sin rutas en el plan.",
+      "noTrilhasCatalog": "No hay rutas activas registradas en el sistema.",
+      "trilhasHint": "Seleccione el estado de cada ruta. «No incluida» mantiene la ruta fuera del plan.",
+      "noScasDomain": "Sin dominio SCAS",
+      "noApoios": "Sin apoyos registrados.",
+      "addApoio": "Añadir apoyo",
+      "apoioNotes": "Notas / detalles",
+      "notesPlaceholder": "Objetivos, observaciones del equipo...",
+      "remove": "Eliminar",
+      "history": "Historial de versiones",
+      "acceptedVersion": "Versión aceptada: v{version}",
+      "trackingTitle": "Seguimiento del plan",
+      "trackingSubtitle": "Plan aceptado — siga el progreso en las rutas y la evolución SCAS.",
+      "trailsProgressLabel": "Progreso en rutas",
+      "trailsProgress": "{completed} de {total} completadas",
+      "trailsInProgress": "Rutas en curso",
+      "scasEvolution": "Evolución SCAS (T0 → final)",
+      "scasPendingFinal": "Pendiente evaluación SCAS final",
+      "acceptedAt": "Aceptado el",
+      "trailNotStarted": "No iniciada",
+      "trailInProgress": "En curso ({percent}%)",
+      "trailCompleted": "Completada"
+    },
+    "migrant": {
+      "title": "Plan de Desarrollo Individual",
+      "subtitle": "Plan personalizado elaborado por el equipo CPC según su evaluación inicial.",
+      "notAvailable": "Su plan aún no está disponible. El equipo CPC lo compartirá tras la validación.",
+      "backHome": "Volver al panel",
+      "bannerTitle": "Su Plan está disponible",
+      "bannerDescription": "Revise todo el contenido y acepte digitalmente su plan.",
+      "downloadPdf": "Descargar PDF",
+      "noApoios": "Sin apoyos adicionales en este plan.",
+      "defaultObjectives": "Mejorar la adaptación sociocultural según las rutas y apoyos definidos.",
+      "declaration": "Declaro que he leído y comprendido este Plan de Desarrollo Individual.",
+      "declareLabel": "Confirmo que he leído y acepto el plan presentado.",
+      "scrollHint": "Recorra todas las secciones antes de aceptar.",
+      "accept": "Aceptar plan",
+      "accepted": "Plan aceptado con éxito.",
+      "alreadyAccepted": "Aceptado el {date}.",
+      "trailDone": "Completada",
+      "trailPending": "En curso",
+      "goTrail": "Ir a la ruta",
+      "badge": "Desarrollo profesional",
+      "pageSubtitle": "Siga su progreso en las rutas de capacitación esenciales y complementarias para su integración profesional.",
+      "exportPdi": "Exportar PDI",
+      "globalProgressTitle": "Progreso Global del Plan",
+      "globalProgressDesc": "Basado en la conclusión de rutas necesarias y recomendadas.",
+      "trailsCompleted": "Rutas Completadas",
+      "nextGoal": "Próxima Meta",
+      "allTrailsDone": "Todas completadas",
+      "documentTitle": "Documento Original",
+      "documentDesc": "Versión digital de su plan personalizado.",
+      "baseTrailsTitle": "Rutas de Desarrollo Base",
+      "optionalTrailsTitle": "Rutas Complementarias",
+      "noBaseTrails": "Sin rutas base en este plan.",
+      "tagNecessary": "Necesaria",
+      "tagRecommended": "Recomendada",
+      "tagOptional": "Facultativa",
+      "progress": "Progreso",
+      "colState": "Estado",
+      "colTrail": "Ruta",
+      "colAction": "Acción",
+      "startTrail": "Iniciar Ruta",
+      "continueTrail": "Continuar Ruta",
+      "availableAfterAccept": "Disponible tras aceptación",
+      "showAllOptional": "Ver todas las rutas complementarias ({count})",
+      "showLessOptional": "Ver menos rutas complementarias"
+    },
+    "errors": {
+      "generic": "No se pudo completar la operación.",
+      "accept": "No se pudo registrar la aceptación.",
+      "pdf": "No se pudo generar el PDF."
+    },
+    "validation": {
+      "participant": "Participante faltante",
+      "t0": "SCAS T0 faltante",
+      "scores": "Puntuaciones faltantes",
+      "targets": "Metas faltantes",
+      "trilhas": "Incluya al menos una ruta"
+    }
+  },
   "header": {
     "logoAlt": "Logo de CPC",
     "taglineLine1": "Conectando",
@@ -305,6 +566,12 @@
     "accountCreated": "Cuenta creada correctamente",
     "backToSelection": "Volver a la selección de perfil",
     "registerAs": "Registrarse Como:",
+    "consent": {
+      "prefix": "He leído y acepto la",
+      "linkLabel": "Política de Privacidad",
+      "suffix": "y autorizo el tratamiento de mis datos personales para el uso de la plataforma.",
+      "required": "Debe aceptar la Política de Privacidad para completar el registro."
+    },
     "captcha": {
       "label": "Verificación de seguridad",
       "instruction": "Escriba los caracteres que aparecen en la imagen",
@@ -814,6 +1081,8 @@
     "triage": "Situación Inicial",
     "trails": "Rastros",
     "sessions": "Sesiones",
+    "scas": "Cuestionario de Adaptación",
+    "pdi": "Plan de Desarrollo",
     "profile": "Perfil",
     "curriculum": "Currículum",
     "messages": "Mensajes",
@@ -1019,7 +1288,9 @@
   },
   "migrant": {
     "menu": {
-      "title": "Menú Migrante"
+      "title": "Menú Migrante",
+      "sessionsLocked": "Disponible solo para migrantes clasificados como Perfil A por el equipo CPC.",
+      "scasPending": "Tiene un cuestionario SCAS pendiente."
     },
     "applications": {
       "title": "Mis Candidaturas",
@@ -1256,8 +1527,13 @@
         "email": "geral@oportoforte.com"
       }
     },
+    "terms": {
+      "title": "Términos de servicio",
+      "body": "Estos Términos de servicio regulan el acceso y uso de la Plataforma CPC, disponible para apoyar a personas migrantes, al equipo CPC y a entidades empleadoras en procesos de integración, formación, seguimiento y conexión con el empleo.\n\nAl utilizar la plataforma, el usuario se compromete a proporcionar información verdadera, mantener la confidencialidad de sus credenciales y usar los servicios solo para fines legítimos compatibles con el propósito de la plataforma.\n\nLa Plataforma CPC puede incluir funcionalidades de registro, triaje, programación de sesiones, contenidos formativos, candidaturas, comunicación y gestión de información. Algunas funcionalidades pueden depender de validación por el equipo CPC o de permisos específicos.\n\nLos contenidos, documentos y herramientas de la plataforma apoyan la integración y no sustituyen asesoramiento jurídico, médico, financiero o profesional individualizado cuando sea necesario.\n\nEl equipo responsable puede suspender o limitar el acceso en caso de uso indebido, intento de acceso no autorizado, información falsa o incumplimiento de estos términos.\n\nLos datos personales tratados en la plataforma se gestionan de acuerdo con la Política de Privacidad y la legislación aplicable.\n\nEstos términos pueden actualizarse cuando sea necesario para reflejar cambios legales, técnicos u operativos. El uso continuado de la plataforma tras cambios implica la aceptación de los términos actualizados."
+    },
     "cookies": {
       "title": "Política de cookies",
+      "body": "Esta Política de Cookies explica cómo la Plataforma CPC utiliza cookies y tecnologías similares cuando los usuarios acceden al sitio web o utilizan los servicios digitales disponibles en la plataforma.\n\nLas cookies son pequeños archivos de texto almacenados en el dispositivo del usuario que permiten reconocer el dispositivo, mantener sesiones activas, guardar preferencias y mejorar la experiencia de uso.\n\nLa Plataforma CPC puede utilizar cookies estrictamente necesarias para autenticación, seguridad, navegación y funcionamiento esencial del sistema. Estas cookies no pueden desactivarse sin afectar funciones básicas.\n\nTambién pueden utilizarse cookies opcionales de rendimiento, estadística o personalización solo cuando el usuario da su consentimiento.\n\nEl usuario puede aceptar, rechazar o configurar cookies opcionales mediante el panel de consentimiento de la plataforma. Las preferencias pueden modificarse en cualquier momento.\n\nCuando las cookies impliquen tratamiento de datos personales, dicho tratamiento se realizará de conformidad con el RGPD y la Política de Privacidad de la Plataforma CPC.\n\nEsta política puede actualizarse para reflejar cambios técnicos, legales u operativos.",
       "sections": {
         "intro": {
           "title": "1. Introducción",
@@ -1393,6 +1669,7 @@
     },
     "privacy": {
       "title": "Política de privacidad",
+      "body": "La protección de los datos personales es una prioridad para la Plataforma CPC. Esta Política de Privacidad explica cómo recogemos, utilizamos, almacenamos y protegemos los datos personales de los usuarios.\n\nLa plataforma trata datos necesarios para registro, autenticación, triaje, seguimiento, programación de sesiones, acceso a contenidos formativos, candidaturas, comunicación y evaluación de impacto.\n\nLos datos pueden incluir información de identificación y contacto, datos de perfil, información profesional, necesidades de integración, progreso en rutas formativas, sesiones, candidaturas, comunicaciones y registros técnicos necesarios para el funcionamiento seguro de la plataforma.\n\nEl tratamiento se realiza con base en fundamentos legales aplicables, incluyendo prestación de servicios solicitados, consentimiento cuando sea necesario, cumplimiento de obligaciones legales e interés legítimo en la gestión, seguridad y mejora de la plataforma.\n\nLos datos solo son accedidos por usuarios autorizados según su perfil y finalidad. Podrán compartirse con empleadores o socios solo cuando sea necesario para funcionalidades específicas y conforme a la legislación aplicable.\n\nLa Plataforma CPC adopta medidas técnicas y organizativas para proteger los datos contra acceso no autorizado, pérdida, alteración o divulgación indebida.\n\nLos usuarios tienen derechos de acceso, rectificación, supresión, limitación, oposición, portabilidad y retirada del consentimiento cuando corresponda.\n\nEsta política puede actualizarse cuando sea necesario. Los cambios relevantes se comunicarán por medios adecuados.",
       "sections": {
         "intro": {
           "title": "1",
@@ -1690,7 +1967,8 @@
       "messages": "Mensagens",
       "administrationSection": "Administración",
       "settingsSection": "Configuración",
-      "eventLog": "Logs de auditoría"
+      "eventLog": "Logs de auditoría",
+      "pendingBadge": "{count} pendiente(s)"
     },
     "profile": {
       "title": "Perfil",
@@ -2147,6 +2425,11 @@
       },
       "sessionRecord": {
         "open": "Registro de sesión",
+        "loading": "Cargando datos del migrante...",
+        "loadError": "No fue posible cargar los datos del migrante.",
+        "emptyNeeds": "Sin necesidades identificadas en la situación inicial.",
+        "emptyScreening": "Situación inicial aún no completada.",
+        "emptyActivity": "Sin actividad reciente registrada.",
         "breadcrumbs": {
           "home": "Inicio",
           "migrants": "Migrantes",
@@ -2154,42 +2437,35 @@
         },
         "header": {
           "title": "Registro de sesión",
-          "dateTime": "24 de febrero de 2024 • 14:30",
-          "tech": "Técnico: Sarah J.",
-          "saveDraft": "Guardar borrador"
+          "tech": "Técnico: {name}",
+          "techUnknown": "Técnico por asignar",
+          "saveDraft": "Guardar borrador",
+          "saveDraftSuccess": "Borrador guardado.",
+          "saveError": "No fue posible guardar la nota de sesión.",
+          "finalizeSuccess": "Nota de sesión guardada."
         },
         "profile": {
-          "name": "Mateo Silva",
-          "initials": "MS",
           "idLabel": "ID:",
-          "idValue": "#94821",
           "statusActive": "Activo"
         },
         "needs": {
-          "title": "Necesidades identificadas",
-          "languageSupport": "Apoyo de idioma",
-          "cvWorkshop": "Taller de CV",
-          "housing": "Vivienda"
+          "title": "Necesidades identificadas"
         },
         "screening": {
           "title": "Resumen de evaluación",
-          "p1": "Ingreso inicial realizado el 15 de ene de 2024. Mateo muestra alta motivación para empleo en el sector de la construcción, específicamente carpintería.",
           "primaryChallengeLabel": "Desafío principal:",
-          "primaryChallengeText": "El nivel actual de idioma (A2) es insuficiente para requisitos de entrada a formación vocacional (se necesita B1).",
-          "p2": "La situación de vivienda es estable pero temporal. Ha solicitado asistencia legal sobre documentación de reunificación familiar."
+          "completed": "Situación inicial completada.",
+          "completedOn": "Situación inicial completada el {date}.",
+          "workStatus": "Situación laboral: {status}.",
+          "professionalTitle": "Área profesional: {title}.",
+          "housingStatus": "Vivienda: {status}.",
+          "legalStatus": "Situación legal: {status}.",
+          "languageLevel": "Nivel de idioma: {level}."
         },
         "activity": {
           "title": "Actividad reciente",
-          "item1": {
-            "date": "10 feb, 2024",
-            "title": "Asistencia a taller de CV",
-            "status": "Completado"
-          },
-          "item2": {
-            "date": "28 ene, 2024",
-            "title": "Evaluación de idioma",
-            "meta": "Puntuación: A2"
-          }
+          "trailProgress": "{percent}% completado",
+          "sessionFallback": "Sesión"
         },
         "notes": {
           "title": "Notas de la sesión",
@@ -2736,7 +3012,15 @@
       },
       "trails": {
         "title": "Rutas formativas",
-        "subtitle": "Crear y editar rutas formativas y sus módulos."
+        "subtitle": "Crear y editar rutas formativas y sus módulos.",
+        "delete": {
+          "action": "Eliminar",
+          "title": "Eliminar ruta",
+          "confirm": "¿Seguro que desea eliminar la ruta \"{title}\"? Esta acción elimina módulos, comentarios y progreso asociados y no se puede deshacer.",
+          "success": "Ruta eliminada.",
+          "error": "No se pudo eliminar la ruta. Inténtelo de nuevo.",
+          "deleting": "Eliminando…"
+        }
       },
       "contentEditor": {
         "title": "Editor de contenido",

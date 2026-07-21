@@ -2,14 +2,31 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+function resolveAppBuildId(mode: string): string {
+  const fromEnv =
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.CF_PAGES_COMMIT_SHA ||
+    process.env.VITE_APP_BUILD_ID;
+  if (fromEnv && String(fromEnv).trim()) return String(fromEnv).trim();
+  // Em produção sem SHA: timestamp do build. Em dev: estável (sem purge a cada HMR).
+  if (mode === "production") return `build-${Date.now()}`;
+  return "dev";
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    "import.meta.env.VITE_APP_BUILD_ID": JSON.stringify(resolveAppBuildId(mode)),
+  },
   server: {
     // "::" (IPv6) can trigger network interface resolution errors in some environments.
     // Binding to IPv4 loopback keeps local dev stable and predictable.
     host: "127.0.0.1",
     port: 8090,
     strictPort: true,
+    headers: {
+      "Cache-Control": "no-store",
+    },
     // Nominatim (OSM): CORS e User-Agent em desenvolvimento; em produção o cliente usa o URL direto.
     proxy: {
       "/osm-nominatim": {

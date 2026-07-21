@@ -47,6 +47,7 @@ import {
   Trash2,
   Search,
   ScrollText,
+  Target,
 } from 'lucide-react';
 import {
   addCalendarDaysIso,
@@ -77,6 +78,12 @@ import {
   sortDashboardNotificationsNewestFirst,
 } from '@/lib/dashboardNotifications';
 import { useAppDateTime } from '@/hooks/useAppDateTime';
+import { useCpcMenuPendingIndicators } from '@/hooks/useCpcMenuPendingIndicators';
+import {
+  formatPendingBadgeLabel,
+  pendingCountForMenuPath,
+} from '@/lib/cpcMenuPending';
+import { cn } from '@/lib/utils';
 import { useDashboardDisplayName } from '@/hooks/useDashboardDisplayName';
 
 type CpcDashboardSessionDoc = {
@@ -210,6 +217,7 @@ export default function CPCDashboard() {
   const canAccessServiceAreas = canManageServiceAreas(profile?.role);
 
   const cpcDisplayName = useDashboardDisplayName();
+  const menuPendingCounts = useCpcMenuPendingIndicators();
 
   const [loading, setLoading] = useState(true);
   const [period] = useState<'today' | 'week' | 'month'>('week');
@@ -1321,6 +1329,7 @@ export default function CPCDashboard() {
   const sidebarItemsMain = [
     { to: '/dashboard/cpc', label: t.get('cpc.menu.overview'), icon: TrendingUp },
     { to: '/dashboard/cpc/migrantes', label: t.get('cpc.menu.migrants'), icon: Users },
+    { to: '/dashboard/cpc/scas', label: t.get('scas.dashboard.title'), icon: Target },
     { to: '/dashboard/cpc/atividades', label: t.get('cpc.menu.activities'), icon: ClipboardList },
     { to: '/dashboard/cpc/agenda', label: t.get('cpc.menu.agenda'), icon: Calendar },
     { to: '/dashboard/cpc/sessoes', label: t.get('cpc.menu.sessions'), icon: ListChecks },
@@ -1369,19 +1378,35 @@ export default function CPCDashboard() {
                 <p className="font-semibold">{cpcDisplayName}</p>
               </div>
               <nav className="space-y-1">
-                {sidebarItemsMain.map((item) => (
+                {sidebarItemsMain.map((item) => {
+                  const pendingCount = pendingCountForMenuPath(item.to, menuPendingCounts);
+                  const pendingLabel = formatPendingBadgeLabel(pendingCount);
+                  return (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     end={item.to === '/dashboard/cpc'}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`
+                      cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                        isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+                      )
                     }
                   >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="leading-snug flex-1">{item.label}</span>
+                    {pendingLabel ? (
+                      <span
+                        className="ml-auto inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white"
+                        title={t.get('cpc.menu.pendingBadge', { count: pendingCount })}
+                        aria-label={t.get('cpc.menu.pendingBadge', { count: pendingCount })}
+                      >
+                        {pendingLabel}
+                      </span>
+                    ) : null}
                   </NavLink>
-                ))}
+                  );
+                })}
 
                 {isCpcAdmin ? (
                   <Accordion
@@ -1674,7 +1699,9 @@ export default function CPCDashboard() {
               <Routes>
                 <Route path="candidatos/:candidateId" element={<CandidateProfilePage />} />
                 <Route path="migrantes/:migrantId/perfil" element={<MigrantProfilePage />} />
+                <Route path="migrantes/:migrantId/scas" element={<ScasAssistedPage />} />
                 <Route path="migrantes" element={<MigrantsAdminPage />} />
+                <Route path="scas" element={<ScasDashboardPage />} />
                 <Route path="atividades" element={<ActivitiesPage />} />
                 <Route path="atividades/nova" element={<ActivityEditorPage />} />
                 <Route path="atividades/:activityId" element={<ActivityDetailsPage />} />
@@ -1738,3 +1765,5 @@ import CpcCompanyDetailPage from './cpc/CpcCompanyDetailPage';
 import StatisticsPage from './cpc/StatisticsPage';
 import CPCSettingsPage from './cpc/SettingsPage';
 import EventLogPage from './cpc/EventLogPage';
+import ScasAssistedPage from './cpc/ScasAssistedPage';
+import ScasDashboardPage from './cpc/ScasDashboardPage';
