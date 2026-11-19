@@ -54,6 +54,30 @@
       "20": "Reading and writing in Portuguese.",
       "21": "Adapting my behaviour to local social norms, rules, attitudes and customs."
     },
+    "itemHintLabel": "What does this question mean?",
+    "itemHints": {
+      "1": "Do I find it easy to make new friends and keep in regular contact with Portuguese people or people living here?",
+      "2": "Can I diligently keep to my work/class schedules, meet the set goals and organise my daily tasks?",
+      "3": "Do I feel comfortable and confident at a group dinner, a local party or chatting with acquaintances in a café?",
+      "4": "Can I keep doing what I enjoy most here (e.g. sports, reading, religion, outdoor activities or outings)?",
+      "5": "Do I cope well with the routine, urban noise, cleanliness and general atmosphere of the street or building where I currently live?",
+      "6": "Can I easily understand people's intentions (whether they are joking, being ironic or upset) from their posture and face?",
+      "7": "Can I work harmoniously on team projects with local colleagues or colleagues from other cultural backgrounds?",
+      "8": "Do I know how to find and use the basic services available to me (e.g. Health Centre, Parish Council, schools or transport)?",
+      "9": "Do I feel comfortable with the number of people and the bustle of the area (whether the calm of a village or the movement of an Algarve town)?",
+      "10": "Can I hold everyday conversations, understand directions in the street and make myself understood without using translators?",
+      "11": "Do I notice when I should slow down my speech or use local expressions so that residents understand me better?",
+      "12": "Can I welcome advice, reviews or constructive criticism about my tasks and use them to improve at work/in my studies?",
+      "13": "Can I read the atmosphere and someone's emotional state in Portugal so as to react with empathy and without conflict?",
+      "14": "Do I usually go to municipal fairs, local markets, neighbourhood festivals or community meetings where I live?",
+      "15": "Can I get around on my own, use public transport or find my way with my phone's GPS to discover new places?",
+      "16": "Do I feel at ease talking, working or socialising with people of the opposite sex without cultural barriers?",
+      "17": "Can I present my opinions in a meeting or classroom clearly and respectfully, so as to avoid misunderstandings or friction?",
+      "18": "Do I feel able to deal with official paperwork (Tax Authority, Social Security, AIMA) in a reasonably autonomous way?",
+      "19": "Do I feel fully used to the pace at which things happen in the country (deadlines, business hours, waiting times)?",
+      "20": "Can I read the news, fill in simple forms and write messages or emails without major difficulties?",
+      "21": "Do I already know and respect Portuguese customs (such as rules of social conduct, meal times and common greetings)?"
+    },
     "moments": {
       "T0": "Initial assessment",
       "T_TRILHA": "After completing a trail",
@@ -65,7 +89,7 @@
       "ASSISTIDO": "Assisted"
     },
     "recommendation": {
-      "obrigatoria": "Mandatory",
+      "obrigatoria": "Required",
       "recomendada": "Recommended",
       "opcional": "Optional"
     },
@@ -162,8 +186,29 @@
       "ACCEPTED": "Accepted",
       "SUPERSEDED": "Archived"
     },
+    "trailRule": {
+      "label": "PDI rule",
+      "none": "No rule (not proposed automatically in the PDI)",
+      "fromTitle": "Automatic from title: {rule}",
+      "hint": "Defines how the trail is proposed in the PDI (Required / Recommended / Optional), according to the \"Adaptação SCAS - Trilhas\" document. If left empty, the title prefix is used (e.g. \"T3 - …\").",
+      "options": {
+        "T1": "T1 - Social Relationships",
+        "T2": "T2 - Communication",
+        "T3": "T3 - Access to Essential Services",
+        "T4": "T4 - Living in Portugal",
+        "T5": "T5 - Professional Integration",
+        "T6": "T6 - Legal Status",
+        "T7": "T7 - Housing",
+        "T8": "T8 - Access to the National Health Service (SNS)",
+        "T9": "T9 - Emotional Well-being",
+        "T10": "T10 - Building your CV",
+        "T11": "T11 - Job Search Techniques",
+        "T12": "T12 - LinkedIn / Social Media",
+        "T13": "T13 - Interview Preparation"
+      }
+    },
     "trailState": {
-      "OBRIGATORIA": "Mandatory",
+      "OBRIGATORIA": "Required",
       "RECOMENDADA": "Recommended",
       "OPCIONAL": "Optional",
       "NAO_INCLUIDA": "Not included"
@@ -1333,6 +1378,13 @@
       "paginationHint": "{count} applications total. The current view shows them all; pagination will arrive past 200."
     },
     "profile": {
+      "cepLookup": {
+        "hint": "With the full postcode (7 digits), the region is suggested automatically. The address you have already entered is not changed.",
+        "regionSuggested": "Region suggested from the postcode. The address was not changed.",
+        "addressAndRegionSuggested": "Address and region suggested from the postcode. You can adjust them if needed.",
+        "notFound": "Could not get any data for this postcode.",
+        "lookupFailed": "Could not look up the postcode."
+      },
       "personalInfoGate": {
         "badge": "Action required",
         "bannerTitle": "Complete Personal Information",

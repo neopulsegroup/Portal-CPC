@@ -1,6 +1,6 @@
 # CPC — Cloud Functions
 
-Funções server-side em Firebase Functions (Node 20). Cada função vive num
+Funções server-side em Firebase Functions (Node 22). Cada função vive num
 ficheiro próprio em `src/`, é exportada no `src/index.ts` e implantada
 junto com o resto do projeto.
 

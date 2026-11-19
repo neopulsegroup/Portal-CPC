@@ -13,8 +13,9 @@ React + TypeScript + Firestore + Cloud Functions (não há SQL/migrações). As
 
 - 21 itens, 4 domínios (D1: 9 itens; D2/D3/D4: 4 cada). Escala 1–5 (emoji).
 - Score por domínio = média dos itens do domínio. Score global = média dos 21.
-- Recomendação de trilha (score T0 do domínio): `< 3,0` obrigatória; `3,0–3,5`
-  recomendada; `> 3,5` opcional.
+- Recomendação de trilha: ver "Regras de trilhas do PDI" abaixo. Limites (decisão
+  de 2026-11-19, doc. do cliente "Adaptação SCAS - Trilhas"): `≤ 3,0` Necessária;
+  `> 3,0 e ≤ 3,5` Recomendada; `> 3,5` Facultativa. Antes, o 3,0 contava como Recomendada.
 - Melhoria T0→T-PDI: `≥ 20%` → `meta_atingida`; `≥ 15% e < 20%` → `alarme_interno`.
 - Momentos: `T0` (após triagem), `T_TRILHA` (por trilha do PDI com domínio
   mapeado), `T_PDI` (todas as trilhas concluídas), `T_ADICIONAL` (reavaliação).
@@ -23,6 +24,36 @@ React + TypeScript + Firestore + Cloud Functions (não há SQL/migrações). As
 
 Constantes centralizadas em `src/lib/scas/constants.ts` (e espelhadas em
 `functions/src/scasScoring.ts`, porque o pacote `functions` compila isolado).
+
+## Regras de trilhas do PDI (doc. "Adaptação SCAS - Trilhas")
+
+Os 4 domínios (D1–D4) continuam a ser usados nas notas guardadas, nas estatísticas,
+nas metas do PDI e nas reavaliações `T_TRILHA`. **A proposta de trilhas no PDI** usa
+os grupos de perguntas do documento do cliente (`src/lib/pdi/trailRules.ts`, espelhado
+em `functions/src/pdiTrailRules.ts`; os dois ficheiros têm de ser idênticos e há um
+teste que o garante).
+
+| Trilha | Regra |
+|---|---|
+| T1 Relações Sociais | média das perguntas 1, 3, 16, 21 |
+| T2 Comunicação | média das perguntas 6, 11, 13 |
+| T3 Acesso a Serviços Essenciais | média das perguntas 4, 8, 14, 18 |
+| T4 Viver em Portugal | média das perguntas 5, 9, 15, 19 |
+| T5 Inserção Profissional | média das perguntas 2, 7, 12, 17 |
+| T6 Situação Legal | triagem "Não Regularizado" → Recomendada; caso contrário Facultativa |
+| T7 Habitação | habitação "Estável (Própria/Alugada)" → Facultativa; caso contrário Recomendada |
+| T8 SNS | inscrito no SNS ("Sim") → Facultativa; caso contrário Recomendada |
+| T9 Bem-Estar Emocional | bem-estar Muito Mal/Mal/Razoável, ou pergunta 4 ou 14 ≤ 3 → Recomendada; caso contrário Facultativa |
+| T10–T13 (CV, Procura de Emprego, LinkedIn, Entrevistas) | situação profissional "Empregado" → Facultativa; caso contrário Recomendada |
+
+- T1–T5: `≤ 3,0` Necessária, `> 3,0 e ≤ 3,5` Recomendada, `> 3,5` Facultativa.
+  As perguntas 10 e 20 (língua portuguesa) não entram em nenhuma trilha.
+- A regra de cada trilha vem do campo **Regra do PDI** no editor de trilhas
+  (`trails.pdi_rule`) ou, se vazio, do prefixo do título (`"T3 - …"`).
+- Só entram trilhas **ativas**. Trilhas sem regra mas com `scas_domain` continuam
+  a usar o score do domínio.
+- Valores internos mantidos: `obrigatoria`/`OBRIGATORIA` = Necessária,
+  `opcional`/`OPCIONAL` = Facultativa (só mudaram os textos no ecrã).
 
 ## Coleções Firestore
 

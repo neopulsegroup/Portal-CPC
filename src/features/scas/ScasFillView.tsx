@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Loader2, CheckCircle2, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, ShieldCheck, AlertTriangle, Info } from 'lucide-react';
 
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   getTranslationStringAtPath,
   interpolateTranslation,
@@ -19,6 +20,36 @@ function scasText(lang: Language, path: string, params?: Record<string, string |
   const raw =
     getTranslationStringAtPath(lang, path) ?? getTranslationStringAtPath('pt', path) ?? path;
   return interpolateTranslation(raw, params);
+}
+
+/**
+ * Ícone de ajuda com a explicação prática da pergunta SCAS.
+ * Abre ao passar o rato/focar (tooltip) e também ao tocar, para funcionar em telemóvel.
+ */
+function ScasItemHint({ label, hint }: { label: string; hint: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen} delayDuration={100}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          // preventDefault impede o Radix de fechar a dica no toque/clique; o toggle fica connosco.
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }}
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Info className="h-4 w-4" aria-hidden />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-xs text-sm leading-snug">
+        {hint}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export interface ScasFillViewProps {
@@ -124,10 +155,16 @@ export function ScasFillView({ fill, onBack, onSubmitted }: ScasFillViewProps) {
         {fill.items.map((itemId, index) => (
           <Card key={itemId}>
             <CardHeader className="pb-2">
-              <p className="font-medium">
-                <span className="text-muted-foreground mr-2">{index + 1}.</span>
-                {scasText(fill.formLanguage, `scas.items.${itemId}`)}
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-medium">
+                  <span className="text-muted-foreground mr-2">{index + 1}.</span>
+                  {scasText(fill.formLanguage, `scas.items.${itemId}`)}
+                </p>
+                <ScasItemHint
+                  label={scasText(fill.formLanguage, 'scas.itemHintLabel')}
+                  hint={scasText(fill.formLanguage, `scas.itemHints.${itemId}`)}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-5 gap-2">

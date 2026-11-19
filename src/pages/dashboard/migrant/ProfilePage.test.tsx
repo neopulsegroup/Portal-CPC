@@ -23,6 +23,11 @@ vi.mock('@/api/migrantProfile', () => ({
 vi.mock('@/integrations/firebase/firestore', () => ({
   updateDocument: (...args: unknown[]) => mockUpdateDocument(...args),
   queryDocuments: (...args: unknown[]) => mockQueryDocuments(...args),
+  // Usado por hooks de acesso (ex.: useCompanyNamePreference); sem dados em tempo real nos testes.
+  subscribeDocument: (args: { onNext: (doc: unknown) => void }) => {
+    args.onNext(null);
+    return () => undefined;
+  },
 }));
 
 vi.mock('@/integrations/firebase/auth', () => ({
@@ -333,6 +338,54 @@ describe('ProfilePage (dashboard/migrante)', () => {
     expect(screen.getByText('A Região é obrigatória.')).toBeInTheDocument();
     expect(mockUpdateDocument).not.toHaveBeenCalled();
   });
+
+  it('ao inserir o CEP não substitui a Morada pela localidade (só sugere a Região)', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    stableUser.uid = 'cpc1';
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const u = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (u.includes('nominatim.openstreetmap.org') || u.includes('/osm-nominatim')) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              display_name: '4350-150, Porto, Portugal',
+              address: { postcode: '4350-150', city: 'Porto', municipality: 'Porto', county: 'Porto' },
+            },
+          ],
+        } as Response;
+      }
+      return { ok: true, json: async () => ({ features: [] }) } as Response;
+    }) as typeof fetch;
+
+    mockFetchMigrantProfile.mockResolvedValueOnce({
+      userProfile: { email: 'm1@exemplo.com', name: 'Migrante 1', role: 'migrant', createdAt: null, updatedAt: null },
+      profile: { id: 'm1', name: 'Migrante 1', email: 'm1@exemplo.com', phone: null },
+      triage: null,
+      sessions: [],
+      progress: [],
+      trails: {},
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/cpc/migrantes/m1/perfil']}>
+        <Routes>
+          <Route path="/dashboard/cpc/migrantes/:migrantId/perfil" element={<ProfilePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Informação Pessoal');
+    await user.click(screen.getByRole('button', { name: 'Editar Perfil' }));
+    await user.type(screen.getByLabelText('Morada'), 'Avenida Fernão de Magalhães');
+    await user.type(screen.getByLabelText('CEP'), '4350-150');
+
+    expect(await screen.findByText('migrant.profile.cepLookup.regionSuggested', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect((screen.getByLabelText('Morada') as HTMLInputElement).value).toBe('Avenida Fernão de Magalhães');
+    expect(screen.getByLabelText('Região')).toHaveTextContent('Norte');
+  }, 15000);
 
   it('restringe o CEP a dígitos e hífen', async () => {
     localStorage.clear();

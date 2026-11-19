@@ -7,6 +7,7 @@ const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("./admin");
 const notificationHelpers_1 = require("./notificationHelpers");
 const pdiLogic_1 = require("./pdiLogic");
+const pdiTrailRules_1 = require("./pdiTrailRules");
 const CPC_TEAM_ROLES = [
     'admin',
     'manager',
@@ -76,9 +77,25 @@ async function loadTrailCatalog(db) {
     const snap = await db.collection('trails').get();
     return snap.docs.map((d) => ({
         id: d.id,
+        title: typeof d.data().title === 'string' ? d.data().title : null,
+        pdi_rule: d.data().pdi_rule,
         scas_domain: d.data().scas_domain,
         is_active: d.data().is_active,
     }));
+}
+/** Respostas (item → 1..5) de uma avaliação SCAS submetida. */
+async function loadScasResponses(db, assessmentId) {
+    const snap = await db.collection('scas_responses').where('assessment_id', '==', assessmentId).get();
+    const responses = {};
+    for (const doc of snap.docs) {
+        const data = doc.data();
+        const itemId = Number(data.item_id);
+        const value = Number(data.value);
+        if (Number.isInteger(itemId) && Number.isInteger(value) && value >= 1 && value <= 5) {
+            responses[itemId] = value;
+        }
+    }
+    return responses;
 }
 exports.generatePdiFromT0 = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     const requestId = (0, node_crypto_1.randomUUID)();
@@ -104,16 +121,19 @@ exports.generatePdiFromT0 = (0, https_1.onCall)({ region: 'us-central1' }, async
         throw new https_1.HttpsError('failed-precondition', 'SCAS T0 não encontrado.', { error: 'T0_NOT_FOUND', requestId });
     }
     const t0 = t0Doc.data();
-    const trails = await loadTrailCatalog(db);
+    const [trails, t0Responses, triageSnap] = await Promise.all([
+        loadTrailCatalog(db),
+        loadScasResponses(db, t0Doc.id),
+        db.doc(`triage/${participantId}`).get(),
+    ]);
+    const triageData = triageSnap.exists ? triageSnap.data() : null;
     const activeTrails = trails.filter((t) => t.is_active !== false);
     const trilhas = (0, pdiLogic_1.generateAutoTrilhas)({
         score_d1: t0.score_d1 ?? null,
         score_d2: t0.score_d2 ?? null,
         score_d3: t0.score_d3 ?? null,
         score_d4: t0.score_d4 ?? null,
-    }, activeTrails);
-    const triageSnap = await db.doc(`triage/${participantId}`).get();
-    const triageData = triageSnap.exists ? triageSnap.data() : null;
+    }, activeTrails, { responses: t0Responses, triage: (0, pdiTrailRules_1.extractTriageRuleInput)(triageData) });
     const apoios = (0, pdiLogic_1.generateApoiosFromTriage)(triageData?.urgencies ??
         triageData?.identified_needs);
     const classSnap = await db.doc(`migrant_classifications/${participantId}`).get();

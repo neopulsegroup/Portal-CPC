@@ -10,6 +10,7 @@ import {
   mapRecommendationToPdiState,
   setTrailStateInPdiTrilhas,
 } from './generation';
+import { EMPTY_TRIAGE_RULE_INPUT } from './trailRules';
 import {
   allReviewSectionsViewed,
   canAcceptPdi,
@@ -47,6 +48,45 @@ describe('pdi generation', () => {
     expect(trilhas.find((t) => t.trail_id === 't1')?.recommended_state).toBe('OBRIGATORIA');
     expect(trilhas.find((t) => t.trail_id === 't2')?.recommended_state).toBe('RECOMENDADA');
     expect(trilhas.find((t) => t.trail_id === 't3')?.recommended_state).toBe('OPCIONAL');
+  });
+
+  it('generateAutoTrilhas aplica as regras do PDF às trilhas T1–T13 (título ou pdi_rule)', () => {
+    const responses: Record<number, number> = {};
+    for (let id = 1; id <= 21; id += 1) responses[id] = 4;
+    Object.assign(responses, { 1: 3, 3: 3, 16: 3, 21: 3 }); // T1 média 3 → Necessária
+
+    const trilhas = generateAutoTrilhas(
+      { score_d1: 4, score_d2: 4, score_d3: 4, score_d4: 4, score_global: 4 },
+      [
+        { id: 'a', title: 'T1 - Relações Sociais' },
+        { id: 'b', title: 'T2 - Comunicação' },
+        { id: 'c', title: 'Trilha renomeada', pdi_rule: 'T6' },
+        { id: 'd', title: 'T10 - Construção do CV' },
+        { id: 'e', title: 'T0 - Apresentação' },
+        { id: 'f', title: 'Sem regra', scas_domain: 'D2' },
+      ],
+      { responses, triage: { ...EMPTY_TRIAGE_RULE_INPUT, legal_status: 'not_regularized', work_status: 'employed' } }
+    );
+
+    const state = (id: string) => trilhas.find((t) => t.trail_id === id)?.recommended_state;
+    expect(state('a')).toBe('OBRIGATORIA');
+    expect(state('b')).toBe('OPCIONAL');
+    expect(state('c')).toBe('RECOMENDADA');
+    expect(state('d')).toBe('OPCIONAL');
+    expect(state('e')).toBeUndefined();
+    // Trilha sem regra mas com domínio continua a usar o score do domínio.
+    expect(state('f')).toBe('OPCIONAL');
+    expect(trilhas.every((t) => t.origin === 'AUTO')).toBe(true);
+  });
+
+  it('generateAutoTrilhas ignora trilhas T1–T5 quando faltam respostas do grupo', () => {
+    const trilhas = generateAutoTrilhas(
+      { score_d1: null, score_d2: null, score_d3: null, score_d4: null, score_global: null },
+      [{ id: 'a', title: 'T1 - Relações Sociais' }, { id: 'b', title: 'T7 - Habitação' }],
+      { responses: {}, triage: null }
+    );
+    expect(trilhas.map((t) => t.trail_id)).toEqual(['b']);
+    expect(trilhas[0].recommended_state).toBe('RECOMENDADA');
   });
 
   it('generateApoiosFromTriage pré-marca urgências', () => {

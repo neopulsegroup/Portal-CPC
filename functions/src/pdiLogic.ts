@@ -3,6 +3,13 @@
  */
 
 import { roundScore } from './scasScoring';
+import {
+  EMPTY_TRIAGE_RULE_INPUT,
+  recommendTrailByRule,
+  resolveTrailRuleKey,
+  type PdiScasResponseMap,
+  type PdiTriageRuleInput,
+} from './pdiTrailRules';
 
 export type ScasDomain = 'D1' | 'D2' | 'D3' | 'D4';
 export type ScasTrailRecommendation = 'obrigatoria' | 'recomendada' | 'opcional';
@@ -15,7 +22,8 @@ export type PdiApoioType =
   | 'SOCIOPROFISSIONAL'
   | 'OUTRO';
 
-export const SCAS_RECOMMENDATION_MANDATORY_BELOW = 3.0;
+/** ≤ 3,0 → Necessária (doc. cliente "Adaptação SCAS - Trilhas"). */
+export const SCAS_RECOMMENDATION_MANDATORY_MAX = 3.0;
 export const SCAS_RECOMMENDATION_RECOMMENDED_MAX = 3.5;
 export const SCAS_META_TARGET_PERCENT = 20;
 export const PDI_DOMAIN_TARGET_MIN = 3.0;
@@ -38,7 +46,7 @@ export interface PdiApoioEntry {
 }
 
 export function recommendTrail(domainScore: number): ScasTrailRecommendation {
-  if (domainScore < SCAS_RECOMMENDATION_MANDATORY_BELOW) return 'obrigatoria';
+  if (domainScore <= SCAS_RECOMMENDATION_MANDATORY_MAX) return 'obrigatoria';
   if (domainScore <= SCAS_RECOMMENDATION_RECOMMENDED_MAX) return 'recomendada';
   return 'opcional';
 }
@@ -59,6 +67,11 @@ export function computeTargetForDomain(domainScore: number | null): number | nul
   return roundScore(Math.min(5, domainScore + 0.5));
 }
 
+/**
+ * Gera trilhas AUTO (espelho de src/lib/pdi/generation.ts):
+ * - trilhas com regra T1–T13 (`pdi_rule` ou título "T<n> - …") → regras do doc. "Adaptação SCAS - Trilhas";
+ * - restantes com `scas_domain` → score T0 do domínio.
+ */
 export function generateAutoTrilhas(
   scores: {
     score_d1: number | null;
@@ -66,8 +79,11 @@ export function generateAutoTrilhas(
     score_d3: number | null;
     score_d4: number | null;
   },
-  trails: Array<{ id: string; scas_domain?: ScasDomain | null }>
+  trails: Array<{ id: string; title?: string | null; pdi_rule?: unknown; scas_domain?: ScasDomain | null }>,
+  context: { responses?: PdiScasResponseMap; triage?: PdiTriageRuleInput | null } = {}
 ): PdiTrilhaEntry[] {
+  const responses = context.responses ?? {};
+  const triage = context.triage ?? EMPTY_TRIAGE_RULE_INPUT;
   const byDomain: Record<ScasDomain, ScasTrailRecommendation | null> = {
     D1: scores.score_d1 != null ? recommendTrail(scores.score_d1) : null,
     D2: scores.score_d2 != null ? recommendTrail(scores.score_d2) : null,
@@ -77,6 +93,21 @@ export function generateAutoTrilhas(
 
   const result: PdiTrilhaEntry[] = [];
   for (const trail of trails) {
+    const rule = resolveTrailRuleKey(trail);
+    if (rule) {
+      const byRule = recommendTrailByRule(rule, responses, triage);
+      if (!byRule) continue;
+      result.push({
+        trail_id: trail.id,
+        recommended_state: mapRecommendationToPdiState(byRule),
+        origin: 'AUTO',
+        scas_domain: trail.scas_domain ?? null,
+        start_date: null,
+        end_date: null,
+        completion_status: 'NAO_INICIADA',
+      });
+      continue;
+    }
     if (!trail.scas_domain) continue;
     const domain = trail.scas_domain;
     const recommendation = byDomain[domain];

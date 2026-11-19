@@ -23,6 +23,7 @@ import {
   deleteTrailModulePdfFromStorage,
 } from '@/lib/trailModuleStorage';
 import { queryTrailModules } from '@/lib/trailModules';
+import { PDI_TRAIL_RULE_KEYS, resolveTrailRuleKey, type PdiTrailRuleKey } from '@/lib/pdi/trailRules';
 import {
   queryApprovedTrailComments,
   queryPendingTrailComments,
@@ -80,6 +81,7 @@ interface Trail {
   image_url?: string | null;
   image_path?: string | null;
   scas_domain?: 'D1' | 'D2' | 'D3' | 'D4' | null;
+  pdi_rule?: PdiTrailRuleKey | null;
 }
 
 interface Module {
@@ -351,6 +353,7 @@ export default function TrailEditorPage() {
         image_url: trail.image_url ?? null,
         image_path: trail.image_path ?? null,
         scas_domain: trail.scas_domain ?? null,
+        pdi_rule: trail.pdi_rule ?? null,
         modules_count: modules.length,
         duration_minutes: totalDuration,
       });
@@ -733,6 +736,9 @@ export default function TrailEditorPage() {
     return t.get(errorKey);
   }
 
+  /** Regra deduzida do título ("T<n> - …"), usada quando o campo "Regra do PDI" fica vazio. */
+  const inferredPdiRule = trail ? resolveTrailRuleKey({ title: trail.title }) : null;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -865,6 +871,34 @@ export default function TrailEditorPage() {
             <p className="text-xs text-muted-foreground mt-1">
               Liga a trilha a um domínio SCAS para avaliação após a conclusão (T_TRILHA).
             </p>
+          </div>
+          <div>
+            <label htmlFor="trail-pdi-rule" className="text-sm font-medium mb-2 block">
+              {t.get('pdi.trailRule.label')}
+            </label>
+            <select
+              id="trail-pdi-rule"
+              value={trail.pdi_rule ?? ''}
+              onChange={(e) =>
+                setTrail({
+                  ...trail,
+                  pdi_rule: (e.target.value || null) as Trail['pdi_rule'],
+                })
+              }
+              className="w-full px-4 py-2 rounded-lg border border-input bg-background"
+            >
+              <option value="">
+                {inferredPdiRule
+                  ? t.get('pdi.trailRule.fromTitle', { rule: t.get(`pdi.trailRule.options.${inferredPdiRule}`) })
+                  : t.get('pdi.trailRule.none')}
+              </option>
+              {PDI_TRAIL_RULE_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {t.get(`pdi.trailRule.options.${key}`)}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">{t.get('pdi.trailRule.hint')}</p>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <span className="flex items-center gap-1">

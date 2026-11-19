@@ -13,7 +13,7 @@ import {
   SCAS_MAX_VALUE,
   SCAS_META_TARGET_PERCENT,
   SCAS_MIN_VALUE,
-  SCAS_RECOMMENDATION_MANDATORY_BELOW,
+  SCAS_RECOMMENDATION_MANDATORY_MAX,
   SCAS_RECOMMENDATION_RECOMMENDED_MAX,
   SCAS_SCORE_DECIMALS,
   SCAS_TOTAL_ITEMS,
@@ -165,7 +165,7 @@ export function computeScores(
 
 /** Recomendação de trilha a partir do score T0 do domínio (prompt 4.4). */
 export function recommendTrail(domainScore: number): ScasTrailRecommendation {
-  if (domainScore < SCAS_RECOMMENDATION_MANDATORY_BELOW) return 'obrigatoria';
+  if (domainScore <= SCAS_RECOMMENDATION_MANDATORY_MAX) return 'obrigatoria';
   if (domainScore <= SCAS_RECOMMENDATION_RECOMMENDED_MAX) return 'recomendada';
   return 'opcional';
 }

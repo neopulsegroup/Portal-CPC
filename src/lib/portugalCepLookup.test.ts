@@ -122,6 +122,8 @@ describe('lookupAddressFromPortugalCep (fetch mock)', () => {
 
     const r = await lookupAddressFromPortugalCep('4425116');
     expect(r?.addressLine).toBe('Águas Santas, Maia');
+    // Nominatim só devolve a localidade: nunca deve ser tratada como rua (Morada).
+    expect(r?.street).toBeNull();
     expect(r?.region).toBe('Norte');
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('osm-nominatim') || String(c[0]).includes('nominatim'))).toBe(
       true
@@ -157,6 +159,8 @@ describe('lookupAddressFromPortugalCep (fetch mock)', () => {
     const r = await lookupAddressFromPortugalCep('4425116');
     expect(r).not.toBeNull();
     expect(r?.region).toBe('Norte');
+    // CEP exato no Photon: a rua vem separada da localidade.
+    expect(r?.street).toBe('Rua Teste');
     const photonUrl = fetchMock.mock.calls.map((c) => String(c[0])).find((x) => x.includes('photon.komoot.io'));
     expect(photonUrl).toBeDefined();
     expect(photonUrl).not.toMatch(/lang=pt/);

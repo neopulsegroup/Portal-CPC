@@ -17,6 +17,7 @@ import {
   type PdiTrilhaEntry,
   type ScasDomain,
 } from './pdiLogic';
+import { extractTriageRuleInput, type PdiScasResponseMap } from './pdiTrailRules';
 
 const CPC_TEAM_ROLES = [
   'admin',
@@ -93,9 +94,29 @@ async function loadTrailCatalog(db: admin.firestore.Firestore) {
   const snap = await db.collection('trails').get();
   return snap.docs.map((d) => ({
     id: d.id,
+    title: typeof d.data().title === 'string' ? (d.data().title as string) : null,
+    pdi_rule: d.data().pdi_rule as unknown,
     scas_domain: d.data().scas_domain as ScasDomain | null | undefined,
     is_active: d.data().is_active as boolean | undefined,
   }));
+}
+
+/** Respostas (item → 1..5) de uma avaliação SCAS submetida. */
+async function loadScasResponses(
+  db: admin.firestore.Firestore,
+  assessmentId: string
+): Promise<PdiScasResponseMap> {
+  const snap = await db.collection('scas_responses').where('assessment_id', '==', assessmentId).get();
+  const responses: PdiScasResponseMap = {};
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const itemId = Number(data.item_id);
+    const value = Number(data.value);
+    if (Number.isInteger(itemId) && Number.isInteger(value) && value >= 1 && value <= 5) {
+      responses[itemId] = value;
+    }
+  }
+  return responses;
 }
 
 export const generatePdiFromT0 = onCall({ region: 'us-central1' }, async (request) => {
@@ -136,7 +157,12 @@ export const generatePdiFromT0 = onCall({ region: 'us-central1' }, async (reques
   }
 
   const t0 = t0Doc.data();
-  const trails = await loadTrailCatalog(db);
+  const [trails, t0Responses, triageSnap] = await Promise.all([
+    loadTrailCatalog(db),
+    loadScasResponses(db, t0Doc.id),
+    db.doc(`triage/${participantId}`).get(),
+  ]);
+  const triageData = triageSnap.exists ? triageSnap.data() : null;
   const activeTrails = trails.filter((t) => t.is_active !== false);
   const trilhas = generateAutoTrilhas(
     {
@@ -145,11 +171,9 @@ export const generatePdiFromT0 = onCall({ region: 'us-central1' }, async (reques
       score_d3: t0.score_d3 ?? null,
       score_d4: t0.score_d4 ?? null,
     },
-    activeTrails
+    activeTrails,
+    { responses: t0Responses, triage: extractTriageRuleInput(triageData) }
   );
-
-  const triageSnap = await db.doc(`triage/${participantId}`).get();
-  const triageData = triageSnap.exists ? triageSnap.data() : null;
   const apoios = generateApoiosFromTriage(
   (triageData?.urgencies as string[] | null | undefined) ??
     (triageData?.identified_needs as string[] | null | undefined)

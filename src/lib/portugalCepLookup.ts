@@ -127,6 +127,19 @@ export function pickPhotonFeatureForPortugalCep(features: PhotonFeature[], d7: s
   return pool[0] ?? null;
 }
 
+/**
+ * Sugestão a partir do CEP.
+ * - `addressLine`: localidade (freguesia/concelho) ou rua + localidade quando o CEP é exato.
+ * - `street`: só a rua, quando a fonte a devolve para o CEP exato; caso contrário `null`.
+ *   A Morada do perfil só deve ser preenchida com `street` (nunca com a localidade).
+ */
+export type PortugalCepSuggestion = {
+  addressLine: string;
+  street: string | null;
+  region: CpcProfileRegion;
+  regionOther: string;
+};
+
 type NominatimAddress = {
   postcode?: string;
   town?: string;
@@ -153,11 +166,7 @@ function nominatimBaseUrl(): string {
  * Localidade correta do CEP (freguesia + concelho) via Nominatim.
  * @see https://operations.osmfoundation.org/policies/nominatim/
  */
-async function lookupFromNominatim(formattedCep: string, d7: string): Promise<{
-  addressLine: string;
-  region: CpcProfileRegion;
-  regionOther: string;
-} | null> {
+async function lookupFromNominatim(formattedCep: string, d7: string): Promise<PortugalCepSuggestion | null> {
   const params = new URLSearchParams({
     postalcode: formattedCep,
     countrycodes: 'pt',
@@ -204,7 +213,7 @@ async function lookupFromNominatim(formattedCep: string, d7: string): Promise<{
         ? [town, a.municipality, a.county].filter(Boolean).join(' · ').slice(0, 80)
         : '';
 
-    return { addressLine, region, regionOther };
+    return { addressLine, street: null, region, regionOther };
   }
 
   if (typeof hit.display_name === 'string') {
@@ -215,7 +224,7 @@ async function lookupFromNominatim(formattedCep: string, d7: string): Promise<{
     if (addressLine.length < 3) return null;
     const region = mapPortugalPlaceToCpcRegion(undefined, undefined, addressLine);
     const regionOther = region === 'Outra' ? addressLine.slice(0, 80) : '';
-    return { addressLine, region, regionOther };
+    return { addressLine, street: null, region, regionOther };
   }
 
   return null;
@@ -225,7 +234,7 @@ function suggestionFromPhotonProperties(
   p: NonNullable<PhotonFeature['properties']>,
   postalDigits: string,
   d7: string
-): { addressLine: string; region: CpcProfileRegion; regionOther: string } | null {
+): PortugalCepSuggestion | null {
   const postalExact = postalDigits === d7;
   const city = (p.city || p.locality || '').trim();
   const district = (p.district || '').trim();
@@ -252,7 +261,9 @@ function suggestionFromPhotonProperties(
       ? [p.city, p.county, p.state].filter(Boolean).join(' · ').slice(0, 80) || locality.slice(0, 80)
       : '';
 
-  return { addressLine, region, regionOther };
+  const street = postalExact && streetPart ? streetPart : null;
+
+  return { addressLine, street, region, regionOther };
 }
 
 /**
@@ -262,11 +273,7 @@ function suggestionFromPhotonProperties(
  *
  * Em desenvolvimento o Vite faz proxy `/osm-nominatim` com User-Agent válido.
  */
-export async function lookupAddressFromPortugalCep(cepRaw: string): Promise<{
-  addressLine: string;
-  region: CpcProfileRegion;
-  regionOther: string;
-} | null> {
+export async function lookupAddressFromPortugalCep(cepRaw: string): Promise<PortugalCepSuggestion | null> {
   const d = cepDigitsPortugal(cepRaw);
   if (!d) return null;
 

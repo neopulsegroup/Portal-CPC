@@ -18,7 +18,7 @@ Módulo de PDI integrado com SCAS: geração automática a partir do T0, revisã
 
 ## Cloud Functions (`us-central1`)
 
-- `generatePdiFromT0` — CPC; exige SCAS T0 submetido; gera trilhas AUTO + apoios da triagem.
+- `generatePdiFromT0` — CPC; exige SCAS T0 submetido; gera trilhas AUTO (regras T1–T13 do doc. "Adaptação SCAS - Trilhas", a partir das respostas do T0 e da triagem — ver `docs/SCAS.md`) + apoios da triagem.
 - `validateAndSendPdi` — CPC; valida conteúdo mínimo; `VALIDATED` + notificação `PDI_DISPONIVEL`.
 - `acceptPdi` — migrante; exige todas as secções percorridas; cria `pdi_acceptance`.
 - `revisePdi` — CPC; `SUPERSEDED` + nova versão `IN_REVIEW` + notificação `PDI_REVISTO`.

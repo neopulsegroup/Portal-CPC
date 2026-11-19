@@ -54,6 +54,30 @@
       "20": "Ler e escrever em português.",
       "21": "Adaptar o meu comportamento às normas sociais, regras, atitudes e costumes locais."
     },
+    "itemHintLabel": "O que significa esta pergunta?",
+    "itemHints": {
+      "1": "Tenho facilidade em fazer novos amigos e manter contacto regular com pessoas portuguesas ou residentes cá?",
+      "2": "Consigo cumprir com zelo os meus horários de trabalho/aulas, realizar as metas estipuladas e organizar as minhas tarefas diárias?",
+      "3": "Sinto-me confortável e confiante num jantar de grupo, numa festa local ou a conversar num café com conhecidos?",
+      "4": "Consigo continuar a praticar o que mais gosto aqui (ex.: desporto, leitura, religião, atividades ao ar livre ou passeios)?",
+      "5": "Lido bem com a rotina, o barulho urbano, a limpeza e o ambiente geral da rua ou do prédio onde resido atualmente?",
+      "6": "Consigo perceber facilmente as intenções das pessoas (se estão a brincar, a ser irónicas ou se estão chateadas) através da postura e do rosto?",
+      "7": "Consigo colaborar de forma harmoniosa em projetos de equipa com colegas locais ou de outras origens culturais?",
+      "8": "Sei como procurar e utilizar os serviços básicos ao meu dispor (ex.: Centro de Saúde, Junta de Freguesia, escolas ou transportes)?",
+      "9": "Sinto-me confortável com a quantidade de pessoas e a agitação da localidade (seja a calma de uma vila ou o movimento de uma cidade algarvia)?",
+      "10": "Consigo manter conversas quotidianas, compreender indicações na rua e fazer-me entender sem recorrer a tradutores?",
+      "11": "Percebo quando devo abrandar o ritmo da fala ou usar expressões locais para que os residentes me entendam melhor?",
+      "12": "Sei acolher conselhos, revisões ou críticas construtivas sobre as minhas tarefas e utilizá-las para evoluir no trabalho/estudos?",
+      "13": "Consigo ler o ambiente e o estado emocional de alguém em Portugal para reagir de forma empática e sem conflitos?",
+      "14": "Costumo frequentar feiras municipais, mercados locais, festas de bairro ou reuniões da comunidade onde vivo?",
+      "15": "Consigo deslocar-me sozinho, utilizar transportes públicos ou orientar-me com o auxílio do GPS do telemóvel para descobrir novos locais?",
+      "16": "Sinto-me à vontade para conversar, trabalhar ou conviver socialmente com pessoas do sexo oposto sem barreiras culturais?",
+      "17": "Consigo expor as minhas opiniões numa reunião ou sala de aula com clareza e respeito, de modo a evitar mal-entendidos ou atritos?",
+      "18": "Sinto-me capaz de tratar de documentação institucional (Finanças, Segurança Social, AIMA) de forma minimamente autónoma?",
+      "19": "Sinto-me perfeitamente habituado à velocidade com que as coisas acontecem no país (prazos, horários comerciais, tempos de atendimento)?",
+      "20": "Consigo ler notícias, preencher formulários simples e escrever mensagens ou emails sem grandes dificuldades?",
+      "21": "Já conheço e consigo respeitar os costumes de Portugal (como regras de convivência, horários de refeição e saudações comuns)?"
+    },
     "moments": {
       "T0": "Avaliação inicial",
       "T_TRILHA": "Após conclusão de trilha",
@@ -65,9 +89,9 @@
       "ASSISTIDO": "Assistido"
     },
     "recommendation": {
-      "obrigatoria": "Obrigatória",
+      "obrigatoria": "Necessária",
       "recomendada": "Recomendada",
-      "opcional": "Opcional"
+      "opcional": "Facultativa"
     },
     "migrant": {
       "ctaT0Title": "Complete a sua avaliação inicial",
@@ -162,10 +186,31 @@
       "ACCEPTED": "Aceite",
       "SUPERSEDED": "Arquivado"
     },
+    "trailRule": {
+      "label": "Regra do PDI",
+      "none": "Sem regra (não é proposta automaticamente no PDI)",
+      "fromTitle": "Automática pelo título: {rule}",
+      "hint": "Define como a trilha é proposta no PDI (Necessária / Recomendada / Facultativa), segundo o documento \"Adaptação SCAS - Trilhas\". Se ficar vazio, usa o prefixo do título (ex.: \"T3 - …\").",
+      "options": {
+        "T1": "T1 - Relações Sociais",
+        "T2": "T2 - Comunicação",
+        "T3": "T3 - Acesso a Serviços Essenciais",
+        "T4": "T4 - Viver em Portugal",
+        "T5": "T5 - Inserção Profissional",
+        "T6": "T6 - Situação Legal",
+        "T7": "T7 - Habitação",
+        "T8": "T8 - Acesso ao Serviço Nacional de Saúde (SNS)",
+        "T9": "T9 - Bem-Estar Emocional",
+        "T10": "T10 - Construção do CV",
+        "T11": "T11 - Técnicas de Procura de Emprego",
+        "T12": "T12 - LinkedIn / Redes Sociais",
+        "T13": "T13 - Preparação de Entrevistas"
+      }
+    },
     "trailState": {
-      "OBRIGATORIA": "Obrigatória",
+      "OBRIGATORIA": "Necessária",
       "RECOMENDADA": "Recomendada",
-      "OPCIONAL": "Opcional",
+      "OPCIONAL": "Facultativa",
       "NAO_INCLUIDA": "Não incluída"
     },
     "apoios": {
@@ -1333,6 +1378,13 @@
       "paginationHint": "{count} candidaturas no total. A versão atual mostra todas; paginação chega quando exceder 200."
     },
     "profile": {
+      "cepLookup": {
+        "hint": "Com o código postal completo (7 dígitos), a região é sugerida automaticamente. A morada que já escreveu não é alterada.",
+        "regionSuggested": "Região sugerida a partir do código postal. A morada não foi alterada.",
+        "addressAndRegionSuggested": "Morada e região sugeridas a partir do código postal. Pode ajustar se necessário.",
+        "notFound": "Não foi possível obter dados para este código postal.",
+        "lookupFailed": "Não foi possível consultar o código postal."
+      },
       "personalInfoGate": {
         "badge": "Ação necessária",
         "bannerTitle": "Complete a Informação Pessoal",

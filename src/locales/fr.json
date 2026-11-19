@@ -54,6 +54,30 @@
       "20": "Lire et écrire en portugais.",
       "21": "Adapter mon comportement aux normes sociales, règles, attitudes et coutumes locales."
     },
+    "itemHintLabel": "Que signifie cette question ?",
+    "itemHints": {
+      "1": "Ai-je de la facilité à me faire de nouveaux amis et à garder un contact régulier avec des Portugais ou des personnes résidant ici ?",
+      "2": "Est-ce que j'arrive à respecter avec rigueur mes horaires de travail/de cours, à atteindre les objectifs fixés et à organiser mes tâches quotidiennes ?",
+      "3": "Est-ce que je me sens à l'aise et en confiance lors d'un dîner en groupe, d'une fête locale ou en discutant au café avec des connaissances ?",
+      "4": "Est-ce que j'arrive à continuer à pratiquer ce que j'aime le plus ici (ex. : sport, lecture, religion, activités de plein air ou promenades) ?",
+      "5": "Est-ce que je vis bien la routine, le bruit urbain, la propreté et l'ambiance générale de la rue ou de l'immeuble où j'habite actuellement ?",
+      "6": "Est-ce que je comprends facilement les intentions des gens (s'ils plaisantent, sont ironiques ou contrariés) à travers leur posture et leur visage ?",
+      "7": "Est-ce que j'arrive à collaborer harmonieusement à des projets d'équipe avec des collègues locaux ou d'autres origines culturelles ?",
+      "8": "Est-ce que je sais trouver et utiliser les services de base à ma disposition (ex. : centre de santé, Junta de Freguesia, écoles ou transports) ?",
+      "9": "Est-ce que je me sens à l'aise avec le nombre de personnes et l'agitation de la localité (que ce soit le calme d'un village ou l'animation d'une ville de l'Algarve) ?",
+      "10": "Est-ce que j'arrive à tenir des conversations du quotidien, à comprendre des indications dans la rue et à me faire comprendre sans recourir à des traducteurs ?",
+      "11": "Est-ce que je sens quand je dois ralentir mon débit ou utiliser des expressions locales pour que les habitants me comprennent mieux ?",
+      "12": "Est-ce que je sais accueillir des conseils, des relectures ou des critiques constructives sur mes tâches et les utiliser pour progresser au travail/dans mes études ?",
+      "13": "Est-ce que j'arrive à lire l'ambiance et l'état émotionnel de quelqu'un au Portugal pour réagir avec empathie et sans conflit ?",
+      "14": "Est-ce que je fréquente habituellement les foires municipales, les marchés locaux, les fêtes de quartier ou les réunions de la communauté où je vis ?",
+      "15": "Est-ce que j'arrive à me déplacer seul, à utiliser les transports en commun ou à m'orienter avec le GPS de mon téléphone pour découvrir de nouveaux lieux ?",
+      "16": "Est-ce que je me sens à l'aise pour discuter, travailler ou avoir une vie sociale avec des personnes du sexe opposé, sans barrières culturelles ?",
+      "17": "Est-ce que j'arrive à exposer mes opinions en réunion ou en classe avec clarté et respect, de manière à éviter les malentendus ou les frictions ?",
+      "18": "Est-ce que je me sens capable de gérer des démarches administratives (Finances, Sécurité sociale, AIMA) de façon un minimum autonome ?",
+      "19": "Est-ce que je me sens parfaitement habitué au rythme auquel les choses se passent dans le pays (délais, horaires des commerces, temps d'attente) ?",
+      "20": "Est-ce que j'arrive à lire les actualités, à remplir des formulaires simples et à écrire des messages ou des e-mails sans grandes difficultés ?",
+      "21": "Est-ce que je connais déjà et respecte les coutumes du Portugal (comme les règles de savoir-vivre, les horaires des repas et les salutations courantes) ?"
+    },
     "moments": {
       "T0": "Évaluation initiale",
       "T_TRILHA": "Après avoir terminé un parcours",
@@ -65,7 +89,7 @@
       "ASSISTIDO": "Assisté"
     },
     "recommendation": {
-      "obrigatoria": "Obligatoire",
+      "obrigatoria": "Nécessaire",
       "recomendada": "Recommandée",
       "opcional": "Facultative"
     },
@@ -162,10 +186,31 @@
       "ACCEPTED": "Accepté",
       "SUPERSEDED": "Archivé"
     },
+    "trailRule": {
+      "label": "Règle du PDI",
+      "none": "Aucune règle (non proposé automatiquement dans le PDI)",
+      "fromTitle": "Automatique d'après le titre : {rule}",
+      "hint": "Définit comment le parcours est proposé dans le PDI (Nécessaire / Recommandé / Facultatif), selon le document « Adaptação SCAS - Trilhas ». Si le champ est vide, le préfixe du titre est utilisé (ex. : « T3 - … »).",
+      "options": {
+        "T1": "T1 - Relations sociales",
+        "T2": "T2 - Communication",
+        "T3": "T3 - Accès aux services essentiels",
+        "T4": "T4 - Vivre au Portugal",
+        "T5": "T5 - Insertion professionnelle",
+        "T6": "T6 - Situation légale",
+        "T7": "T7 - Logement",
+        "T8": "T8 - Accès au Service national de santé (SNS)",
+        "T9": "T9 - Bien-être émotionnel",
+        "T10": "T10 - Rédaction du CV",
+        "T11": "T11 - Techniques de recherche d'emploi",
+        "T12": "T12 - LinkedIn / Réseaux sociaux",
+        "T13": "T13 - Préparation aux entretiens"
+      }
+    },
     "trailState": {
-      "OBRIGATORIA": "Obligatoire",
+      "OBRIGATORIA": "Nécessaire",
       "RECOMENDADA": "Recommandée",
-      "OPCIONAL": "Optionnelle",
+      "OPCIONAL": "Facultative",
       "NAO_INCLUIDA": "Non incluse"
     },
     "apoios": {
@@ -1333,6 +1378,13 @@
       "paginationHint": "{count} candidatures au total. La vue actuelle les affiche toutes ; la pagination arrivera au-delà de 200."
     },
     "profile": {
+      "cepLookup": {
+        "hint": "Avec le code postal complet (7 chiffres), la région est suggérée automatiquement. L'adresse déjà saisie n'est pas modifiée.",
+        "regionSuggested": "Région suggérée à partir du code postal. L'adresse n'a pas été modifiée.",
+        "addressAndRegionSuggested": "Adresse et région suggérées à partir du code postal. Vous pouvez les ajuster si nécessaire.",
+        "notFound": "Impossible d'obtenir des données pour ce code postal.",
+        "lookupFailed": "Impossible de consulter le code postal."
+      },
       "personalInfoGate": {
         "badge": "Action requise",
         "bannerTitle": "Complétez les Informations personnelles",

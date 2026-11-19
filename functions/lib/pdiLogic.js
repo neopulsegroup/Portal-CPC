@@ -3,7 +3,7 @@
  * PDI — lógica de geração no servidor (espelho de src/lib/pdi/generation.ts).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PDI_REVIEW_SECTIONS = exports.PDI_DOMAIN_TARGET_MIN = exports.SCAS_META_TARGET_PERCENT = exports.SCAS_RECOMMENDATION_RECOMMENDED_MAX = exports.SCAS_RECOMMENDATION_MANDATORY_BELOW = void 0;
+exports.PDI_REVIEW_SECTIONS = exports.PDI_DOMAIN_TARGET_MIN = exports.SCAS_META_TARGET_PERCENT = exports.SCAS_RECOMMENDATION_RECOMMENDED_MAX = exports.SCAS_RECOMMENDATION_MANDATORY_MAX = void 0;
 exports.recommendTrail = recommendTrail;
 exports.mapRecommendationToPdiState = mapRecommendationToPdiState;
 exports.computeTargetGlobal = computeTargetGlobal;
@@ -15,12 +15,14 @@ exports.includedTrilhas = includedTrilhas;
 exports.allReviewSectionsViewed = allReviewSectionsViewed;
 exports.validatePdiForSend = validatePdiForSend;
 const scasScoring_1 = require("./scasScoring");
-exports.SCAS_RECOMMENDATION_MANDATORY_BELOW = 3.0;
+const pdiTrailRules_1 = require("./pdiTrailRules");
+/** ≤ 3,0 → Necessária (doc. cliente "Adaptação SCAS - Trilhas"). */
+exports.SCAS_RECOMMENDATION_MANDATORY_MAX = 3.0;
 exports.SCAS_RECOMMENDATION_RECOMMENDED_MAX = 3.5;
 exports.SCAS_META_TARGET_PERCENT = 20;
 exports.PDI_DOMAIN_TARGET_MIN = 3.0;
 function recommendTrail(domainScore) {
-    if (domainScore < exports.SCAS_RECOMMENDATION_MANDATORY_BELOW)
+    if (domainScore <= exports.SCAS_RECOMMENDATION_MANDATORY_MAX)
         return 'obrigatoria';
     if (domainScore <= exports.SCAS_RECOMMENDATION_RECOMMENDED_MAX)
         return 'recomendada';
@@ -43,7 +45,14 @@ function computeTargetForDomain(domainScore) {
         return exports.PDI_DOMAIN_TARGET_MIN;
     return (0, scasScoring_1.roundScore)(Math.min(5, domainScore + 0.5));
 }
-function generateAutoTrilhas(scores, trails) {
+/**
+ * Gera trilhas AUTO (espelho de src/lib/pdi/generation.ts):
+ * - trilhas com regra T1–T13 (`pdi_rule` ou título "T<n> - …") → regras do doc. "Adaptação SCAS - Trilhas";
+ * - restantes com `scas_domain` → score T0 do domínio.
+ */
+function generateAutoTrilhas(scores, trails, context = {}) {
+    const responses = context.responses ?? {};
+    const triage = context.triage ?? pdiTrailRules_1.EMPTY_TRIAGE_RULE_INPUT;
     const byDomain = {
         D1: scores.score_d1 != null ? recommendTrail(scores.score_d1) : null,
         D2: scores.score_d2 != null ? recommendTrail(scores.score_d2) : null,
@@ -52,6 +61,22 @@ function generateAutoTrilhas(scores, trails) {
     };
     const result = [];
     for (const trail of trails) {
+        const rule = (0, pdiTrailRules_1.resolveTrailRuleKey)(trail);
+        if (rule) {
+            const byRule = (0, pdiTrailRules_1.recommendTrailByRule)(rule, responses, triage);
+            if (!byRule)
+                continue;
+            result.push({
+                trail_id: trail.id,
+                recommended_state: mapRecommendationToPdiState(byRule),
+                origin: 'AUTO',
+                scas_domain: trail.scas_domain ?? null,
+                start_date: null,
+                end_date: null,
+                completion_status: 'NAO_INICIADA',
+            });
+            continue;
+        }
         if (!trail.scas_domain)
             continue;
         const domain = trail.scas_domain;

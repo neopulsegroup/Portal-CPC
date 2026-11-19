@@ -5,7 +5,8 @@
  * Espelha src/lib/scas/{constants,scoring}.ts. Mantido aqui porque o pacote
  * `functions` é compilado isoladamente (rootDir=src, CommonJS) e não importa
  * de `../src`. Qualquer alteração às regras de cálculo deve ser refletida em
- * ambos os locais. Os números 3,0/3,5/15%/20% são fixos (EMPIS).
+ * ambos os locais. Os números 3,0/3,5/15%/20% são fixos (EMPIS); a recomendação de trilhas
+ * está em pdiLogic.ts / pdiTrailRules.ts.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SCAS_ITEM_IDS = exports.SCAS_DOMAIN_ITEMS = exports.SCAS_SCORE_DECIMALS = exports.SCAS_TOTAL_ITEMS = exports.SCAS_MAX_VALUE = exports.SCAS_MIN_VALUE = void 0;

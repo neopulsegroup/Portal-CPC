@@ -10,13 +10,29 @@ import {
   PDI_DOMAIN_TARGET_MIN,
   PDI_TARGET_GLOBAL_MULTIPLIER,
 } from './constants';
+import {
+  EMPTY_TRIAGE_RULE_INPUT,
+  recommendTrailByRule,
+  resolveTrailRuleKey,
+  type PdiScasResponseMap,
+  type PdiTrailRuleKey,
+  type PdiTriageRuleInput,
+} from './trailRules';
 import type { PdiApoioEntry, PdiApoioType, PdiTrailState, PdiTrilhaEntry } from './types';
 
 export interface TrailCatalogRow {
   id: string;
   title?: string | null;
   scas_domain?: ScasDomain | null;
+  /** Regra do PDI (T1–T13). Se vazia, usa o prefixo "T<n> - " do título. */
+  pdi_rule?: PdiTrailRuleKey | null;
   is_active?: boolean;
+}
+
+/** Dados extra para as regras do PDF: respostas SCAS do T0 e campos da triagem. */
+export interface AutoTrilhasContext {
+  responses?: PdiScasResponseMap;
+  triage?: PdiTriageRuleInput | null;
 }
 
 export interface TriageUrgencyHints {
@@ -54,11 +70,19 @@ export function computeTargetForDomain(domainScore: number | null): number | nul
   return roundScore(Math.min(5, domainScore + 0.5));
 }
 
-/** Gera trilhas AUTO a partir dos scores T0 e catálogo com `scas_domain`. */
+/**
+ * Gera trilhas AUTO para o PDI.
+ * - Trilhas com regra T1–T13 (campo `pdi_rule` ou título "T<n> - …"): regras do documento
+ *   do cliente "Adaptação SCAS - Trilhas" (ver `trailRules.ts`).
+ * - Restantes trilhas com `scas_domain`: recomendação pelo score T0 do domínio (comportamento anterior).
+ */
 export function generateAutoTrilhas(
   scores: T0Scores,
-  trails: TrailCatalogRow[]
+  trails: TrailCatalogRow[],
+  context: AutoTrilhasContext = {}
 ): PdiTrilhaEntry[] {
+  const responses = context.responses ?? {};
+  const triage = context.triage ?? EMPTY_TRIAGE_RULE_INPUT;
   const byDomain: Record<ScasDomain, ScasTrailRecommendation | null> = {
     D1:
       scores.score_d1 != null
@@ -80,6 +104,21 @@ export function generateAutoTrilhas(
 
   const result: PdiTrilhaEntry[] = [];
   for (const trail of trails) {
+    const rule = resolveTrailRuleKey(trail);
+    if (rule) {
+      const byRule = recommendTrailByRule(rule, responses, triage);
+      if (!byRule) continue;
+      result.push({
+        trail_id: trail.id,
+        recommended_state: mapRecommendationToPdiState(byRule),
+        origin: 'AUTO',
+        scas_domain: trail.scas_domain ?? null,
+        start_date: null,
+        end_date: null,
+        completion_status: 'NAO_INICIADA',
+      });
+      continue;
+    }
     if (!trail.scas_domain) continue;
     const domain = trail.scas_domain as ScasDomain;
     const recommendation = byDomain[domain];

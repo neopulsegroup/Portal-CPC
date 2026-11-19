@@ -60,8 +60,12 @@ export const SCAS_ITEM_DOMAIN: Record<number, ScasDomain> = (() => {
   return map;
 })();
 
-/** Faixas de recomendação de trilha a partir do score T0 por domínio (prompt 4.4). */
-export const SCAS_RECOMMENDATION_MANDATORY_BELOW = 3.0;
+/**
+ * Faixas de recomendação de trilha a partir do score T0 (doc. cliente "Adaptação SCAS - Trilhas"):
+ * ≤ 3,0 → Necessária (obrigatoria); > 3,0 e ≤ 3,5 → Recomendada; > 3,5 → Facultativa (opcional).
+ * Decisão 2026-11-19: o 3,0 passa a ser Necessária (antes era Recomendada).
+ */
+export const SCAS_RECOMMENDATION_MANDATORY_MAX = 3.0;
 export const SCAS_RECOMMENDATION_RECOMMENDED_MAX = 3.5;
 
 /** Metas de melhoria T0 → T-PDI (prompt 4.5). */

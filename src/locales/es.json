@@ -54,6 +54,30 @@
       "20": "Leer y escribir en portugués.",
       "21": "Adaptar mi comportamiento a las normas sociales, reglas, actitudes y costumbres locales."
     },
+    "itemHintLabel": "¿Qué significa esta pregunta?",
+    "itemHints": {
+      "1": "¿Me resulta fácil hacer nuevos amigos y mantener un contacto regular con personas portuguesas o residentes aquí?",
+      "2": "¿Consigo cumplir con esmero mis horarios de trabajo/clases, alcanzar las metas fijadas y organizar mis tareas diarias?",
+      "3": "¿Me siento cómodo y seguro en una cena de grupo, en una fiesta local o conversando en un café con conocidos?",
+      "4": "¿Consigo seguir practicando lo que más me gusta aquí (p. ej.: deporte, lectura, religión, actividades al aire libre o paseos)?",
+      "5": "¿Llevo bien la rutina, el ruido urbano, la limpieza y el ambiente general de la calle o del edificio donde vivo actualmente?",
+      "6": "¿Consigo percibir fácilmente las intenciones de las personas (si están bromeando, siendo irónicas o si están molestas) a través de su postura y su rostro?",
+      "7": "¿Consigo colaborar de forma armoniosa en proyectos de equipo con compañeros locales o de otros orígenes culturales?",
+      "8": "¿Sé cómo buscar y utilizar los servicios básicos a mi disposición (p. ej.: Centro de Salud, Junta de Freguesia, escuelas o transportes)?",
+      "9": "¿Me siento cómodo con la cantidad de personas y el ajetreo de la localidad (ya sea la calma de un pueblo o el movimiento de una ciudad del Algarve)?",
+      "10": "¿Consigo mantener conversaciones cotidianas, entender indicaciones en la calle y hacerme entender sin recurrir a traductores?",
+      "11": "¿Me doy cuenta de cuándo debo hablar más despacio o usar expresiones locales para que los residentes me entiendan mejor?",
+      "12": "¿Sé acoger consejos, revisiones o críticas constructivas sobre mis tareas y utilizarlos para mejorar en el trabajo/los estudios?",
+      "13": "¿Consigo leer el ambiente y el estado emocional de alguien en Portugal para reaccionar con empatía y sin conflictos?",
+      "14": "¿Suelo ir a ferias municipales, mercados locales, fiestas de barrio o reuniones de la comunidad donde vivo?",
+      "15": "¿Consigo desplazarme solo, utilizar el transporte público u orientarme con el GPS del móvil para descubrir nuevos lugares?",
+      "16": "¿Me siento a gusto conversando, trabajando o relacionándome socialmente con personas del sexo opuesto sin barreras culturales?",
+      "17": "¿Consigo expresar mis opiniones en una reunión o en el aula con claridad y respeto, para evitar malentendidos o roces?",
+      "18": "¿Me siento capaz de tramitar documentación institucional (Hacienda, Seguridad Social, AIMA) de forma mínimamente autónoma?",
+      "19": "¿Me siento totalmente habituado a la velocidad con la que suceden las cosas en el país (plazos, horarios comerciales, tiempos de atención)?",
+      "20": "¿Consigo leer noticias, rellenar formularios sencillos y escribir mensajes o correos electrónicos sin grandes dificultades?",
+      "21": "¿Ya conozco y consigo respetar las costumbres de Portugal (como las normas de convivencia, los horarios de las comidas y los saludos habituales)?"
+    },
     "moments": {
       "T0": "Evaluación inicial",
       "T_TRILHA": "Tras completar una ruta",
@@ -65,9 +89,9 @@
       "ASSISTIDO": "Asistido"
     },
     "recommendation": {
-      "obrigatoria": "Obligatoria",
+      "obrigatoria": "Necesaria",
       "recomendada": "Recomendada",
-      "opcional": "Opcional"
+      "opcional": "Facultativa"
     },
     "migrant": {
       "ctaT0Title": "Complete su evaluación inicial",
@@ -162,10 +186,31 @@
       "ACCEPTED": "Aceptado",
       "SUPERSEDED": "Archivado"
     },
+    "trailRule": {
+      "label": "Regla del PDI",
+      "none": "Sin regla (no se propone automáticamente en el PDI)",
+      "fromTitle": "Automática por el título: {rule}",
+      "hint": "Define cómo se propone la ruta en el PDI (Necesaria / Recomendada / Facultativa), según el documento \"Adaptação SCAS - Trilhas\". Si se deja vacío, se usa el prefijo del título (p. ej.: \"T3 - …\").",
+      "options": {
+        "T1": "T1 - Relaciones Sociales",
+        "T2": "T2 - Comunicación",
+        "T3": "T3 - Acceso a Servicios Esenciales",
+        "T4": "T4 - Vivir en Portugal",
+        "T5": "T5 - Inserción Profesional",
+        "T6": "T6 - Situación Legal",
+        "T7": "T7 - Vivienda",
+        "T8": "T8 - Acceso al Servicio Nacional de Salud (SNS)",
+        "T9": "T9 - Bienestar Emocional",
+        "T10": "T10 - Elaboración del CV",
+        "T11": "T11 - Técnicas de Búsqueda de Empleo",
+        "T12": "T12 - LinkedIn / Redes Sociales",
+        "T13": "T13 - Preparación de Entrevistas"
+      }
+    },
     "trailState": {
-      "OBRIGATORIA": "Obligatoria",
+      "OBRIGATORIA": "Necesaria",
       "RECOMENDADA": "Recomendada",
-      "OPCIONAL": "Opcional",
+      "OPCIONAL": "Facultativa",
       "NAO_INCLUIDA": "No incluida"
     },
     "apoios": {
@@ -1333,6 +1378,13 @@
       "paginationHint": "{count} candidaturas en total. La vista actual las muestra todas; la paginación llegará al superar 200."
     },
     "profile": {
+      "cepLookup": {
+        "hint": "Con el código postal completo (7 dígitos), la región se sugiere automáticamente. La dirección que ya ha escrito no se modifica.",
+        "regionSuggested": "Región sugerida a partir del código postal. La dirección no se ha modificado.",
+        "addressAndRegionSuggested": "Dirección y región sugeridas a partir del código postal. Puede ajustarlas si es necesario.",
+        "notFound": "No se han podido obtener datos para este código postal.",
+        "lookupFailed": "No se ha podido consultar el código postal."
+      },
       "personalInfoGate": {
         "badge": "Acción necesaria",
         "bannerTitle": "Complete la Información Personal",

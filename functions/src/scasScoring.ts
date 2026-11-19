@@ -4,7 +4,8 @@
  * Espelha src/lib/scas/{constants,scoring}.ts. Mantido aqui porque o pacote
  * `functions` é compilado isoladamente (rootDir=src, CommonJS) e não importa
  * de `../src`. Qualquer alteração às regras de cálculo deve ser refletida em
- * ambos os locais. Os números 3,0/3,5/15%/20% são fixos (EMPIS).
+ * ambos os locais. Os números 3,0/3,5/15%/20% são fixos (EMPIS); a recomendação de trilhas
+ * está em pdiLogic.ts / pdiTrailRules.ts.
  */
 
 export type ScasDomain = 'D1' | 'D2' | 'D3' | 'D4';

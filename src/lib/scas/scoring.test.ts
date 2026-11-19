@@ -125,13 +125,14 @@ describe('completude por âmbito', () => {
 });
 
 describe('recomendação de trilhas (prompt 4.4)', () => {
-  it('< 3,0 → obrigatória', () => {
+  it('≤ 3,0 → necessária (obrigatoria), incluindo o 3,0', () => {
     expect(recommendTrail(2.9)).toBe('obrigatoria');
     expect(recommendTrail(1.0)).toBe('obrigatoria');
+    expect(recommendTrail(3.0)).toBe('obrigatoria');
   });
 
-  it('3,0 a 3,5 → recomendada (fronteiras inclusive)', () => {
-    expect(recommendTrail(3.0)).toBe('recomendada');
+  it('> 3,0 e ≤ 3,5 → recomendada', () => {
+    expect(recommendTrail(3.01)).toBe('recomendada');
     expect(recommendTrail(3.2)).toBe('recomendada');
     expect(recommendTrail(3.5)).toBe('recomendada');
   });

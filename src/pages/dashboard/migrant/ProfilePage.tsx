@@ -743,24 +743,29 @@ export default function ProfilePage() {
     setCepLookupStatus('loading');
     setCepLookupMessage(null);
 
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void (async () => {
         try {
           const result = await lookupAddressFromPortugalCep(edit.cep);
           if (seq !== cepLookupSeq.current) return;
           if (!result) {
             setCepLookupStatus('error');
-            setCepLookupMessage('Não foi possível sugerir morada para este CEP.');
+            setCepLookupMessage(t.get('migrant.profile.cepLookup.notFound'));
             return;
           }
           let applied = false;
+          let addressFilled = false;
           setEdit((s) => {
             if (locationFieldsManualRef.current || seq !== cepLookupSeq.current) return s;
             applied = true;
+            // A Morada (rua) nunca é substituída pela localidade do CEP: só é preenchida
+            // quando está vazia e a fonte devolve a rua exata desse CEP.
+            const hasAddress = s.address.trim().length > 0;
+            addressFilled = !hasAddress && !!result.street;
             return {
               ...s,
               cep: formatPortugalCepDigits(d7),
-              address: result.addressLine,
+              address: addressFilled && result.street ? result.street : s.address,
               region: result.region,
               regionOther: result.region === 'Outra' ? result.regionOther : '',
             };
@@ -774,19 +779,22 @@ export default function ProfilePage() {
               return;
             }
             setCepLookupStatus('ok');
-            setCepLookupMessage('Morada e região sugeridas a partir do CEP. Pode ajustar se necessário.');
+            setCepLookupMessage(
+              t.get(addressFilled ? 'migrant.profile.cepLookup.addressAndRegionSuggested' : 'migrant.profile.cepLookup.regionSuggested')
+            );
           });
         } catch {
           if (seq !== cepLookupSeq.current) return;
           setCepLookupStatus('error');
-          setCepLookupMessage('Não foi possível consultar o CEP.');
+          setCepLookupMessage(t.get('migrant.profile.cepLookup.lookupFailed'));
         }
       })();
     }, 500);
 
     return () => {
-      window.clearTimeout(t);
+      window.clearTimeout(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` só formata mensagens; não deve redisparar a consulta ao CEP
   }, [editMode, edit.cep]);
 
   async function save() {
@@ -2241,7 +2249,7 @@ export default function ProfilePage() {
                     </p>
                   ) : null}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Com o código postal completo (7 dígitos), ao alterar o CEP a morada e a região podem ser sugeridas automaticamente.
+                    {t.get('migrant.profile.cepLookup.hint')}
                   </p>
                   {personalInfoErrors.cep ? (
                     <p className="text-sm font-medium text-destructive mt-2">{personalInfoErrors.cep}</p>
