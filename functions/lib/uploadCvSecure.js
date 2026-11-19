@@ -5,7 +5,6 @@ const node_crypto_1 = require("node:crypto");
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("./admin");
-const permissions_1 = require("./permissions");
 const CV_CORS_ORIGINS = [
     'https://www.portalcpc.com',
     'https://portalcpc.com',
@@ -46,38 +45,6 @@ function inferMimeType(fileName, mimeType) {
         return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     }
     return '';
-}
-function companyUserIdMatches(data, uid) {
-    if (!data)
-        return false;
-    const userId = data.user_id ?? data.userId;
-    if (typeof userId === 'string' && userId === uid)
-        return true;
-    if (userId && typeof userId === 'object' && 'path' in userId) {
-        const path = String(userId.path || '');
-        return path.endsWith(`/${uid}`);
-    }
-    return false;
-}
-async function employerOwnsCompanyId(uid, companyId) {
-    if (!companyId)
-        return false;
-    if (companyId === uid)
-        return true;
-    const compSnap = await (0, admin_1.getFirestore)().doc(`companies/${companyId}`).get();
-    if (!compSnap.exists)
-        return false;
-    return companyUserIdMatches(compSnap.data(), uid);
-}
-async function isEmployerPublisher(uid) {
-    const db = (0, admin_1.getFirestore)();
-    const [userSnap, profileSnap] = await Promise.all([db.doc(`users/${uid}`).get(), db.doc(`profiles/${uid}`).get()]);
-    const roleFrom = (data) => {
-        const raw = data?.role ?? data?.profile ?? data?.perfil ?? data?.type;
-        return typeof raw === 'string' ? raw.toLowerCase() : '';
-    };
-    const role = roleFrom(userSnap.data()) || roleFrom(profileSnap.data());
-    return role === 'company' || role === 'empresa';
 }
 function inferCvFileExtension(fileName) {
     const lower = fileName.toLowerCase();
@@ -146,35 +113,8 @@ async function deleteProfileExternalCvFilesServer(uploaderUid, previousUrl) {
         await Promise.all(Array.from(paths).map((path) => deleteStoragePathIfExists(bucketName, path)));
     }
 }
-async function assertCanUploadCv(uid, contextType, contextId) {
-    if (contextType === 'migrant' || contextType === 'profile') {
-        if (contextId !== uid) {
-            throw new https_1.HttpsError('permission-denied', 'Sem permissão para gerir o CV deste utilizador.');
-        }
-        return;
-    }
-    if (contextType !== 'application') {
-        throw new https_1.HttpsError('invalid-argument', 'Tipo de contexto não suportado.');
-    }
-    const appSnap = await (0, admin_1.getFirestore)().doc(`job_applications/${contextId}`).get();
-    if (!appSnap.exists) {
-        throw new https_1.HttpsError('not-found', 'Candidatura não encontrada.');
-    }
-    const app = appSnap.data() ?? {};
-    if (app.applicant_id === uid)
-        return;
-    if (await (0, permissions_1.isAdminUser)(uid))
-        return;
-    const jobId = typeof app.job_id === 'string' ? app.job_id : '';
-    if (!jobId) {
-        throw new https_1.HttpsError('permission-denied', 'Sem permissão para anexar CV a esta candidatura.');
-    }
-    const jobSnap = await (0, admin_1.getFirestore)().doc(`job_offers/${jobId}`).get();
-    const companyId = typeof jobSnap.data()?.company_id === 'string' ? jobSnap.data().company_id : '';
-    if ((await isEmployerPublisher(uid)) && companyId && (await employerOwnsCompanyId(uid, companyId))) {
-        return;
-    }
-    throw new https_1.HttpsError('permission-denied', 'Sem permissão para anexar CV a esta candidatura.');
+async function assertCanUploadCv(_uid, _contextType, _contextId) {
+    throw new https_1.HttpsError('failed-precondition', 'O carregamento de currículo externo foi desativado. Use o currículo CPC do candidato.');
 }
 function buildDownloadUrl(bucketName, storagePath, token) {
     return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media&token=${token}`;

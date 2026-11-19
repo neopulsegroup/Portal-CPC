@@ -1502,6 +1502,7 @@
         "incorrectAnswerPlaceholder": "Respuesta incorrecta {n}",
         "validation": {
           "minQuestions": "Añade al menos una pregunta.",
+          "maxQuestions": "Máximo de {max} preguntas por cuestionario.",
           "questionEmpty": "Cada pregunta necesita texto.",
           "minOptions": "Cada pregunta necesita al menos 2 opciones.",
           "maxOptions": "Máximo de {max} opciones por pregunta (1 correcta + incorrectas).",

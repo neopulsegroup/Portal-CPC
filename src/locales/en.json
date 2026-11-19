@@ -1502,6 +1502,7 @@
         "selectCoverImage": "Select image",
         "validation": {
           "minQuestions": "Add at least one question.",
+          "maxQuestions": "Maximum of {max} questions per quiz.",
           "questionEmpty": "Each question needs text.",
           "minOptions": "Each question needs at least 2 options.",
           "maxOptions": "Maximum of {max} options per question (1 correct + incorrect).",

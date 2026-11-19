@@ -5,6 +5,7 @@ import {
   buildQuizDisplayMap,
   makeEmptyQuizQuestionDraft,
   mapDisplayAnswerToOriginalIndex,
+  MAX_QUIZ_QUESTIONS,
   shuffleQuizOptions,
   validateQuizQuestionDrafts,
 } from '@/lib/quizOptions';
@@ -54,6 +55,23 @@ describe('quizOptions', () => {
         passing_score: 70,
       })
     ).toBe('curriculum.quiz.editor.validation.correctAnswerEmpty');
+  });
+
+  it('accepts up to MAX_QUIZ_QUESTIONS questions and rejects more', () => {
+    const makeQuestions = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `q${i}`,
+        question: `Pergunta ${i}?`,
+        correctAnswer: 'Certa',
+        incorrectAnswers: ['Errada'],
+      }));
+
+    expect(MAX_QUIZ_QUESTIONS).toBe(50);
+    expect(validateQuizQuestionDrafts({ questions: makeQuestions(7), passing_score: 70 })).toBeNull();
+    expect(validateQuizQuestionDrafts({ questions: makeQuestions(MAX_QUIZ_QUESTIONS), passing_score: 70 })).toBeNull();
+    expect(validateQuizQuestionDrafts({ questions: makeQuestions(MAX_QUIZ_QUESTIONS + 1), passing_score: 70 })).toBe(
+      'curriculum.quiz.editor.validation.maxQuestions'
+    );
   });
 
   it('shuffles options while preserving original correct index mapping', () => {

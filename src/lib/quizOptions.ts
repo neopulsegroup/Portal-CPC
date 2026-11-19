@@ -14,6 +14,9 @@ export interface QuizQuestionDraft {
 
 export const MAX_QUIZ_OPTIONS = 10;
 
+/** Número máximo de perguntas por quiz de módulo de trilha. */
+export const MAX_QUIZ_QUESTIONS = 50;
+
 export type ShuffledQuizOptions = {
   displayOptions: string[];
   displayToOriginal: number[];
@@ -63,6 +66,7 @@ export function validateQuizQuestionDrafts(args: {
   passing_score: number;
 }): string | null {
   if (args.questions.length < 1) return 'curriculum.quiz.editor.validation.minQuestions';
+  if (args.questions.length > MAX_QUIZ_QUESTIONS) return 'curriculum.quiz.editor.validation.maxQuestions';
 
   for (const question of args.questions) {
     if (!question.question.trim()) return 'curriculum.quiz.editor.validation.questionEmpty';

@@ -9,6 +9,7 @@ import {
   buildQuizQuestionFromDraft,
   makeEmptyQuizQuestionDraft,
   MAX_QUIZ_OPTIONS,
+  MAX_QUIZ_QUESTIONS,
   quizQuestionDataToDraft,
   validateQuizQuestionDrafts,
   type QuizQuestionData,
@@ -661,7 +662,7 @@ export default function TrailEditorPage() {
   }
 
   function addQuizQuestion() {
-    if (newQuiz.questions.length >= 5) return;
+    if (newQuiz.questions.length >= MAX_QUIZ_QUESTIONS) return;
     setNewQuiz((q) => ({ ...q, questions: [...q.questions, makeEmptyQuizQuestionDraft()] }));
   }
 
@@ -725,6 +726,9 @@ export default function TrailEditorPage() {
   function renderQuizErrorMessage(errorKey: string) {
     if (errorKey === 'curriculum.quiz.editor.validation.maxOptions') {
       return t.get(errorKey, { max: MAX_QUIZ_OPTIONS });
+    }
+    if (errorKey === 'curriculum.quiz.editor.validation.maxQuestions') {
+      return t.get(errorKey, { max: MAX_QUIZ_QUESTIONS });
     }
     return t.get(errorKey);
   }
@@ -1144,7 +1148,7 @@ export default function TrailEditorPage() {
                 variant="outline"
                 size="sm"
                 onClick={addQuizQuestion}
-                disabled={newQuiz.questions.length >= 5}
+                disabled={newQuiz.questions.length >= MAX_QUIZ_QUESTIONS}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 {t.get('curriculum.quiz.editor.addQuestion')}

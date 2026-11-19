@@ -1502,6 +1502,7 @@
         "incorrectAnswerPlaceholder": "Mauvaise réponse {n}",
         "validation": {
           "minQuestions": "Ajoutez au moins une question.",
+          "maxQuestions": "Maximum de {max} questions par quiz.",
           "questionEmpty": "Chaque question doit contenir du texte.",
           "minOptions": "Chaque question doit avoir au moins 2 options.",
           "maxOptions": "Maximum de {max} options par question (1 correcte + incorrectes).",

@@ -165,4 +165,18 @@ describe('TrailEditorPage — quiz editor', () => {
     await user.click(addBtn);
     expect(screen.getByText('Pergunta 2')).toBeInTheDocument();
   });
+
+  it('permite mais de 5 perguntas e bloqueia o botão ao atingir o máximo (50)', async () => {
+    const user = userEvent.setup();
+    await renderEditor();
+    await user.selectOptions(screen.getByLabelText('Tipo de conteúdo'), 'quiz');
+
+    const addBtn = screen.getByRole('button', { name: /Adicionar pergunta/i });
+    for (let i = 1; i < 50; i += 1) {
+      await user.click(addBtn);
+    }
+    expect(screen.getByText('Pergunta 7')).toBeInTheDocument();
+    expect(screen.getByText('Pergunta 50')).toBeInTheDocument();
+    expect(addBtn).toBeDisabled();
+  }, 60000);
 });
